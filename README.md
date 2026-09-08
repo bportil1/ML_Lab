@@ -128,7 +128,7 @@ Clustering artifacts include `result.json`, `metrics.csv`, `candidates.csv`, `cl
 
 ## Representation / compression
 
-Stable representation operations are available through `ml_lab.representation`. PCA works with the base install; the MLP autoencoder requires the optional neural dependency.
+Stable representation operations are available through `ml_lab.representation`. PCA works with the base install; MLP and Transformer autoencoders require the optional neural dependency.
 
 ```bash
 ml-lab represent data.csv --method pca --components 3 --output results/pca
@@ -140,6 +140,15 @@ ml-lab represent data.csv \
   --latent-dim 8 \
   --epochs 100 \
   --output results/autoencoder
+
+ml-lab represent data.csv \
+  --method transformer_autoencoder \
+  --token-width 4 \
+  --model-dim 64 \
+  --nhead 4 \
+  --latent-dim 16 \
+  --epochs 100 \
+  --output results/transformer-autoencoder
 ```
 
 Python:
@@ -160,9 +169,20 @@ ae_result = representation.autoencode(
     ),
     training_config=representation.AutoencoderTrainingConfig(epochs=100),
 )
+
+transformer_result = representation.transformer_autoencode(
+    X,
+    model_config=representation.TransformerAutoencoderConfig(
+        token_width=4,
+        model_dim=64,
+        nhead=4,
+        latent_dim=16,
+    ),
+    training_config=representation.AutoencoderTrainingConfig(epochs=100),
+)
 ```
 
-The stable MLP autoencoder exposes separate `encode()`, `decode()`, and `forward()` model methods. Training is kept outside the model object. Results contain latent vectors, reconstructions in the original feature scale, reconstruction metrics, training history where applicable, and model/transformation provenance.
+The stable MLP and Transformer autoencoders expose separate `encode()`, `decode()`, and `forward()` model methods. Training is kept outside the model object. Results contain latent vectors, reconstructions in the original feature scale, reconstruction metrics, training history where applicable, and model/transformation provenance.
 
 Representation artifacts include `result.json`, `latent.csv`, `reconstruction.csv`, plus `transformer.joblib` for PCA or `model.pt`, optional `scaler.joblib`, and `training_history.csv` for neural runs.
 
@@ -200,7 +220,7 @@ ml-lab experimental info <experiment_id>
 ml-lab experimental run <experiment_id> --kwargs-json '{"example": 1}'
 ```
 
-Built-in experimental modules include `linux_binary_identification`, `binary_fractal_conversion`, and `max_clique_rl`.
+Built-in experimental modules include `linux_binary_identification`, `binary_fractal_conversion`, `max_clique_rl`, `transformer_vae`, and `transformer_vae_decomposed`.
 
 Programmatic hosts can register an experiment without importing its implementation:
 
@@ -253,7 +273,7 @@ POST /run/representation
 
 When a host explicitly creates the Blueprint with `enable_experimental=True`, it additionally exposes experimental manifest/list/run routes. Experimental HTTP execution is disabled by default.
 
-The run endpoints accept JSON-shaped arrays (`X`, `y`/`y_true`, optional estimator lists, and task config dictionaries) and return serializable ML Lab result records. Representation payloads use `method="pca"` with `config`, or `method="mlp_autoencoder"` with `model_config` and `training_config`. The adapter is synchronous and intentionally thin; PAH remains responsible for workspace state, long-running job orchestration, authentication, and visualization.
+The run endpoints accept JSON-shaped arrays (`X`, `y`/`y_true`, optional estimator lists, and task config dictionaries) and return serializable ML Lab result records. Representation payloads use `method="pca"` with `config`, or `method="mlp_autoencoder"` / `method="transformer_autoencoder"` with `model_config` and `training_config`. Transformer payloads may contain either 2-D feature matrices or pre-tokenized 3-D arrays. The adapter is synchronous and intentionally thin; PAH remains responsible for workspace state, long-running job orchestration, authentication, and visualization.
 
 ## Built-in experimental modules
 
@@ -274,7 +294,7 @@ ml-lab experimental run linux_binary_identification \
   --kwargs-json '{"mode":"patch_tokens","data":[0,1,2,3],"image_size":2,"patch_size":1}'
 ```
 
-The experimental Transformer implementation accepts pre-tokenized numeric tensors and deliberately separates model definition from file conversion. It is a candidate source for a future stable `ml_lab.representation` module, not that stable module itself.
+The binary-specific experiment now delegates generic Transformer model/training behavior to the stable `ml_lab.representation` Transformer autoencoder. Byte/RGB/patch conversion remains experimental and domain-specific.
 
 ### Max Clique RL
 
@@ -295,7 +315,7 @@ pip install -e '.[experimental-neural]'
 
 ## Shared neural infrastructure
 
-ML Lab 0.6.0 introduces `ml_lab.neural`, a task-neutral foundation for stable neural models. Importing it does not import PyTorch. The shared layer provides:
+ML Lab 0.7.0 includes `ml_lab.neural`, a task-neutral foundation for stable neural models. Importing it does not import PyTorch. The shared layer provides:
 
 - common neural training configuration;
 - deterministic Python/NumPy/PyTorch seeding;
@@ -331,3 +351,45 @@ ml-lab represent data.csv \
 ```
 
 Callbacks are available to programmatic callers through the `callbacks=` argument on `representation.autoencode()` / `representation.run()`. This infrastructure is intended to be reused by the stable Transformer autoencoder, GAN, and later energy-based model trainers rather than allowing each neural family to invent its own runtime/checkpoint/history conventions.
+
+
+## Stable Transformer autoencoder (0.7.0)
+
+The Transformer autoencoder promoted from the Linux-binary experiment is now a generic stable representation model. It accepts either ordinary 2-D feature matrices or pre-tokenized 3-D tensors. Two-dimensional matrices are split into adjacent fixed-width tokens, with zero padding masked out of attention pooling and reconstruction loss. Three-dimensional inputs are treated as already tokenized sequences.
+
+The stable implementation fixes several prototype hazards from the legacy lineage: file/image preprocessing is outside the model; the model does not own an optimizer or override `nn.Module.train()`; VAE-specific losses are not mixed into a deterministic autoencoder; decoder queries and latent memory have explicit shapes; padded elements do not affect reconstruction loss; and arbitrary-rank reconstruction metrics work for sequence tensors.
+
+
+### Experimental Transformer VAE
+
+ML Lab also incubates a Transformer variational autoencoder under
+`ml_lab.experimental.transformer_vae`. It uses the stable Transformer token adapter
+and shared neural runtime, but keeps variational sampling and KL objectives outside
+the stable representation API while they mature.
+
+### Experimental decomposed Transformer VAE (0.7.2)
+
+`ml_lab.experimental.transformer_vae_decomposed` reuses the same Transformer VAE
+architecture but replaces the single beta-weighted KL term with a research objective
+that separates the latent regularizer into **ICMI**, **total correlation (TC)**, and
+**dimension-wise KL (DWKL)**. The implementation uses a differentiable minibatch
+mixture-density estimator, records every component separately, supports independent
+weights and warm-up, and reports the ordinary analytic Gaussian KL as a diagnostic.
+
+The objective is:
+
+```text
+reconstruction
++ alpha * ICMI
++ beta  * TC
++ gamma * DWKL
+```
+
+Because `q(z)` and `q(z_j)` are estimated from each minibatch, these terms are
+research estimates rather than exact full-dataset quantities. The estimator is also
+quadratic in minibatch size, so this variant remains explicitly experimental.
+
+
+### Experimental contractive Transformer VAE
+
+`transformer_vae_contractive` adds a research variant of the Transformer VAE with a first-order contractive penalty on the encoder posterior mean, `||d mu(x) / d x||_F^2`. Exact and Hutchinson estimators are available; this objective remains experimental rather than part of the stable representation API.

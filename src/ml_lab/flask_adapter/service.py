@@ -90,8 +90,22 @@ def _clustering(payload: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _representation(payload: dict[str, Any]) -> dict[str, Any]:
-    X = _features(payload)
     method = payload.get("method", "pca")
+    if method in {"pca", "mlp_autoencoder"}:
+        X: Any = _features(payload)
+    else:
+        if "X" not in payload:
+            raise PayloadError("payload must contain X")
+        values = np.asarray(payload["X"], dtype=float)
+        if values.ndim not in (2, 3):
+            raise PayloadError("Transformer representation X must be two- or three-dimensional")
+        names = payload.get("feature_names")
+        if values.ndim == 2 and names is not None:
+            if len(names) != values.shape[1]:
+                raise PayloadError("feature_names length must match the number of X columns")
+            X = pd.DataFrame(values, columns=names)
+        else:
+            X = values
     if method == "pca":
         result = representation.pca(
             X,
@@ -101,6 +115,12 @@ def _representation(payload: dict[str, Any]) -> dict[str, Any]:
         result = representation.autoencode(
             X,
             model_config=representation.MLPAutoencoderConfig(**payload.get("model_config", {})),
+            training_config=representation.AutoencoderTrainingConfig(**payload.get("training_config", {})),
+        )
+    elif method == "transformer_autoencoder":
+        result = representation.transformer_autoencode(
+            X,
+            model_config=representation.TransformerAutoencoderConfig(**payload.get("model_config", {})),
             training_config=representation.AutoencoderTrainingConfig(**payload.get("training_config", {})),
         )
     else:

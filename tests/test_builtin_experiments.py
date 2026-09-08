@@ -11,22 +11,47 @@ def test_builtin_experimental_catalog_is_lazy():
     fractal_module = "ml_lab.experimental.binary_fractal_conversion"
     linux_module = "ml_lab.experimental.linux_binary_identification"
     clique_module = "ml_lab.experimental.max_clique_rl"
+    vae_module = "ml_lab.experimental.transformer_vae"
+    decomposed_vae_module = "ml_lab.experimental.transformer_vae_decomposed"
+    contractive_vae_module = "ml_lab.experimental.transformer_vae_contractive"
     sys.modules.pop(fractal_module, None)
     sys.modules.pop(linux_module, None)
     sys.modules.pop(clique_module, None)
+    sys.modules.pop(vae_module, None)
+    sys.modules.pop(decomposed_vae_module, None)
+    sys.modules.pop(contractive_vae_module, None)
 
     ids = [manifest.id for manifest in list_experiments()]
-    assert ids == ["binary_fractal_conversion", "linux_binary_identification", "max_clique_rl"]
+    assert ids == [
+        "binary_fractal_conversion",
+        "linux_binary_identification",
+        "max_clique_rl",
+        "transformer_vae",
+        "transformer_vae_contractive",
+        "transformer_vae_decomposed",
+    ]
     assert fractal_module not in sys.modules
     assert linux_module not in sys.modules
     assert clique_module not in sys.modules
+    assert vae_module not in sys.modules
+    assert decomposed_vae_module not in sys.modules
+    assert contractive_vae_module not in sys.modules
 
     linux = get_manifest("linux_binary_identification")
     assert "transformer_autoencoder" in linux.capabilities
     clique = get_manifest("max_clique_rl")
     assert "dqn" in clique.capabilities
+    vae = get_manifest("transformer_vae")
+    assert "variational_autoencoder" in vae.capabilities
+    decomposed_vae = get_manifest("transformer_vae_decomposed")
+    assert "total_correlation" in decomposed_vae.capabilities
+    contractive_vae = get_manifest("transformer_vae_contractive")
+    assert "jacobian_penalty" in contractive_vae.capabilities
     assert linux_module not in sys.modules
     assert clique_module not in sys.modules
+    assert vae_module not in sys.modules
+    assert decomposed_vae_module not in sys.modules
+    assert contractive_vae_module not in sys.modules
 
 
 def test_linux_binary_representation_modes():

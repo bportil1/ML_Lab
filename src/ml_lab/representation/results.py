@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 import numpy as np
 
-RepresentationMethod = Literal["pca", "mlp_autoencoder"]
+RepresentationMethod = Literal["pca", "mlp_autoencoder", "transformer_autoencoder"]
 
 
 @dataclass(slots=True)

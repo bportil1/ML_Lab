@@ -47,3 +47,22 @@ The `max_clique_rl` experiment was adapted from the user-provided `Max_Clique_ML
 ## Binary Image Analysis Project
 
 ML_Lab's `binary_fractal_conversion` experiment preserves the legacy project's byte-driven Mandelbrot and IFS representation ideas in a cleaned, headless form. Plotting, RBM, optimizer, and classifier code were intentionally not imported.
+
+
+## Sprint 6 stable Transformer autoencoder
+
+The stable Transformer autoencoder was promoted from ideas in the user-provided `Linux_Binary_Identification` repository and its cleaned ML_Lab experimental successor. The legacy implementation was not copied verbatim. The stable rewrite removes file/image loading from the model, removes model-owned optimizer/training overrides, drops unrelated VAE/TC loss machinery, fixes decoder memory/query semantics, adds explicit padding-aware reconstruction, and reuses `ml_lab.neural` for training/runtime behavior. The binary-specific conversion pipeline remains under `ml_lab.experimental`.
+
+
+- The experimental Transformer VAE preserves the variational latent-model direction
+  seen in older research code, but was rebuilt around a standard diagonal-Gaussian
+  posterior instead of carrying forward mixed ICMI/TC/DWKL objectives by default.
+
+- The decomposed Transformer VAE revisits the ICMI/TC/DWKL research direction from
+  the supplied legacy neural experiments, but does not copy their ad-hoc RBM/Bernoulli
+  approximations. It uses a diagonal-Gaussian beta-TCVAE-style minibatch density
+  decomposition so ICMI, TC, and DWKL have explicit probabilistic definitions and sum
+  to the same minibatch density-ratio KL estimate.
+
+
+- The contractive Transformer VAE is a clean research implementation of first-order Jacobian regularization inspired by contractive/manifold-tangent ideas; it does not copy legacy training code.

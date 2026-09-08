@@ -49,6 +49,77 @@ BUILTIN_MANIFESTS: tuple[ExperimentalManifest, ...] = (
         ),
     ),
     ExperimentalManifest(
+        id="transformer_vae",
+        name="Transformer VAE",
+        module_path="ml_lab.experimental.transformer_vae",
+        description=(
+            "Experimental Transformer variational autoencoder with a diagonal-Gaussian "
+            "latent posterior, beta-weighted KL regularization, and optional KL warm-up."
+        ),
+        status="experimental",
+        capabilities=(
+            "representation",
+            "compression",
+            "variational_autoencoder",
+            "transformer",
+            "generative_modeling",
+        ),
+        version="0.1-experimental",
+        notes=(
+            "Uses the stable token adapter and shared neural runtime. Legacy ICMI/TC/DWKL "
+            "objectives remain outside this baseline experiment."
+        ),
+    ),
+    ExperimentalManifest(
+        id="transformer_vae_decomposed",
+        name="Transformer VAE — ICMI/TC/DWKL",
+        module_path="ml_lab.experimental.transformer_vae_decomposed",
+        description=(
+            "Experimental Transformer VAE with a beta-TCVAE-style decomposition of "
+            "the latent KL into ICMI, total correlation, and dimension-wise KL terms."
+        ),
+        status="experimental",
+        capabilities=(
+            "representation",
+            "compression",
+            "variational_autoencoder",
+            "transformer",
+            "icmi",
+            "total_correlation",
+            "dimension_wise_kl",
+            "disentanglement",
+        ),
+        version="0.1-experimental",
+        notes=(
+            "Uses a differentiable minibatch-mixture density estimator. The ICMI/TC/DWKL "
+            "terms are research diagnostics/objectives and remain outside the stable API."
+        ),
+    ),
+    ExperimentalManifest(
+        id="transformer_vae_contractive",
+        name="Transformer VAE — Contractive",
+        module_path="ml_lab.experimental.transformer_vae_contractive",
+        description=(
+            "Experimental Transformer VAE with first-order contractive regularization "
+            "of the posterior-mean Jacobian with respect to the input representation."
+        ),
+        status="experimental",
+        capabilities=(
+            "representation",
+            "compression",
+            "variational_autoencoder",
+            "transformer",
+            "contractive_regularization",
+            "jacobian_penalty",
+            "tangent_regularization",
+        ),
+        version="0.1-experimental",
+        notes=(
+            "Supports exact and Hutchinson estimates of the encoder posterior-mean "
+            "Jacobian norm. This first-order research objective remains outside the stable API."
+        ),
+    ),
+    ExperimentalManifest(
         id="max_clique_rl",
         name="Max Clique RL",
         module_path="ml_lab.experimental.max_clique_rl",

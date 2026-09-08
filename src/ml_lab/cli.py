@@ -59,7 +59,7 @@ def _parser() -> argparse.ArgumentParser:
     represent = sub.add_parser("represent", help="Create a lower-dimensional representation or reconstruction")
     represent.add_argument("csv", nargs="+", help="CSV file(s) containing numeric features")
     represent.add_argument("--exclude", nargs="*", default=[], help="Columns to exclude before representation")
-    represent.add_argument("--method", choices=["pca", "mlp_autoencoder"], default="pca")
+    represent.add_argument("--method", choices=["pca", "mlp_autoencoder", "transformer_autoencoder"], default="pca")
     represent.add_argument("--components", type=int, default=2, help="PCA component count")
     represent.add_argument("--latent-dim", type=int, default=8, help="MLP autoencoder latent dimension")
     represent.add_argument("--hidden-dims", nargs="+", type=int, default=[64, 32])
@@ -74,6 +74,15 @@ def _parser() -> argparse.ArgumentParser:
     represent.add_argument("--random-state", type=int, default=42)
     represent.add_argument("--device", choices=["auto", "cpu", "cuda", "mps"], default="auto")
     represent.add_argument("--checkpoint-path", default=None, help="Optional best-model checkpoint path for neural representation runs")
+    represent.add_argument("--token-width", type=int, default=1, help="Adjacent feature count per Transformer token for 2-D input")
+    represent.add_argument("--model-dim", type=int, default=64, help="Transformer embedding dimension")
+    represent.add_argument("--nhead", type=int, default=4, help="Transformer attention heads")
+    represent.add_argument("--encoder-layers", type=int, default=2)
+    represent.add_argument("--decoder-layers", type=int, default=2)
+    represent.add_argument("--feedforward-dim", type=int, default=128)
+    represent.add_argument("--transformer-activation", choices=["relu", "gelu"], default="gelu")
+    represent.add_argument("--max-tokens", type=int, default=1024)
+    represent.add_argument("--output-activation", choices=["none", "sigmoid", "tanh"], default="none")
     represent.add_argument("--output", default="ml_lab_results/representation")
 
     experimental = sub.add_parser("experimental", help="Inspect or run isolated experimental modules")
@@ -151,14 +160,43 @@ def main(argv: list[str] | None = None) -> int:
                     random_state=args.random_state,
                 ),
             )
-        else:
+        elif args.method == "mlp_autoencoder":
             result = representation.autoencode(
                 X,
                 model_config=representation.MLPAutoencoderConfig(
                     hidden_dims=tuple(args.hidden_dims),
                     latent_dim=args.latent_dim,
                     activation=args.activation,
+                    output_activation=args.output_activation,
                     dropout=args.dropout,
+                ),
+                training_config=representation.AutoencoderTrainingConfig(
+                    epochs=args.epochs,
+                    batch_size=args.batch_size,
+                    learning_rate=args.learning_rate,
+                    validation_fraction=args.validation_fraction,
+                    patience=args.patience,
+                    scaling=args.scaling,
+                    random_state=args.random_state,
+                    device=args.device,
+                    checkpoint_path=args.checkpoint_path,
+                ),
+            )
+        else:
+            result = representation.transformer_autoencode(
+                X,
+                model_config=representation.TransformerAutoencoderConfig(
+                    token_width=args.token_width,
+                    model_dim=args.model_dim,
+                    latent_dim=args.latent_dim,
+                    nhead=args.nhead,
+                    encoder_layers=args.encoder_layers,
+                    decoder_layers=args.decoder_layers,
+                    feedforward_dim=args.feedforward_dim,
+                    dropout=args.dropout,
+                    transformer_activation=args.transformer_activation,
+                    output_activation=args.output_activation,
+                    max_tokens=args.max_tokens,
                 ),
                 training_config=representation.AutoencoderTrainingConfig(
                     epochs=args.epochs,

@@ -15,7 +15,15 @@ def save_result(result: RepresentationResult, output_dir: str | Path) -> Path:
 
     latent_columns = [f"latent_{index}" for index in range(result.latent.shape[1])]
     pd.DataFrame(result.latent, columns=latent_columns).to_csv(output / "latent.csv", index_label="row_index")
-    pd.DataFrame(result.reconstruction, columns=result.feature_names).to_csv(
+    reconstruction = result.reconstruction
+    if reconstruction.ndim == 2:
+        reconstruction_table = reconstruction
+    else:
+        reconstruction_table = reconstruction.reshape(reconstruction.shape[0], -1)
+    columns = result.feature_names
+    if len(columns) != reconstruction_table.shape[1]:
+        columns = [f"value_{index}" for index in range(reconstruction_table.shape[1])]
+    pd.DataFrame(reconstruction_table, columns=columns).to_csv(
         output / "reconstruction.csv", index_label="row_index"
     )
     if result.history:
