@@ -61,3 +61,29 @@ ML Lab 0.6.0 adds a PyTorch-lazy `ml_lab.neural` infrastructure package and refa
 ## Sprint 6 Transformer representation baseline
 
 ML Lab 0.7.0 promotes a corrected generic Transformer autoencoder into stable `ml_lab.representation`. It supports 2-D feature matrices and 3-D pre-tokenized inputs, padding-aware vector tokenization, attention-pooled latent compression, learned decoder queries, shared neural training/checkpoint infrastructure, CLI/Flask-service execution, and headless latent/reconstruction artifacts. The Linux-binary experimental Transformer path now delegates to this stable implementation rather than maintaining a second training/model implementation.
+
+
+## Stable GAN baseline (0.8.0)
+
+ML Lab 0.8.0 adds a stable headless GAN wing under `ml_lab.generative.gan`. Generic numeric tables can be modeled with MLP or Transformer generators and discriminators in any of the four architecture combinations. Training uses conservative BCE-with-logits adversarial loss, separate Adam optimizers, shared neural runtime/seeding/history/callback/checkpoint facilities, generated-sample artifacts, and lightweight distribution diagnostics. Legacy experimental GAN stabilization/conditioning schemes are intentionally excluded from the stable trainer.
+
+## Experimental GAN stabilization extension (0.8.1)
+
+ML Lab 0.8.1 adds a lazy `gan_stabilization` experiment without changing the stable GAN trainer. It supports a generic attention similarity critic, optional critic-context latent conditioning, embedding-distribution feature matching, first-order score-tangent fake negatives, and a scheduled coupled MLP/Transformer discriminator. All stabilization mechanisms are opt-in; the stable BCE GAN remains the default production path.
+
+## Sprint 10 — Stable CD-k training (0.10.0)
+
+Validation for the new energy-based training wing includes all three stable RBM families, exact Bernoulli partition checks, monitoring/RNG isolation, batch-safety and persistent-chain coverage, PAH service execution, and CLI artifact generation. The full repository suite passes after the change; HSQA_DBN remains untouched and independent.
+
+## Sprint 11 — Experimental partitioned RBM training (0.10.1)
+
+Added a rebuilt hierarchical partitioned-RBM experiment on top of the stable ML_Lab RBM/CD-k APIs. Supports Bernoulli, Gaussian, and Student-t PoE families, balanced remainder-safe partitions, pair/group merging, explicit stage epoch schedules/decay, stage-level provenance, and saved final-model/stage-history artifacts. HSQA_DBN remains unchanged.
+
+
+## 0.12.0 optimization sprint
+
+- Added stable task-neutral `ml_lab.optimization`.
+- Ported the current HSQA_DBN Firefly movement/evaluation/history behavior without modifying HSQA_DBN.
+- Added typed/fixed search spaces, function evaluators, weighted fitness terms, optimizer registry, generic runtime policy, and trace artifacts.
+- Corrected initial-population seed ordering in the ML_Lab port.
+- Full suite after implementation: 118 passed, 1 skipped.

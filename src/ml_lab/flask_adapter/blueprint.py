@@ -7,7 +7,7 @@ try:
 except ImportError as exc:  # pragma: no cover - exercised by the lazy wrapper when Flask is absent
     raise RuntimeError("Flask support requires: pip install 'ml-lab[flask]'") from exc
 
-from ml_lab import __version__
+from ml_lab import __version__, energy_based, optimization
 from ml_lab.core.serialization import to_jsonable
 from ml_lab.experimental import get_manifest, list_experiments, run_experiment
 from ml_lab.registry import list_estimators
@@ -49,6 +49,17 @@ def create_blueprint(name: str = "ml_lab", *, enable_experimental: bool = False)
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 400
         return jsonify({"estimators": records})
+
+    @blueprint.get("/rbms")
+    def rbm_families():
+        return jsonify({
+            "rbms": [spec.to_record() for spec in energy_based.rbm.list_families()],
+            "training_schemes": [spec.to_record() for spec in energy_based.training.list_schemes()],
+        })
+
+    @blueprint.get("/optimizers")
+    def optimizers():
+        return jsonify({"optimizers": list(optimization.available_optimizers())})
 
     @blueprint.post("/run/<task>")
     def run_task(task: str):

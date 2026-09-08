@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ml_lab import classification, clustering, regression, representation
+from ml_lab import classification, clustering, energy_based, generative, regression, representation
 from ml_lab.core.serialization import to_jsonable
 
 
@@ -72,7 +72,7 @@ def _regression(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return [to_jsonable(result.to_record()) for result in results]
 
 
-def _clustering(payload: dict[str, Any]) -> list[dict[str, Any]]:
+def _clustering(payload: dict[str, Any]) -> dict[str, Any]:
     X = _features(payload)
     y_true = payload.get("y_true")
     if y_true is not None:
@@ -86,7 +86,15 @@ def _clustering(payload: dict[str, Any]) -> list[dict[str, Any]]:
         config=config,
         y_true=y_true,
     )
-    return [to_jsonable(result.to_record()) for result in results]
+    agreement = clustering.analyze_agreement(
+        results,
+        ignore_noise=bool(payload.get("agreement_ignore_noise", config.stability_ignore_noise)),
+    )
+    return {
+        "results": [to_jsonable(result.to_record()) for result in results],
+        "algorithm_agreement": to_jsonable(agreement.summary_record()),
+        "algorithm_agreement_pairs": to_jsonable(agreement.pairwise_records),
+    }
 
 
 def _representation(payload: dict[str, Any]) -> dict[str, Any]:
@@ -131,6 +139,37 @@ def _representation(payload: dict[str, Any]) -> dict[str, Any]:
     return record
 
 
+
+def _gan(payload: dict[str, Any]) -> dict[str, Any]:
+    X = _features(payload)
+    result = generative.gan.run(
+        X,
+        model_config=generative.gan.GANModelConfig(**payload.get("model_config", {})),
+        training_config=generative.gan.GANTrainingConfig(**payload.get("training_config", {})),
+    )
+    record = to_jsonable(result.to_record())
+    record["generated_samples"] = to_jsonable(result.generated_samples)
+    return record
+
+
+def _rbm(payload: dict[str, Any]) -> dict[str, Any]:
+    X = _features(payload)
+    family = payload.get("family", "bernoulli")
+    hidden_dim = int(payload.get("hidden_dim", 8))
+    result = energy_based.training.run(
+        X,
+        family=family,
+        hidden_dim=hidden_dim,
+        model_config=payload.get("model_config", {}),
+        training_config=payload.get("training_config", {}),
+        feature_names=[str(column) for column in X.columns],
+        verbose=bool(payload.get("verbose", False)),
+    )
+    record = to_jsonable(result.to_record())
+    if result.generated_samples is not None:
+        record["generated_samples"] = to_jsonable(result.generated_samples)
+    return record
+
 def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Execute a core task from a JSON-shaped payload without importing Flask."""
     if not isinstance(payload, dict):
@@ -140,12 +179,16 @@ def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
         "regression": _regression,
         "clustering": _clustering,
         "representation": _representation,
+        "gan": _gan,
+        "rbm": _rbm,
     }
     try:
         runner = runners[task]
     except KeyError as exc:
         raise PayloadError(f"unsupported ML Lab task: {task}") from exc
     output = runner(payload)
-    if task == "representation":
+    if task in {"representation", "gan", "rbm"}:
         return {"task": task, "result": output}
+    if task == "clustering":
+        return {"task": task, **output}
     return {"task": task, "results": output}

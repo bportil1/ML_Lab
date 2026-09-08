@@ -14,6 +14,8 @@ class ClusteringSearchConfig:
     repeats: int = 3
     random_state: int = 42
     scaling: ScalingMode = "auto"
+    stability_analysis: bool = True
+    stability_ignore_noise: bool = True
 
     def validate(self) -> None:
         if self.repeats < 1:

@@ -70,10 +70,27 @@ def external_metrics(y_true: Any, labels: Any) -> dict[str, float]:
     }
 
 
-def stability_score(label_runs: list[np.ndarray]) -> float | None:
+def stability_score(
+    label_runs: list[np.ndarray],
+    *,
+    ignore_noise: bool = False,
+) -> float | None:
+    """Mean pairwise ARI across repeated labelings.
+
+    ``ignore_noise=False`` preserves the historical behavior where label ``-1``
+    participates like any other label. New stability analysis uses
+    ``ignore_noise=True`` by default so shared noise does not masquerade as a
+    stable cluster.
+    """
     if len(label_runs) < 2:
         return None
-    scores = [adjusted_rand_score(a, b) for a, b in combinations(label_runs, 2)]
+    from .stability import pairwise_label_agreement
+
+    scores = []
+    for a, b in combinations(label_runs, 2):
+        value = pairwise_label_agreement(a, b, ignore_noise=ignore_noise)["adjusted_rand"]
+        if value is not None:
+            scores.append(float(value))
     if not scores:
         return None
     value = float(np.mean(scores))

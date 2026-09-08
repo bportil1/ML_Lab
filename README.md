@@ -1,6 +1,6 @@
 # ML_Lab
 
-`ML_Lab` is a small, headless machine-learning engine intended for standalone use and later integration into PAH. It provides first-class **classification**, **regression**, **clustering**, and **representation/compression** task families and is structured so additional basic ML capabilities can be added without carrying forward the legacy Classifier Generator visualization layer.
+`ML_Lab` is a small, headless machine-learning engine intended for standalone use and later integration into PAH. It provides first-class **classification**, **regression**, **clustering**, **representation/compression**, **generative/GAN**, and **energy-based/RBM** model families and is structured so additional basic ML capabilities can be added without carrying forward the legacy Classifier Generator visualization layer.
 
 The classification engine reuses the strongest design ideas from the supplied Classifier Generator refactor: declarative estimator registries, preprocessing inside sklearn pipelines, cross-validation on training data only, one holdout evaluation after selection, and explicit machine-readable reporting.
 
@@ -90,6 +90,8 @@ ml-lab cluster data.csv \
   --output results/clustering
 ```
 
+Repeat/consensus analysis is enabled by default. It can be disabled with `--no-stability-analysis`; density-clustering noise remains excluded from stability/agreement unless `--include-noise-in-stability` is supplied.
+
 An optional label column may be supplied for **external evaluation only**:
 
 ```bash
@@ -122,9 +124,11 @@ Initial clustering families:
 - OPTICS
 - Gaussian Mixture
 
-Internal evaluation includes silhouette, Calinski-Harabasz, Davies-Bouldin, cluster counts/sizes, cluster-size entropy, noise fraction, and repeated-run ARI stability. Optional external labels add ARI, NMI, homogeneity, completeness, and V-measure.
+Internal evaluation includes silhouette, Calinski-Harabasz, Davies-Bouldin, cluster counts/sizes, cluster-size entropy, noise fraction, and repeated-run stability. Selected solutions additionally record repeated-fit ARI/NMI summaries, sample-pair co-assignment consensus matrices, and consensus consistency. Optional external labels add ARI, NMI, homogeneity, completeness, and V-measure.
 
-Clustering artifacts include `result.json`, `metrics.csv`, `candidates.csv`, `cluster_assignments.csv`, and fitted models.
+When several algorithms are run together, ML Lab also reports cross-algorithm ARI/NMI agreement and common non-noise coverage. Noise label `-1` is excluded from repeat/agreement calculations by default instead of being treated as a shared cluster; use `--include-noise-in-stability` to override that behavior.
+
+Clustering artifacts include `result.json`, `metrics.csv`, `candidates.csv`, `cluster_assignments.csv`, fitted models, `algorithm_agreement_*.csv`, and a `stability/` directory containing repeat assignments, consensus matrices, eligible-count matrices, and repeat-agreement summaries.
 
 ## Representation / compression
 
@@ -188,6 +192,79 @@ Representation artifacts include `result.json`, `latent.csv`, `reconstruction.cs
 
 PyTorch remains optional: importing `ml_lab` or using PCA does not import PyTorch.
 
+## Stable GAN generation
+
+`ml_lab.generative.gan` provides a conservative headless GAN for generic numeric feature tables. Generator and discriminator architectures are independently selectable as MLP or Transformer models, so MLP/MLP, Transformer/MLP, MLP/Transformer, and Transformer/Transformer combinations are all supported. Transformer layers here are ordinary model architecture; research-specific attention conditioning, critic sharing, tangent negatives, InfoNCE coupling, and stabilization schedules are deliberately excluded from the stable trainer.
+
+```bash
+pip install -e '.[neural]'
+ml-lab gan data.csv \
+  --generator transformer \
+  --discriminator mlp \
+  --latent-dim 32 \
+  --epochs 100 \
+  --sample-count 500 \
+  --output results/gan
+```
+
+Python:
+
+```python
+from ml_lab import generative
+
+result = generative.gan.run(
+    X,
+    model_config=generative.gan.GANModelConfig(
+        generator_type="transformer",
+        discriminator_type="mlp",
+        latent_dim=32,
+    ),
+    training_config=generative.gan.GANTrainingConfig(epochs=100),
+)
+```
+
+Stable GAN training uses BCE-with-logits adversarial loss, independent Adam optimizers, configurable generator/discriminator update counts and learning rates, deterministic seeding, optional label smoothing/gradient clipping, shared ML Lab callbacks/checkpoint infrastructure, and standard-normal latent noise. Automatic early stopping is disabled by default because adversarial loss is not a reliable sample-quality criterion.
+
+GAN artifacts include `result.json`, `generated_samples.csv`, `training_history.csv`, `generator.pt`, `discriminator.pt`, and an optional `scaler.joblib`. Distribution diagnostics currently include featurewise empirical Wasserstein-1 distance plus mean/std shifts and final discriminator real/fake accuracy.
+
+## Stable energy-based / RBM models
+
+`ml_lab.energy_based.rbm` provides stable model definitions for the three RBM families currently used by the supplied HSQA_DBN project. HSQA_DBN itself is not modified; ML Lab owns an independent copied/adapted implementation so the two projects can remain operational separately while parity is established.
+
+```bash
+pip install -e '.[energy]'
+ml-lab list-rbms
+```
+
+Python:
+
+```python
+from ml_lab import energy_based
+
+model = energy_based.rbm.create(
+    "gaussian",
+    visible_dim=X.shape[1],
+    hidden_dim=16,
+    sharpness=0.8,
+    dropout=0.0,
+)
+
+energy = model.energy(X)
+hidden_probability, hidden_sample = model.sample_hidden(X)
+negative = energy_based.rbm.run_chain(model, X, steps=5)
+summary = energy_based.rbm.summarize(model, X)
+```
+
+Stable families are:
+
+- `bernoulli` (`bern` alias);
+- `gaussian` (`gauss` alias);
+- `student_t_poe` (`stud_t`, `student_t`, and `stpoe` aliases).
+
+The shared model contract includes hidden probabilities/activations, stochastic hidden/visible sampling, Gibbs transitions, energy evaluation, one-step energy-gap diagnostics, explicit family settings, and checkpoint save/load. PyTorch remains optional and is loaded only when an RBM model is actually constructed.
+
+This release intentionally adds **model definitions only**. CD-k and other energy-based training schemes are a separate subsequent migration so stable model semantics can be tested before generic training code is copied from HSQA_DBN.
+
 ## Basic preprocessing operations
 
 ML Lab also exposes small reusable operations directly:
@@ -220,7 +297,7 @@ ml-lab experimental info <experiment_id>
 ml-lab experimental run <experiment_id> --kwargs-json '{"example": 1}'
 ```
 
-Built-in experimental modules include `linux_binary_identification`, `binary_fractal_conversion`, `max_clique_rl`, `transformer_vae`, and `transformer_vae_decomposed`.
+Built-in experimental modules include `linux_binary_identification`, `binary_fractal_conversion`, `max_clique_rl`, `transformer_vae`, `transformer_vae_decomposed`, and `transformer_vae_contractive`.
 
 Programmatic hosts can register an experiment without importing its implementation:
 
@@ -265,15 +342,17 @@ Initial endpoints are:
 ```text
 GET  /health
 GET  /estimators?task=classification|regression|clustering|all
+GET  /rbms
 POST /run/classification
 POST /run/regression
 POST /run/clustering
 POST /run/representation
+POST /run/gan
 ```
 
 When a host explicitly creates the Blueprint with `enable_experimental=True`, it additionally exposes experimental manifest/list/run routes. Experimental HTTP execution is disabled by default.
 
-The run endpoints accept JSON-shaped arrays (`X`, `y`/`y_true`, optional estimator lists, and task config dictionaries) and return serializable ML Lab result records. Representation payloads use `method="pca"` with `config`, or `method="mlp_autoencoder"` / `method="transformer_autoencoder"` with `model_config` and `training_config`. Transformer payloads may contain either 2-D feature matrices or pre-tokenized 3-D arrays. The adapter is synchronous and intentionally thin; PAH remains responsible for workspace state, long-running job orchestration, authentication, and visualization.
+The run endpoints accept JSON-shaped arrays (`X`, `y`/`y_true`, optional estimator lists, and task config dictionaries) and return serializable ML Lab result records. GAN payloads use a 2-D numeric `X` plus optional `model_config` and `training_config`. Representation payloads use `method="pca"` with `config`, or `method="mlp_autoencoder"` / `method="transformer_autoencoder"` with `model_config` and `training_config`. Transformer payloads may contain either 2-D feature matrices or pre-tokenized 3-D arrays. The adapter is synchronous and intentionally thin; PAH remains responsible for workspace state, long-running job orchestration, authentication, and visualization.
 
 ## Built-in experimental modules
 
@@ -393,3 +472,122 @@ quadratic in minibatch size, so this variant remains explicitly experimental.
 ### Experimental contractive Transformer VAE
 
 `transformer_vae_contractive` adds a research variant of the Transformer VAE with a first-order contractive penalty on the encoder posterior mean, `||d mu(x) / d x||_F^2`. Exact and Hutchinson estimators are available; this objective remains experimental rather than part of the stable representation API.
+
+### Experimental GAN stabilization (0.8.1)
+
+Research-specific GAN training mechanisms live under `ml_lab.experimental.gan_stabilization`, not in the stable GAN trainer. Discover the experiment with:
+
+```bash
+ml-lab experimental info gan_stabilization
+```
+
+The experiment can independently enable a self-supervised attention similarity critic, critic-context conditioning of generator latent noise, critic-embedding distribution feature matching, first-order discriminator-score tangent negatives, and a scheduled coupled MLP/Transformer discriminator. All mechanisms default off except the ordinary stable GAN behavior inherited by the experimental trainer; enable only the mechanisms being studied.
+
+Programmatic example:
+
+```python
+from ml_lab.experimental import run_experiment
+
+result = run_experiment(
+    "gan_stabilization",
+    mode="fit_generate",
+    X=X,
+    model_config={"generator_type": "transformer", "discriminator_type": "mlp"},
+    training_config={
+        "epochs": 100,
+        "similarity_critic_enabled": True,
+        "feature_matching_weight": 0.05,
+        "attention_conditioning_strength": 0.10,
+        "tangent_negative_weight": 0.10,
+        "coupled_discriminator": True,
+        "transformer_blend_start": 0.0,
+        "transformer_blend_end": 1.0,
+        "transformer_blend_warmup_epochs": 50,
+    },
+)
+```
+
+The tangent-negative implementation is intentionally described as tangent to a discriminator-score level set to first order; it is not claimed to recover the true data-manifold tangent space.
+
+## Stable CD-k training for RBMs
+
+ML Lab now owns an independent stable CD-k trainer under `ml_lab.energy_based.training`. The trainer is copied/adapted from the current user-provided HSQA_DBN training design, but HSQA_DBN itself remains untouched and continues to use its own working training stack.
+
+```bash
+pip install -e '.[energy]'
+ml-lab list-energy-training
+ml-lab rbm-train data.csv \
+  --family gaussian \
+  --hidden-dim 16 \
+  --gibbs-steps 5 \
+  --epochs 100 \
+  --output results/gaussian-rbm
+```
+
+Python:
+
+```python
+from ml_lab import energy_based
+from ml_lab.energy_based.training import (
+    CDKTrainingConfig,
+    PartitionMonitoringConfig,
+)
+
+result = energy_based.training.run(
+    X,
+    family="gaussian",
+    hidden_dim=16,
+    training_config=CDKTrainingConfig(
+        gibbs_steps=5,
+        epochs=100,
+        persistent=True,
+        partition_monitoring=PartitionMonitoringConfig(
+            enabled=True,
+            schedule="hybrid",
+            interval=250,
+        ),
+    ),
+)
+```
+
+The stable trainer supports mini-batch CD-k, multiple vectorized negative chains, persistent chains, SGD momentum/weight decay, optional adaptive momentum, relative best-model selection, batch-size safety, per-epoch unnormalized model scores, scheduled learned-distribution diagnostics, and scheduled normalized-likelihood diagnostics.
+
+CD gradients are derived through autograd from the actual family energy functions using `E(data) - E(negative)` with detached negative chains. This deliberately replaces copied handwritten family-gradient formulas so Gaussian scale and Student-t scale/shape parameters remain mathematically tied to the model definition.
+
+`mean(-E(v))` is recorded every epoch without a partition function. Normalized likelihood is optional and evaluated only on explicit checkpoints. Small Bernoulli visible spaces can use exact partition enumeration; larger Bernoulli and continuous-visible models use an explicitly identified importance-sampling estimate with effective-sample-size reporting. The trainer does not present those continuous-model estimates as exact normalization.
+
+Distribution monitoring records featurewise empirical Wasserstein-1 and a built-in entropic Sinkhorn transport approximation. Expensive diagnostic sampling preserves training RNG state on CPU/CUDA so enabling monitoring does not change the fitted stochastic trajectory.
+
+CD-k artifacts include `result.json`, `training_history.csv`, `model.pt`, and—when distribution monitoring is enabled—`generated_samples.csv` and `reference_samples.csv`.
+
+## Experimental partitioned RBM training (0.10.1)
+
+ML_Lab now incubates a rewritten hierarchical partitioned-RBM strategy under `ml_lab.experimental.partitioned_rbm_training`. It partitions the visible-feature axis and hidden-unit axis independently, trains local RBMs with the stable CD-k trainer, merges neighboring blocks, and refines cross-block interactions until a full RBM is trained. The legacy sample/feature slicing bugs, direct `.data` updates, and mutable inner-loop epoch decay are not carried forward.
+
+
+## Generic optimization (0.12.0)
+
+ML_Lab exposes a task-neutral optimization layer under `ml_lab.optimization`. The first stable algorithm is the current Firefly implementation ported from the provided HSQA_DBN repository. HSQA_DBN itself is not modified.
+
+```python
+from ml_lab import optimization
+
+space = optimization.SearchSpace([
+    optimization.ParameterSpec("x", "continuous", -5.0, 5.0),
+    optimization.ParameterSpec("width", "integer", 2, 16),
+])
+
+def objective(params, **_):
+    value = params["x"] ** 2 + 0.01 * params["width"]
+    return {"fitness": value, "objective_terms": {"objective": value}}
+
+evaluator = optimization.FunctionEvaluator(space, objective)
+result = optimization.optimize(
+    space,
+    evaluator,
+    config=optimization.FireflyConfig(population_size=8, iterations=20, seed=42),
+    output_path="results/optimization",
+)
+```
+
+The generic layer supports continuous, log-continuous, integer, and categorical parameters; fixed parameters; weighted multi-term minimize/maximize fitness; candidate metadata/history; serial or process candidate execution; and HSQA-style Firefly trace artifacts.

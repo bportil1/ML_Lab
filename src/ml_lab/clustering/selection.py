@@ -13,7 +13,8 @@ from sklearn.pipeline import Pipeline
 from ml_lab.core.preprocessing import make_preprocessor
 from ml_lab.core.specs import EstimatorSpec
 from .config import ClusteringSearchConfig
-from .evaluation import external_metrics, internal_metrics, stability_score
+from .evaluation import external_metrics, internal_metrics
+from .stability import RepeatStabilityReport, repeat_stability_report
 from .registry import get_estimator_spec
 
 
@@ -27,6 +28,7 @@ class ClusteringCandidateResult:
     failed_repeats: int
     elapsed_seconds: float
     warning: str | None = None
+    stability_std: float | None = None
 
     def to_record(self) -> dict[str, Any]:
         return asdict(self)
@@ -47,12 +49,26 @@ class ClusteringResult:
     labels: np.ndarray
     fitted_model: BaseEstimator
     candidates: list[ClusteringCandidateResult]
+    stability_analysis: RepeatStabilityReport | None = None
 
     def to_record(self) -> dict[str, Any]:
-        record = asdict(self)
-        record.pop("fitted_model")
-        record["labels"] = self.labels.tolist()
-        return record
+        return {
+            "task": self.task,
+            "estimator_id": self.estimator_id,
+            "estimator_name": self.estimator_name,
+            "best_params": dict(self.best_params),
+            "selection_metric": self.selection_metric,
+            "selection_score": self.selection_score,
+            "metrics": dict(self.metrics),
+            "external_metrics": None if self.external_metrics is None else dict(self.external_metrics),
+            "stability": self.stability,
+            "preprocessing": self.preprocessing,
+            "labels": self.labels.tolist(),
+            "candidates": [candidate.to_record() for candidate in self.candidates],
+            "stability_analysis": (
+                None if self.stability_analysis is None else self.stability_analysis.summary_record()
+            ),
+        }
 
 
 def _pipeline(spec: EstimatorSpec, config: ClusteringSearchConfig, seed: int) -> Pipeline:
@@ -132,16 +148,23 @@ def run_cluster_selection(
         for name in metric_names:
             values = [m[name] for m in repeat_metrics if m.get(name) is not None]
             averaged[name] = float(np.mean(values)) if values else None
+        repeat_report = repeat_stability_report(
+            label_runs,
+            repeats_requested=config.repeats,
+            failed_repeats=failed,
+            ignore_noise=config.stability_ignore_noise,
+        )
         candidates.append(
             ClusteringCandidateResult(
                 estimator_id=spec.id,
                 estimator_name=spec.name,
                 params=dict(params),
                 metrics=averaged,
-                stability=stability_score(label_runs),
+                stability=repeat_report.adjusted_rand_mean,
                 failed_repeats=failed,
                 elapsed_seconds=float(elapsed),
                 warning=warning,
+                stability_std=repeat_report.adjusted_rand_std,
             )
         )
 
@@ -161,6 +184,26 @@ def run_cluster_selection(
     if final_pipeline.named_steps["preprocess"] == "passthrough":
         preprocessing = "passthrough"
 
+    stability_analysis: RepeatStabilityReport | None = None
+    if config.stability_analysis:
+        selected_runs: list[np.ndarray] = []
+        selected_seeds: list[int] = []
+        selected_failed = 0
+        for seed in seed_sequence:
+            try:
+                pipeline = _pipeline(spec, config, seed)
+                selected_runs.append(_fit_predict(pipeline, X, best.params))
+                selected_seeds.append(seed)
+            except Exception:
+                selected_failed += 1
+        stability_analysis = repeat_stability_report(
+            selected_runs,
+            repeats_requested=config.repeats,
+            seeds=selected_seeds,
+            failed_repeats=selected_failed,
+            ignore_noise=config.stability_ignore_noise,
+        )
+
     return ClusteringResult(
         task="clustering",
         estimator_id=spec.id,
@@ -175,6 +218,7 @@ def run_cluster_selection(
         labels=labels,
         fitted_model=final_pipeline,
         candidates=candidates,
+        stability_analysis=stability_analysis,
     )
 
 

@@ -120,6 +120,51 @@ BUILTIN_MANIFESTS: tuple[ExperimentalManifest, ...] = (
         ),
     ),
     ExperimentalManifest(
+        id="gan_stabilization",
+        name="GAN Stabilization Research",
+        module_path="ml_lab.experimental.gan_stabilization",
+        description=(
+            "Experimental GAN training mechanisms adapted from the legacy GAN Stabilization Sandbox "
+            "while reusing ML_Lab stable GAN model definitions."
+        ),
+        status="experimental",
+        capabilities=(
+            "gan",
+            "attention_conditioning",
+            "contrastive_critic",
+            "tangent_negatives",
+            "critic_coupling",
+            "training_stabilization",
+        ),
+        version="0.1-experimental",
+        notes=(
+            "Stable GAN architectures remain unchanged. Attention/context sharing, score-tangent negatives, "
+            "feature matching, and scheduled coupled discriminators are opt-in research mechanisms."
+        ),
+    ),
+    ExperimentalManifest(
+        id="partitioned_rbm_training",
+        name="Partitioned RBM Training",
+        module_path="ml_lab.experimental.partitioned_rbm_training",
+        description=(
+            "Experimental hierarchical RBM training strategy that learns local feature blocks, "
+            "merges neighboring blocks, and refines newly exposed cross-block interactions."
+        ),
+        status="experimental",
+        capabilities=(
+            "energy_based_model",
+            "rbm",
+            "partitioned_training",
+            "hierarchical_training",
+            "cdk",
+        ),
+        version="0.1-experimental",
+        notes=(
+            "Rebuilt from legacy partitioned-RBM prototypes using the stable ML_Lab RBM/CD-k APIs. "
+            "Samples are never partitioned; visible and hidden blocks are partitioned independently."
+        ),
+    ),
+    ExperimentalManifest(
         id="max_clique_rl",
         name="Max Clique RL",
         module_path="ml_lab.experimental.max_clique_rl",
