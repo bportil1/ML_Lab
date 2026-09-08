@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ml-lab"
-version = "0.1.0"
-description = "Headless reusable scikit-learn operations engine for PAH and standalone use"
+version = "0.6.0"
+description = "Headless reusable machine-learning operations engine for PAH and standalone use"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -17,6 +17,9 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
+flask = ["Flask>=3.0"]
+neural = ["torch>=2.0"]
+experimental-neural = ["torch>=2.0"]
 
 [project.scripts]
 ml-lab = "ml_lab.cli:main"

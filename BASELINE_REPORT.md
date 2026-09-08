@@ -47,3 +47,12 @@ Additional smoke verification:
 ## Intended next architectural steps
 
 The package is ready to expand with task families such as regression, anomaly detection, dimensionality reduction, and feature selection. PAH and HSQA_DBN integrations should be thin adapters over this package rather than dependencies inside ML_Lab.
+
+
+## Sprint 4 representation baseline
+
+ML Lab 0.5.0 adds stable representation/compression support: PCA with reconstruction/provenance and a configurable MLP autoencoder with separate model/training contracts. PyTorch remains optional behind the `neural` extra. Representation is callable from Python, CLI, and the Flask-independent PAH service adapter.
+
+## Sprint 5 neural infrastructure baseline
+
+ML Lab 0.6.0 adds a PyTorch-lazy `ml_lab.neural` infrastructure package and refactors the stable MLP autoencoder to use it. Shared facilities cover device selection, deterministic seeding, validation splitting, history, early stopping, callbacks, best-model checkpointing/reload, and common trainer/result contracts. This sprint does not add a new neural architecture; it establishes the reusable training/runtime layer required by the upcoming Transformer autoencoder, GAN, and energy-based model work.

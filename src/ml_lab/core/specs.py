@@ -5,7 +5,7 @@ from typing import Any, Callable, Literal
 
 from sklearn.base import BaseEstimator
 
-TaskType = Literal["classification", "clustering"]
+TaskType = Literal["classification", "clustering", "regression"]
 PreprocessHint = Literal["none", "standard", "minmax", "robust"]
 
 

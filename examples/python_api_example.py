@@ -1,6 +1,6 @@
-from sklearn.datasets import load_breast_cancer, load_iris
+from sklearn.datasets import load_breast_cancer, load_diabetes, load_iris
 
-from ml_lab import classification, clustering
+from ml_lab import classification, clustering, regression
 
 # Classification
 cancer = load_breast_cancer(as_frame=True)
@@ -21,3 +21,14 @@ cluster_results = clustering.run(
     y_true=iris.target,
 )
 print(cluster_results[0].to_record())
+
+
+# Regression
+diabetes = load_diabetes(as_frame=True)
+regression_results = regression.run(
+    diabetes.data,
+    diabetes.target,
+    estimators=["ridge", "random_forest"],
+    config=regression.RegressionSearchConfig(cv_folds=3, n_jobs=1),
+)
+print(regression_results[0].to_record())
