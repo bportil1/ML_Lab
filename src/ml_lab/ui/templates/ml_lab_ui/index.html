@@ -26,7 +26,11 @@
       <p>{{ item.summary }}</p>
       {% if item.note %}<p class="note">{{ item.note }}</p>{% endif %}
       {% if item.missing_dependencies %}<p class="warning">Missing: {{ item.missing_dependencies|join(', ') }}</p>{% endif %}
+      {% if item.ui_route %}
+      <a class="button secondary" href="{{ url_for(request.blueprint + '.' + item.ui_route) }}">Open</a>
+      {% else %}
       <a class="button secondary" href="{{ url_for(request.blueprint + '.task', capability_id=item.id) }}">Open</a>
+      {% endif %}
     </article>
     {% endfor %}
   </div>

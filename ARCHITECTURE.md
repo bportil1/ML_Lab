@@ -11,6 +11,7 @@ ML Lab is a reusable machine-learning execution engine whose **core remains head
 
 ML Lab owns generic operations:
 
+- unknown-data intake and structural inventory;
 - estimator registries;
 - preprocessing pipelines;
 - model/candidate selection;
@@ -24,7 +25,7 @@ A caller owns domain semantics. For example, HSQA_DBN should continue to own MI/
 
 ## Task layout
 
-`classification/`, `regression/`, `clustering/`, `representation/`, `generative/`, and `energy_based/` are stable peers at the API/model level. Regression uses supervised regression CV/holdout semantics, clustering is not routed through supervised CV semantics, and representation returns latent/reconstruction artifacts rather than estimator-ranking results.
+`data/`, `classification/`, `regression/`, `clustering/`, `representation/`, `generative/`, and `energy_based/` are stable peers at the API/model level. `data/` is intentionally model-agnostic and provides the intake boundary used before task-specific modeling. Regression uses supervised regression CV/holdout semantics, clustering is not routed through supervised CV semantics, and representation returns latent/reconstruction artifacts rather than estimator-ranking results.
 
 `representation/` currently provides stable PCA, configurable MLP autoencoding, and configurable Transformer autoencoding. PyTorch is optional and lazily loaded only for neural representation paths. Neural models do not own their optimizers/training loops and reuse `ml_lab.neural`.
 
@@ -88,9 +89,33 @@ PAH / another Flask host
 create_ui_blueprint()
 ```
 
-The initial UI is intentionally a thin capability-aware shell with a generic JSON workbench over `ml_lab.application.execute_task()`. Dedicated typed workspaces should be added alongside their core capabilities; the Data Lab A1/A2 work is the next intended consumer. The generic workbench proves the standalone/mounting contract without making HTML forms the source of ML semantics.
+The UI began as a thin capability-aware shell with a generic JSON workbench over `ml_lab.application.execute_task()`. Data Lab A1 adds the first typed workspace while still invoking the exact same host-neutral `data.inspect` task. Future typed workspaces should follow that pattern: core capability first, application contract second, CLI/REST/UI presentation last. HTML forms are never the source of ML semantics.
 
 The UI has no CDN, external asset, or network-service requirement. Its static assets are packaged with ML Lab. Experimental UI is hidden unless explicitly enabled.
+
+
+## Data Lab A1 boundary (0.14.0)
+
+`ml_lab.data` is a stable, model-neutral intake subsystem. A1 performs read-only discovery and structural inventory of CSV/TSV sources. It does not clean, coerce, normalize, impute, or otherwise mutate data.
+
+```text
+file / directory paths
+        ↓
+recursive discovery
+        ↓
+format handler (CSV / TSV in A1)
+        ↓
+encoding + delimiter + header inference
+shape + malformed-width detection
+likely exported-index detection
+source hash
+        ↓
+ml-lab.data-inventory@1
+```
+
+Unsupported files are inventoried as unsupported instead of disappearing. The format boundary is intentionally extensible so later JSON/JSONL, Parquet, Excel, and other handlers can emit the same inventory records. Full statistical profiling belongs to A2; cleaning/transformation belongs to A3; broader provenance semantics remain an A5 concern.
+
+The operation is exposed consistently as `data.inspect` through the application service, `ml-lab data inspect` through CLI, the optional Data Lab UI, and the generic Flask adapter. A host such as PAH may register the returned inventory as an artifact, but ML Lab does not depend on PAH to create or inspect it.
 
 ## Sprint 3 built-in experiment boundary
 

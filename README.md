@@ -1,6 +1,6 @@
 # ML_Lab
 
-`ML_Lab` is a small machine-learning engine whose core remains headless, with CLI/Python access plus an optional first-party UI for standalone use or mounting inside PAH. It provides first-class **classification**, **regression**, **clustering**, **representation/compression**, **generative/GAN**, and **energy-based/RBM** model families and is structured so additional basic ML capabilities can be added without carrying forward the legacy Classifier Generator visualization layer.
+`ML_Lab` is a small machine-learning engine whose core remains headless, with CLI/Python access plus an optional first-party UI for standalone use or mounting inside PAH. It provides first-class **data intake/inventory**, **classification**, **regression**, **clustering**, **representation/compression**, **generative/GAN**, and **energy-based/RBM** capabilities and is structured so additional basic ML capabilities can be added without carrying forward the legacy Classifier Generator visualization layer.
 
 The classification engine reuses the strongest design ideas from the supplied Classifier Generator refactor: declarative estimator registries, preprocessing inside sklearn pipelines, cross-validation on training data only, one holdout evaluation after selection, and explicit machine-readable reporting.
 
@@ -23,6 +23,31 @@ ml-lab ui
 ```
 
 The UI extra is not required for CLI/Python use. `import ml_lab` and `import ml_lab.ui` stay Flask-free until an app/Blueprint is explicitly created.
+
+
+## Data Lab — A1 intake & inventory
+
+Data Lab can inspect unknown CSV/TSV files or directory trees without modifying the sources. A1 detects encoding, delimiter, likely header presence, shape, malformed-width rows, likely exported index columns, and source SHA-256 for supported tabular inputs. Unsupported files remain visible in the inventory instead of being silently ignored.
+
+CLI:
+
+```bash
+ml-lab data inspect ./datasets \
+  --output ml_lab_results/data/inventory.json
+```
+
+Multiple files/directories can be supplied. Recursive discovery is enabled by default; use `--no-recursive` to inspect only one directory level and `--include-hidden` when hidden sources should be included.
+
+Python:
+
+```python
+from ml_lab import data
+
+inventory = data.inspect_paths(["./datasets"])
+print(inventory.to_record()["summary"])
+```
+
+Application/REST hosts can use the same operation through `execute_task("data.inspect", {"paths": [...]})`. When the optional UI is installed, Data Lab exposes a dedicated typed intake workspace rather than the generic JSON workbench. Statistical profiling is intentionally deferred to A2.
 
 ## Discover estimators
 
@@ -350,7 +375,7 @@ app.register_blueprint(
 )
 ```
 
-The Sprint-1 UI is a capability-aware shell with a generic JSON task workbench. It executes through `ml_lab.application.execute_task()`; the UI does not call its own HTTP API or contain duplicate ML algorithms. Data Lab A1/A2 will add the first dedicated typed workspace on this foundation. Experimental capabilities remain hidden unless explicitly enabled.
+The UI remains a capability-aware shell over `ml_lab.application.execute_task()`; it does not call its own HTTP API or contain duplicate ML algorithms. Data Lab A1 is the first dedicated typed workspace and presents the same `data.inspect` operation available to CLI/Python/REST callers. Other stable tasks retain the generic JSON workbench until their typed workspaces are added. Experimental capabilities remain hidden unless explicitly enabled.
 
 ## Optional Flask / PAH adapter
 
@@ -379,6 +404,7 @@ Initial endpoints are:
 GET  /health
 GET  /estimators?task=classification|regression|clustering|all
 GET  /rbms
+POST /run/data.inspect
 POST /run/classification
 POST /run/regression
 POST /run/clustering

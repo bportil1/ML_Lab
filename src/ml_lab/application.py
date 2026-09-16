@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ml_lab import classification, clustering, energy_based, generative, regression, representation
+from ml_lab import classification, clustering, data, energy_based, generative, regression, representation
 from ml_lab.core.serialization import to_jsonable
 
 
@@ -170,11 +170,27 @@ def _rbm(payload: dict[str, Any]) -> dict[str, Any]:
         record["generated_samples"] = to_jsonable(result.generated_samples)
     return record
 
+
+def _data_inspect(payload: dict[str, Any]) -> dict[str, Any]:
+    paths = payload.get("paths")
+    if isinstance(paths, (str, bytes)):
+        paths = [paths]
+    if not isinstance(paths, (list, tuple)) or not paths:
+        raise PayloadError("data.inspect payload must contain a non-empty paths list")
+    inventory = data.inspect_paths(
+        [str(path) for path in paths],
+        recursive=bool(payload.get("recursive", True)),
+        include_hidden=bool(payload.get("include_hidden", False)),
+        preview_rows=int(payload.get("preview_rows", 20)),
+    )
+    return inventory.to_record()
+
 def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Execute a core task from a JSON-shaped payload without importing Flask."""
     if not isinstance(payload, dict):
         raise PayloadError("request payload must be a JSON object")
     runners = {
+        "data.inspect": _data_inspect,
         "classification": _classification,
         "regression": _regression,
         "clustering": _clustering,
@@ -187,7 +203,7 @@ def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     except KeyError as exc:
         raise PayloadError(f"unsupported ML Lab task: {task}") from exc
     output = runner(payload)
-    if task in {"representation", "gan", "rbm"}:
+    if task in {"data.inspect", "representation", "gan", "rbm"}:
         return {"task": task, "result": output}
     if task == "clustering":
         return {"task": task, **output}

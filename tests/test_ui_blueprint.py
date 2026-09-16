@@ -59,3 +59,26 @@ def test_experimental_ui_is_hidden_unless_enabled():
 
     enabled = create_app(enable_experimental=True, config={"TESTING": True}).test_client()
     assert enabled.get("/task/experimental").status_code == 200
+
+
+def test_data_lab_mounts_and_inspects_host_local_path(tmp_path):
+    source = tmp_path / "data.csv"
+    source.write_text("index,value\n0,10\n1,20\n", encoding="utf-8")
+
+    host = Flask(__name__)
+    host.config["TESTING"] = True
+    host.register_blueprint(create_ui_blueprint(name="data_ml_lab"), url_prefix="/ml")
+    client = host.test_client()
+
+    landing = client.get("/ml/data")
+    assert landing.status_code == 200
+    assert b"Data intake &amp; inventory" in landing.data
+
+    response = client.post(
+        "/ml/data",
+        data={"paths": str(source), "recursive": "1", "preview_rows": "20"},
+    )
+    assert response.status_code == 200
+    assert "1 × 2".encode("utf-8") in response.data
+    assert b"likely exported index column" in response.data
+    assert b"ml-lab.data-inventory@1" in response.data

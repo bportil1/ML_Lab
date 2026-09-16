@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from ml_lab import classification, clustering, energy_based, generative, optimization, regression, representation
+from ml_lab import classification, clustering, data, energy_based, generative, optimization, regression, representation
 from ml_lab.classification.reporting import save_results as save_classification_results
 from ml_lab.clustering.reporting import save_results as save_clustering_results
 from ml_lab.regression.reporting import save_results as save_regression_results
@@ -27,6 +27,15 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("list-rbms", help="List stable restricted Boltzmann machine families")
     sub.add_parser("list-energy-training", help="List stable energy-based training schemes")
     sub.add_parser("list-optimizers", help="List registered generic optimization algorithms")
+
+    data_parser = sub.add_parser("data", help="Inspect and prepare unknown datasets")
+    data_sub = data_parser.add_subparsers(dest="data_command", required=True)
+    data_inspect = data_sub.add_parser("inspect", help="Inventory CSV/TSV files without modifying them")
+    data_inspect.add_argument("paths", nargs="+", help="File(s) or directories to inspect")
+    data_inspect.add_argument("--recursive", action=argparse.BooleanOptionalAction, default=True)
+    data_inspect.add_argument("--include-hidden", action="store_true", help="Include hidden files/directories")
+    data_inspect.add_argument("--preview-rows", type=int, default=20, help="Rows sampled for structural detection")
+    data_inspect.add_argument("--output", default="ml_lab_results/data/inventory.json", help="Inventory JSON destination")
 
     ui = sub.add_parser("ui", help="Start the optional standalone ML Lab web UI")
     ui.add_argument("--host", default="127.0.0.1", help="Bind address; defaults to local-only 127.0.0.1")
@@ -192,6 +201,28 @@ def main(argv: list[str] | None = None) -> int:
         for name in optimization.available_optimizers():
             print(name)
         return 0
+
+    if args.command == "data":
+        if args.data_command == "inspect":
+            inventory = data.inspect_paths(
+                args.paths,
+                recursive=args.recursive,
+                include_hidden=args.include_hidden,
+                preview_rows=args.preview_rows,
+            )
+            output = data.save_inventory(inventory, args.output)
+            summary = inventory.to_record()["summary"]
+            print(f"Inventory written to: {output}")
+            print(
+                f"files={summary['discovered_file_count']} "
+                f"supported={summary['supported_file_count']} "
+                f"parsed={summary['parsed_file_count']} "
+                f"partial={summary['partial_file_count']} "
+                f"failed={summary['failed_file_count']}"
+            )
+            for warning in inventory.warnings:
+                print(f"warning: {warning}")
+            return 0
 
     if args.command == "ui":
         try:

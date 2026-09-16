@@ -16,7 +16,9 @@ def test_experimental_capability_is_explicit_opt_in():
     assert by_id["experimental"]["effective_status"] == "experimental"
 
 
-def test_data_lab_is_visible_as_next_planned_workspace():
+def test_data_lab_is_visible_as_ready_typed_workspace():
     data = get_capability("data")
-    assert data["status"] == "planned"
-    assert data["available"] is False
+    assert data["status"] == "ready"
+    assert data["available"] is True
+    assert data["task"] == "data.inspect"
+    assert data["ui_route"] == "data_lab"
