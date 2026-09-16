@@ -73,3 +73,18 @@ th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spa
 .json-details { margin-top: 18px; }
 .json-details summary { cursor: pointer; }
 .json-details pre { min-height: 220px; }
+.medium-input { width: 110px; margin-left: 6px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); color: var(--text); }
+.profile-options { margin: 12px 0; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.profile-options summary, .profile-details summary { cursor: pointer; }
+.button-row { display: flex; gap: 9px; flex-wrap: wrap; }
+.profile-panel { margin: 20px 0; }
+.profile-title { align-items: flex-start; }
+.profile-title h2 { margin-bottom: 2px; }
+.profile-summary { margin-bottom: 12px; }
+.profile-warnings { margin: 8px 0 16px; }
+.profile-details { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.profile-details > summary { margin-bottom: 10px; }
+.issue-list { display: grid; gap: 7px; }
+.issue-row { display: grid; grid-template-columns: auto auto auto minmax(220px, 1fr); gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid color-mix(in srgb, var(--line), transparent 35%); }
+.issue-row:first-child { border-top: 0; }
+@media (max-width: 800px) { .issue-row { grid-template-columns: auto auto; } }

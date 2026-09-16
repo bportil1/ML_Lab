@@ -47,13 +47,28 @@ def create_ui_blueprint(name: str = "ml_lab_ui", *, enable_experimental: bool = 
         paths_text = request.form.get("paths", "")
         recursive = request.form.get("recursive", "1") == "1"
         include_hidden = request.form.get("include_hidden", "") == "1"
+        action = request.form.get("action", "inspect")
         try:
             preview_rows = int(request.form.get("preview_rows", "20"))
         except ValueError:
             preview_rows = 20
+        try:
+            max_rows = int(request.form.get("max_rows", "100000"))
+        except ValueError:
+            max_rows = 100000
+        try:
+            relationship_rows = int(request.form.get("relationship_rows", "5000"))
+        except ValueError:
+            relationship_rows = 5000
+        try:
+            max_relationship_columns = int(request.form.get("max_relationship_columns", "25"))
+        except ValueError:
+            max_relationship_columns = 25
 
         inventory = None
         inventory_json = None
+        profile_collection = None
+        profile_json = None
         error = None
         if request.method == "POST":
             paths = [line.strip() for line in paths_text.splitlines() if line.strip()]
@@ -61,17 +76,35 @@ def create_ui_blueprint(name: str = "ml_lab_ui", *, enable_experimental: bool = 
                 error = "Enter at least one file or directory path."
             else:
                 try:
-                    result = execute_task(
-                        "data.inspect",
-                        {
-                            "paths": paths,
-                            "recursive": recursive,
-                            "include_hidden": include_hidden,
-                            "preview_rows": preview_rows,
-                        },
-                    )
-                    inventory = result["result"]
-                    inventory_json = _pretty(inventory)
+                    if action == "profile":
+                        result = execute_task(
+                            "data.profile",
+                            {
+                                "paths": paths,
+                                "recursive": recursive,
+                                "include_hidden": include_hidden,
+                                "preview_rows": preview_rows,
+                                "max_rows": max_rows,
+                                "relationship_rows": relationship_rows,
+                                "max_relationship_columns": max_relationship_columns,
+                            },
+                        )
+                        profile_collection = result["result"]
+                        profile_json = _pretty(profile_collection)
+                        inventory = profile_collection.get("inventory")
+                        inventory_json = _pretty(inventory) if inventory else None
+                    else:
+                        result = execute_task(
+                            "data.inspect",
+                            {
+                                "paths": paths,
+                                "recursive": recursive,
+                                "include_hidden": include_hidden,
+                                "preview_rows": preview_rows,
+                            },
+                        )
+                        inventory = result["result"]
+                        inventory_json = _pretty(inventory)
                 except (PayloadError, OSError, TypeError, ValueError, KeyError) as exc:
                     error = f"{type(exc).__name__}: {exc}"
 
@@ -82,8 +115,13 @@ def create_ui_blueprint(name: str = "ml_lab_ui", *, enable_experimental: bool = 
             recursive=recursive,
             include_hidden=include_hidden,
             preview_rows=preview_rows,
+            max_rows=max_rows,
+            relationship_rows=relationship_rows,
+            max_relationship_columns=max_relationship_columns,
             inventory=inventory,
             inventory_json=inventory_json,
+            profile_collection=profile_collection,
+            profile_json=profile_json,
             error=error,
             experimental_enabled=enable_experimental,
         )

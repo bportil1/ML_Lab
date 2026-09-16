@@ -89,7 +89,7 @@ PAH / another Flask host
 create_ui_blueprint()
 ```
 
-The UI began as a thin capability-aware shell with a generic JSON workbench over `ml_lab.application.execute_task()`. Data Lab A1 adds the first typed workspace while still invoking the exact same host-neutral `data.inspect` task. Future typed workspaces should follow that pattern: core capability first, application contract second, CLI/REST/UI presentation last. HTML forms are never the source of ML semantics.
+The UI began as a thin capability-aware shell with a generic JSON workbench over `ml_lab.application.execute_task()`. Data Lab A1/A2 provide the first typed workspace while still invoking the exact same host-neutral `data.inspect` and `data.profile` tasks. Future typed workspaces should follow that pattern: core capability first, application contract second, CLI/REST/UI presentation last. HTML forms are never the source of ML semantics.
 
 The UI has no CDN, external asset, or network-service requirement. Its static assets are packaged with ML Lab. Experimental UI is hidden unless explicitly enabled.
 
@@ -113,9 +113,37 @@ source hash
 ml-lab.data-inventory@1
 ```
 
-Unsupported files are inventoried as unsupported instead of disappearing. The format boundary is intentionally extensible so later JSON/JSONL, Parquet, Excel, and other handlers can emit the same inventory records. Full statistical profiling belongs to A2; cleaning/transformation belongs to A3; broader provenance semantics remain an A5 concern.
+Unsupported files are inventoried as unsupported instead of disappearing. The format boundary is intentionally extensible so later JSON/JSONL, Parquet, Excel, and other handlers can emit the same inventory records. A2 statistical profiling is layered on this inventory boundary; cleaning/transformation belongs to A3; broader provenance semantics remain an A5 concern.
 
 The operation is exposed consistently as `data.inspect` through the application service, `ml-lab data inspect` through CLI, the optional Data Lab UI, and the generic Flask adapter. A host such as PAH may register the returned inventory as an artifact, but ML Lab does not depend on PAH to create or inspect it.
+
+
+## Data Lab A2 boundary (0.15.0)
+
+A2 adds a second stable read-only artifact: `ml-lab.data-profile-collection@1`, containing per-file `ml-lab.data-profile@1` records. The profiler never silently upgrades statistical dependence into causal semantics. It records inferred types and univariate data-quality signals, then computes bounded pairwise dependence summaries only for eligible non-constant, non-identifier columns.
+
+```text
+ml-lab.data-inventory@1
+        ↓
+rectangular valid rows
+        ↓
+optional deterministic reservoir sample
+        ↓
+column inference + missingness + cardinality
+duplicates + descriptive summaries + IQR outliers
+        ↓
+bounded pairwise relationships
+  numeric ↔ numeric: Pearson + Spearman
+  eligible pairs: discretized MI + normalized MI
+        ↓
+ml-lab.data-profile@1
+        ↓
+ml-lab.data-profile-collection@1
+```
+
+Profiling limits are part of the contract rather than hidden implementation details. `profiled_row_count`, `source_row_count`, `sampled`, `sample_strategy`, and `relationship_row_count` make it explicit whether a statistic was computed over all valid rows or a deterministic subset. Large/wide datasets therefore remain safe to inspect without pretending sampled metrics describe an unbounded full population.
+
+`data.profile` is exposed through the Python API, application/REST service, `ml-lab data profile`, and the same mountable Data Lab UI. Hosts such as PAH may register these artifacts, but ML Lab remains independently runnable and does not import PAH.
 
 ## Sprint 3 built-in experiment boundary
 

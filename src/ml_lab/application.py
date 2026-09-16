@@ -185,12 +185,36 @@ def _data_inspect(payload: dict[str, Any]) -> dict[str, Any]:
     )
     return inventory.to_record()
 
+
+def _data_profile(payload: dict[str, Any]) -> dict[str, Any]:
+    paths = payload.get("paths")
+    if isinstance(paths, (str, bytes)):
+        paths = [paths]
+    if not isinstance(paths, (list, tuple)) or not paths:
+        raise PayloadError("data.profile payload must contain a non-empty paths list")
+    max_rows_raw = payload.get("max_rows", 100_000)
+    max_rows = None if max_rows_raw in (None, 0, "0") else int(max_rows_raw)
+    profile = data.profile_paths(
+        [str(path) for path in paths],
+        recursive=bool(payload.get("recursive", True)),
+        include_hidden=bool(payload.get("include_hidden", False)),
+        preview_rows=int(payload.get("preview_rows", 20)),
+        max_rows=max_rows,
+        relationship_rows=int(payload.get("relationship_rows", 5_000)),
+        max_relationship_columns=int(payload.get("max_relationship_columns", 25)),
+        max_relationship_pairs=int(payload.get("max_relationship_pairs", 200)),
+        outlier_iqr_multiplier=float(payload.get("outlier_iqr_multiplier", 1.5)),
+        random_state=int(payload.get("random_state", 42)),
+    )
+    return profile.to_record()
+
 def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Execute a core task from a JSON-shaped payload without importing Flask."""
     if not isinstance(payload, dict):
         raise PayloadError("request payload must be a JSON object")
     runners = {
         "data.inspect": _data_inspect,
+        "data.profile": _data_profile,
         "classification": _classification,
         "regression": _regression,
         "clustering": _clustering,
@@ -203,7 +227,7 @@ def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     except KeyError as exc:
         raise PayloadError(f"unsupported ML Lab task: {task}") from exc
     output = runner(payload)
-    if task in {"data.inspect", "representation", "gan", "rbm"}:
+    if task in {"data.inspect", "data.profile", "representation", "gan", "rbm"}:
         return {"task": task, "result": output}
     if task == "clustering":
         return {"task": task, **output}

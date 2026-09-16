@@ -1,6 +1,6 @@
 # ML_Lab
 
-`ML_Lab` is a small machine-learning engine whose core remains headless, with CLI/Python access plus an optional first-party UI for standalone use or mounting inside PAH. It provides first-class **data intake/inventory**, **classification**, **regression**, **clustering**, **representation/compression**, **generative/GAN**, and **energy-based/RBM** capabilities and is structured so additional basic ML capabilities can be added without carrying forward the legacy Classifier Generator visualization layer.
+`ML_Lab` is a small machine-learning engine whose core remains headless, with CLI/Python access plus an optional first-party UI for standalone use or mounting inside PAH. It provides first-class **data intake/inventory/profiling**, **classification**, **regression**, **clustering**, **representation/compression**, **generative/GAN**, and **energy-based/RBM** capabilities and is structured so additional basic ML capabilities can be added without carrying forward the legacy Classifier Generator visualization layer.
 
 The classification engine reuses the strongest design ideas from the supplied Classifier Generator refactor: declarative estimator registries, preprocessing inside sklearn pipelines, cross-validation on training data only, one holdout evaluation after selection, and explicit machine-readable reporting.
 
@@ -25,18 +25,28 @@ ml-lab ui
 The UI extra is not required for CLI/Python use. `import ml_lab` and `import ml_lab.ui` stay Flask-free until an app/Blueprint is explicitly created.
 
 
-## Data Lab — A1 intake & inventory
+## Data Lab — A1/A2 intake, inventory & statistical profiling
 
-Data Lab can inspect unknown CSV/TSV files or directory trees without modifying the sources. A1 detects encoding, delimiter, likely header presence, shape, malformed-width rows, likely exported index columns, and source SHA-256 for supported tabular inputs. Unsupported files remain visible in the inventory instead of being silently ignored.
+Data Lab can inspect unknown CSV/TSV files or directory trees without modifying the sources. A1 detects encoding, delimiter, likely header presence, shape, malformed-width rows, likely exported index columns, and source SHA-256. A2 adds read-only statistical profiling: inferred column types, missingness, cardinality, constants, duplicate rows, descriptive numeric/text/date summaries, IQR outlier flags, categorical imbalance signals, and bounded pairwise relationship analysis.
 
-CLI:
+CLI inventory:
 
 ```bash
 ml-lab data inspect ./datasets \
   --output ml_lab_results/data/inventory.json
 ```
 
-Multiple files/directories can be supplied. Recursive discovery is enabled by default; use `--no-recursive` to inspect only one directory level and `--include-hidden` when hidden sources should be included.
+CLI statistical profile:
+
+```bash
+ml-lab data profile ./datasets \
+  --max-rows 100000 \
+  --relationship-rows 5000 \
+  --max-relationship-columns 25 \
+  --output ml_lab_results/data/profile.json
+```
+
+Set `--max-rows 0` to profile all valid rows. Large inputs use a deterministic reservoir sample when the row limit is exceeded, and the resulting artifact explicitly records that sampling occurred. Relationship analysis is separately bounded so unknown wide datasets do not accidentally trigger an unbounded O(p²) analysis.
 
 Python:
 
@@ -44,10 +54,16 @@ Python:
 from ml_lab import data
 
 inventory = data.inspect_paths(["./datasets"])
+profiles = data.profile_paths(["./datasets"])
 print(inventory.to_record()["summary"])
+print(profiles.to_record()["summary"])
 ```
 
-Application/REST hosts can use the same operation through `execute_task("data.inspect", {"paths": [...]})`. When the optional UI is installed, Data Lab exposes a dedicated typed intake workspace rather than the generic JSON workbench. Statistical profiling is intentionally deferred to A2.
+Application/REST hosts use the same contracts through `execute_task("data.inspect", {"paths": [...]})` and `execute_task("data.profile", {"paths": [...]})`. The optional UI exposes the same operations in one typed Data Lab workspace.
+
+A2 relationship metrics are intentionally descriptive, not causal. Pearson/Spearman are reported only for numeric pairs. Mutual information is computed after quantile discretization (with NMI also reported) so the artifact states exactly what kind of dependence estimate was produced. Constant and identifier-like columns are excluded from pairwise relationship analysis by default.
+
+A1/A2 remain read-only. Cleaning, coercion, filtering, joins, normalization, imputation, and other source-changing behavior are deferred to the controlled transformation sprint.
 
 ## Discover estimators
 

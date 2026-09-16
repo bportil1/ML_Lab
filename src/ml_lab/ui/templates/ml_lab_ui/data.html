@@ -1,0 +1,189 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Data Lab · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for(request.blueprint + '.index') }}">← All capabilities</a>
+<section class="workspace-head">
+  <div>
+    <p class="eyebrow">Data · A1/A2</p>
+    <h1>Data intake & profiling</h1>
+    <p class="lede">Inspect unknown CSV/TSV files, infer their statistical structure, and surface data-quality and relationship signals without modifying the source data.</p>
+  </div>
+  <span class="badge ready">ready</span>
+</section>
+
+<div class="tip">A1/A2 are read-only. Cleaning, coercion, joins, normalization, and other transformations remain deferred until the controlled transformation sprint.</div>
+
+<section class="panel data-input-panel">
+  <form method="post">
+    <label for="paths"><strong>Files or directories</strong></label>
+    <p class="muted compact">Enter one local path per line. Directories are inspected recursively by default.</p>
+    <textarea class="paths-input" id="paths" name="paths" spellcheck="false" placeholder="/path/to/datasets\n/path/to/file.csv">{{ paths_text }}</textarea>
+    <div class="form-row">
+      <label class="check"><input type="checkbox" name="recursive" value="1" {% if recursive %}checked{% endif %}> Recursive</label>
+      <label class="check"><input type="checkbox" name="include_hidden" value="1" {% if include_hidden %}checked{% endif %}> Include hidden files</label>
+      <label>Detection rows <input class="small-input" type="number" min="1" max="500" name="preview_rows" value="{{ preview_rows }}"></label>
+    </div>
+    <details class="profile-options">
+      <summary><strong>Profiling limits</strong> <span class="muted">bounded defaults protect large unknown datasets</span></summary>
+      <div class="form-row">
+        <label>Rows/file <input class="medium-input" type="number" min="0" name="max_rows" value="{{ max_rows }}"></label>
+        <label>Relationship rows <input class="medium-input" type="number" min="0" name="relationship_rows" value="{{ relationship_rows }}"></label>
+        <label>Relationship columns <input class="small-input" type="number" min="2" max="200" name="max_relationship_columns" value="{{ max_relationship_columns }}"></label>
+      </div>
+      <p class="tiny muted">Set rows/file to 0 to profile all valid rows. Relationship analysis is separately bounded and excludes constant and identifier-like columns.</p>
+    </details>
+    <div class="button-row">
+      <button class="button secondary" type="submit" name="action" value="inspect">Inspect structure</button>
+      <button class="button" type="submit" name="action" value="profile">Profile data</button>
+    </div>
+  </form>
+</section>
+
+{% if error %}<div class="alert data-alert">{{ error }}</div>{% endif %}
+
+{% if inventory %}
+{% set summary = inventory.summary %}
+<section class="summary-grid">
+  <div class="metric"><strong>{{ summary.discovered_file_count }}</strong><span>Files found</span></div>
+  <div class="metric"><strong>{{ summary.supported_file_count }}</strong><span>CSV/TSV</span></div>
+  <div class="metric"><strong>{{ summary.parsed_file_count }}</strong><span>Parsed</span></div>
+  <div class="metric"><strong>{{ summary.partial_file_count }}</strong><span>Attention</span></div>
+  <div class="metric"><strong>{{ summary.failed_file_count }}</strong><span>Failed</span></div>
+</section>
+
+{% if inventory.warnings %}
+<div class="alert">{% for warning in inventory.warnings %}<div>{{ warning }}</div>{% endfor %}</div>
+{% endif %}
+
+<section class="panel inventory-panel">
+  <div class="section-head">
+    <div><h2>Inventory</h2><p class="muted compact">Structural inspection from A1. Source SHA-256 is preserved in the machine-readable artifact.</p></div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>File</th><th>Status</th><th>Shape</th><th>Encoding</th><th>Delimiter</th><th>Header</th><th>Index candidate</th><th>Warnings</th></tr></thead>
+      <tbody>
+      {% for file in inventory.files %}
+        <tr>
+          <td><strong>{{ file.relative_path }}</strong><div class="tiny muted">{{ file.suffix or 'no suffix' }}</div></td>
+          <td><span class="badge {{ 'ready' if file.parse_status == 'parsed' else ('planned' if file.parse_status in ['partial', 'unsupported'] else 'dependency_missing') }}">{{ file.parse_status }}</span></td>
+          <td>{% if file.row_count is not none %}{{ file.row_count }} × {{ file.column_count }}{% else %}—{% endif %}</td>
+          <td>{{ file.encoding or '—' }}</td>
+          <td>{% if file.delimiter == '\t' %}TAB{% elif file.delimiter %}<code>{{ file.delimiter }}</code>{% else %}—{% endif %}</td>
+          <td>{% if file.has_header is sameas true %}yes{% elif file.has_header is sameas false %}no{% else %}—{% endif %}</td>
+          <td>{{ file.likely_exported_index_columns|join(', ') if file.likely_exported_index_columns else '—' }}</td>
+          <td>{% if file.error %}<div class="warning">{{ file.error }}</div>{% endif %}{% if file.warnings %}{{ file.warnings|join('; ') }}{% else %}—{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{% if profile_collection %}
+{% if profile_collection.warnings %}
+<div class="alert">{% for warning in profile_collection.warnings %}<div>{{ warning }}</div>{% endfor %}</div>
+{% endif %}
+
+{% for profile in profile_collection.profiles %}
+{% set ps = profile.summary %}
+<section class="panel profile-panel">
+  <div class="section-head profile-title">
+    <div>
+      <p class="eyebrow">Statistical profile</p>
+      <h2>{{ profile.relative_path }}</h2>
+      <p class="muted compact">{{ ps.profiled_row_count }} profiled rows × {{ ps.column_count }} columns{% if ps.sampled %} · deterministic reservoir sample from {{ ps.source_row_count }} valid source rows{% endif %}</p>
+    </div>
+    <span class="badge {{ 'planned' if ps.quality_issue_count else 'ready' }}">{{ ps.quality_issue_count }} issues</span>
+  </div>
+
+  <section class="summary-grid profile-summary">
+    <div class="metric"><strong>{{ ps.profiled_row_count }}</strong><span>Profiled rows</span></div>
+    <div class="metric"><strong>{{ ps.column_count }}</strong><span>Columns</span></div>
+    <div class="metric"><strong>{{ ps.duplicate_row_count }}</strong><span>Duplicate rows</span></div>
+    <div class="metric"><strong>{{ ps.relationship_count }}</strong><span>Relationships</span></div>
+    <div class="metric"><strong>{{ ps.relationship_row_count }}</strong><span>Relationship rows</span></div>
+  </section>
+
+  {% if profile.warnings %}
+  <div class="profile-warnings">{% for warning in profile.warnings %}<div class="tiny muted">• {{ warning }}</div>{% endfor %}</div>
+  {% endif %}
+
+  {% if profile.quality_issues %}
+  <details class="profile-details" open>
+    <summary><strong>Quality signals</strong> <span class="muted">{{ profile.quality_issues|length }}</span></summary>
+    <div class="issue-list">
+      {% for issue in profile.quality_issues %}
+      <div class="issue-row"><span class="badge {{ 'dependency_missing' if issue.severity == 'error' else ('planned' if issue.severity == 'warning' else '') }}">{{ issue.severity }}</span><code>{{ issue.code }}</code>{% if issue.column %}<strong>{{ issue.column }}</strong>{% endif %}<span>{{ issue.message }}</span></div>
+      {% endfor %}
+    </div>
+  </details>
+  {% endif %}
+
+  <details class="profile-details" open>
+    <summary><strong>Columns</strong> <span class="muted">inferred types, missingness, cardinality, and univariate statistics</span></summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Missing</th><th>Unique</th><th>Flags</th><th>Distribution</th><th>Top values</th></tr></thead>
+        <tbody>
+        {% for column in profile.columns %}
+          <tr>
+            <td><strong>{{ column.name }}</strong></td>
+            <td><code>{{ column.inferred_type }}</code></td>
+            <td>{{ '%.1f'|format(column.missing_rate * 100) }}%<div class="tiny muted">{{ column.missing_count }} / {{ ps.profiled_row_count }}</div></td>
+            <td>{{ column.unique_count }}<div class="tiny muted">{{ '%.1f'|format(column.cardinality_ratio * 100) }}%</div></td>
+            <td>{% if column.constant %}<span class="badge planned">constant</span>{% endif %}{% if column.likely_identifier %}<span class="badge">identifier</span>{% endif %}{% if not column.constant and not column.likely_identifier %}—{% endif %}</td>
+            <td>
+              {% if column.numeric_summary %}
+                <div>median {{ '%.4g'|format(column.numeric_summary.median) }}</div>
+                <div class="tiny muted">{{ '%.4g'|format(column.numeric_summary.min) }} → {{ '%.4g'|format(column.numeric_summary.max) }} · outliers {{ '%.1f'|format(column.numeric_summary.outlier_rate * 100) }}%</div>
+              {% elif column.detail_summary.min is defined and column.detail_summary.max is defined %}
+                <div class="tiny">{{ column.detail_summary.min }} → {{ column.detail_summary.max }}</div>
+              {% elif column.detail_summary.mean_length is defined %}
+                <div class="tiny">mean length {{ '%.1f'|format(column.detail_summary.mean_length) }}</div>
+              {% else %}—{% endif %}
+            </td>
+            <td>{% if column.top_values %}{% for top in column.top_values[:3] %}<div class="tiny"><code>{{ top.value }}</code> · {{ top.count }}</div>{% endfor %}{% else %}—{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details class="profile-details" {% if profile.relationships %}open{% endif %}>
+    <summary><strong>Relationships</strong> <span class="muted">Pearson/Spearman for numeric pairs; discretized MI/NMI for eligible pairs</span></summary>
+    {% if profile.relationships %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Left</th><th>Right</th><th>N</th><th>Pearson</th><th>Spearman</th><th>MI</th><th>NMI</th></tr></thead>
+        <tbody>
+        {% for rel in profile.relationships %}
+          <tr>
+            <td><strong>{{ rel.left }}</strong></td><td><strong>{{ rel.right }}</strong></td><td>{{ rel.pair_count }}</td>
+            <td>{% if rel.pearson is not none %}{{ '%.4f'|format(rel.pearson) }}{% else %}—{% endif %}</td>
+            <td>{% if rel.spearman is not none %}{{ '%.4f'|format(rel.spearman) }}{% else %}—{% endif %}</td>
+            <td>{% if rel.mutual_information is not none %}{{ '%.4f'|format(rel.mutual_information) }}{% else %}—{% endif %}</td>
+            <td>{% if rel.normalized_mutual_information is not none %}{{ '%.4f'|format(rel.normalized_mutual_information) }}{% else %}—{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}<p class="muted">No eligible non-constant, non-identifier column pairs were available.</p>{% endif %}
+  </details>
+</section>
+{% endfor %}
+
+<details class="panel json-details">
+  <summary><strong>Machine-readable statistical profile</strong></summary>
+  <pre>{{ profile_json }}</pre>
+</details>
+{% elif inventory %}
+<details class="panel json-details">
+  <summary><strong>Machine-readable inventory</strong></summary>
+  <pre>{{ inventory_json }}</pre>
+</details>
+{% endif %}
+{% endblock %}

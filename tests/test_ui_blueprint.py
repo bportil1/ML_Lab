@@ -72,7 +72,7 @@ def test_data_lab_mounts_and_inspects_host_local_path(tmp_path):
 
     landing = client.get("/ml/data")
     assert landing.status_code == 200
-    assert b"Data intake &amp; inventory" in landing.data
+    assert b"Data intake &amp; profiling" in landing.data
 
     response = client.post(
         "/ml/data",
@@ -82,3 +82,27 @@ def test_data_lab_mounts_and_inspects_host_local_path(tmp_path):
     assert "1 × 2".encode("utf-8") in response.data
     assert b"likely exported index column" in response.data
     assert b"ml-lab.data-inventory@1" in response.data
+
+
+def test_data_lab_profiles_through_shared_application_service(tmp_path):
+    source = tmp_path / "profile.csv"
+    source.write_text("x,y,label\n1,2,A\n2,4,A\n3,6,B\n", encoding="utf-8")
+
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+    response = client.post(
+        "/data",
+        data={
+            "paths": str(source),
+            "recursive": "1",
+            "preview_rows": "20",
+            "action": "profile",
+            "max_rows": "100000",
+            "relationship_rows": "0",
+            "max_relationship_columns": "25",
+        },
+    )
+    assert response.status_code == 200
+    assert b"Statistical profile" in response.data
+    assert b"Pearson/Spearman" in response.data
+    assert b"ml-lab.data-profile-collection@1" in response.data

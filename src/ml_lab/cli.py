@@ -37,6 +37,19 @@ def _parser() -> argparse.ArgumentParser:
     data_inspect.add_argument("--preview-rows", type=int, default=20, help="Rows sampled for structural detection")
     data_inspect.add_argument("--output", default="ml_lab_results/data/inventory.json", help="Inventory JSON destination")
 
+    data_profile = data_sub.add_parser("profile", help="Profile CSV/TSV structure, quality, distributions, and relationships")
+    data_profile.add_argument("paths", nargs="+", help="File(s) or directories to profile")
+    data_profile.add_argument("--recursive", action=argparse.BooleanOptionalAction, default=True)
+    data_profile.add_argument("--include-hidden", action="store_true", help="Include hidden files/directories")
+    data_profile.add_argument("--preview-rows", type=int, default=20, help="Rows sampled for structural detection")
+    data_profile.add_argument("--max-rows", type=int, default=100000, help="Maximum rows profiled per file; 0 profiles all valid rows")
+    data_profile.add_argument("--relationship-rows", type=int, default=5000, help="Maximum profiled rows used for pairwise relationship metrics; 0 uses all profiled rows")
+    data_profile.add_argument("--max-relationship-columns", type=int, default=25, help="Maximum eligible columns included in pairwise relationship analysis")
+    data_profile.add_argument("--max-relationship-pairs", type=int, default=200, help="Maximum relationship records retained; 0 keeps all computed pairs")
+    data_profile.add_argument("--outlier-iqr-multiplier", type=float, default=1.5, help="IQR fence multiplier for univariate outlier flags")
+    data_profile.add_argument("--random-state", type=int, default=42)
+    data_profile.add_argument("--output", default="ml_lab_results/data/profile.json", help="Profile JSON destination")
+
     ui = sub.add_parser("ui", help="Start the optional standalone ML Lab web UI")
     ui.add_argument("--host", default="127.0.0.1", help="Bind address; defaults to local-only 127.0.0.1")
     ui.add_argument("--port", type=int, default=5055)
@@ -221,6 +234,31 @@ def main(argv: list[str] | None = None) -> int:
                 f"failed={summary['failed_file_count']}"
             )
             for warning in inventory.warnings:
+                print(f"warning: {warning}")
+            return 0
+
+        if args.data_command == "profile":
+            profile = data.profile_paths(
+                args.paths,
+                recursive=args.recursive,
+                include_hidden=args.include_hidden,
+                preview_rows=args.preview_rows,
+                max_rows=None if args.max_rows == 0 else args.max_rows,
+                relationship_rows=args.relationship_rows,
+                max_relationship_columns=args.max_relationship_columns,
+                max_relationship_pairs=args.max_relationship_pairs,
+                outlier_iqr_multiplier=args.outlier_iqr_multiplier,
+                random_state=args.random_state,
+            )
+            output = data.save_profile(profile, args.output)
+            payload = profile.to_record()
+            print(f"Profile written to: {output}")
+            print(
+                f"profiles={payload['summary']['profile_count']} "
+                f"files={payload['summary']['inventory_file_count']} "
+                f"supported={payload['summary']['supported_file_count']}"
+            )
+            for warning in profile.warnings:
                 print(f"warning: {warning}")
             return 0
 
