@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ML Lab{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for(request.blueprint + '.index') }}">ML Lab</a>
+    <span class="version">v{{ version }}</span>
+    <span class="mode">optional first-party UI</span>
+  </header>
+  <main class="shell">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

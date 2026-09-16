@@ -1,10 +1,11 @@
 # ML Lab Architecture
 
-ML Lab is a headless machine-learning execution engine. It is designed to work in three modes without changing its core behavior:
+ML Lab is a reusable machine-learning execution engine whose **core remains headless**. It is designed to work in four modes without changing its core behavior:
 
 1. standalone Python package / CLI;
-2. called by PAH through a thin adapter;
-3. called by a domain project such as HSQA_DBN.
+2. standalone optional first-party UI;
+3. mounted by PAH through thin REST/UI adapters;
+4. called by a domain project such as HSQA_DBN.
 
 ## Responsibility boundary
 
@@ -34,7 +35,11 @@ Future task families should follow the same headless pattern, for example:
 
 ## UI policy
 
-There is intentionally no dedicated visualization application in this repository. Results are returned as Python objects and can be serialized as JSON/CSV/joblib artifacts. PAH or another caller can supply its own visualization surface.
+The ML Lab **core remains headless**, but the repository now owns an optional first-party presentation layer in `ml_lab.ui`. The UI is not an alternative implementation of ML functionality: it calls the same host-neutral application service used by the REST adapter and ultimately the same stable task APIs.
+
+The UI must remain optional. `import ml_lab` and `import ml_lab.ui` do not import Flask or PyTorch. A base installation therefore stays suitable for CLI, Python, batch, and embedded callers. Installing `ml-lab[ui]` enables both a standalone application (`ml-lab ui`) and a mountable Blueprint (`create_ui_blueprint()`).
+
+PAH should mount ML Lab's Blueprint rather than reimplementing ML Lab forms/task semantics. PAH may own navigation, authentication, project/workspace context, and long-running job orchestration around the mounted module. ML Lab remains runnable when PAH does not exist.
 
 ## Experimental isolation
 
@@ -52,9 +57,11 @@ ml_lab.experimental
 stable ML Lab task/model/training subsystem
 ```
 
-## Flask / PAH adapter boundary
+## Application service and Flask / PAH adapter boundary
 
-`ml_lab.flask_adapter` is optional and deliberately outside the core engine. `import ml_lab` does not import Flask. `ml_lab.flask_adapter.service.execute_task()` also works without Flask and maps JSON-shaped payloads onto the stable Python task APIs.
+`ml_lab.application.execute_task()` is the host-neutral JSON-shaped application service shared by the optional REST adapter and first-party UI. It imports no Flask code. `ml_lab.flask_adapter.service` remains as a backwards-compatible re-export for existing hosts.
+
+`ml_lab.flask_adapter` is optional and deliberately outside the core engine. `import ml_lab` does not import Flask.
 
 When Flask is installed, `create_blueprint()` returns a Blueprint rather than a complete application. The caller owns route placement and can therefore mount ML Lab directly in PAH or several levels deep inside another module:
 
@@ -65,7 +72,25 @@ PAH
         └── ML Lab Blueprint
 ```
 
-The adapter does not own PAH sessions, authentication, background execution, project roots, or visualization. Experimental routes are opt-in and disabled by default.
+The REST adapter does not own PAH sessions, authentication, background execution, or project roots. Experimental routes are opt-in and disabled by default. The optional `ml_lab.ui` Blueprint owns ML Lab's presentation surface while still leaving host-level navigation/authentication/workspace concerns to PAH.
+
+## Optional first-party UI boundary (0.13.0)
+
+`ml_lab.ui` provides two entry points over the same UI implementation:
+
+```text
+ml-lab ui
+    ↓
+standalone Flask app
+
+PAH / another Flask host
+    ↓
+create_ui_blueprint()
+```
+
+The initial UI is intentionally a thin capability-aware shell with a generic JSON workbench over `ml_lab.application.execute_task()`. Dedicated typed workspaces should be added alongside their core capabilities; the Data Lab A1/A2 work is the next intended consumer. The generic workbench proves the standalone/mounting contract without making HTML forms the source of ML semantics.
+
+The UI has no CDN, external asset, or network-service requirement. Its static assets are packaged with ML Lab. Experimental UI is hidden unless explicitly enabled.
 
 ## Sprint 3 built-in experiment boundary
 

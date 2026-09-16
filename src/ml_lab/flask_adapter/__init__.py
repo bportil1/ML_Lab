@@ -6,7 +6,7 @@ Blueprint is requested, keeping the ML engine usable in headless environments.
 
 from __future__ import annotations
 
-from .service import PayloadError, execute_task
+from ml_lab.application import PayloadError, execute_task
 
 
 def create_blueprint(name: str = "ml_lab", *, enable_experimental: bool = False):

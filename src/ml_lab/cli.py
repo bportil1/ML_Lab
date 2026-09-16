@@ -17,7 +17,7 @@ from ml_lab.core.serialization import to_jsonable
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ml-lab",
-        description="Headless reusable machine-learning operations engine",
+        description="Reusable machine-learning operations engine",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -27,6 +27,12 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("list-rbms", help="List stable restricted Boltzmann machine families")
     sub.add_parser("list-energy-training", help="List stable energy-based training schemes")
     sub.add_parser("list-optimizers", help="List registered generic optimization algorithms")
+
+    ui = sub.add_parser("ui", help="Start the optional standalone ML Lab web UI")
+    ui.add_argument("--host", default="127.0.0.1", help="Bind address; defaults to local-only 127.0.0.1")
+    ui.add_argument("--port", type=int, default=5055)
+    ui.add_argument("--debug", action="store_true")
+    ui.add_argument("--experimental", action="store_true", help="Expose the experimental UI section")
 
     rbm_train = sub.add_parser("rbm-train", help="Train a stable RBM with CD-k")
     rbm_train.add_argument("csv", nargs="+", help="CSV file(s) containing numeric visible features")
@@ -185,6 +191,20 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "list-optimizers":
         for name in optimization.available_optimizers():
             print(name)
+        return 0
+
+    if args.command == "ui":
+        try:
+            from ml_lab.ui.app import run_server
+            run_server(
+                host=args.host,
+                port=args.port,
+                debug=args.debug,
+                enable_experimental=args.experimental,
+            )
+        except RuntimeError as exc:
+            print(str(exc))
+            return 2
         return 0
 
     if args.command == "rbm-train":

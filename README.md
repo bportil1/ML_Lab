@@ -1,6 +1,6 @@
 # ML_Lab
 
-`ML_Lab` is a small, headless machine-learning engine intended for standalone use and later integration into PAH. It provides first-class **classification**, **regression**, **clustering**, **representation/compression**, **generative/GAN**, and **energy-based/RBM** model families and is structured so additional basic ML capabilities can be added without carrying forward the legacy Classifier Generator visualization layer.
+`ML_Lab` is a small machine-learning engine whose core remains headless, with CLI/Python access plus an optional first-party UI for standalone use or mounting inside PAH. It provides first-class **classification**, **regression**, **clustering**, **representation/compression**, **generative/GAN**, and **energy-based/RBM** model families and is structured so additional basic ML capabilities can be added without carrying forward the legacy Classifier Generator visualization layer.
 
 The classification engine reuses the strongest design ideas from the supplied Classifier Generator refactor: declarative estimator registries, preprocessing inside sklearn pipelines, cross-validation on training data only, one holdout evaluation after selection, and explicit machine-readable reporting.
 
@@ -13,6 +13,16 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e '.[test]'
 ```
+
+Optional UI:
+
+```bash
+pip install -e '.[ui]'
+ml-lab ui
+# local-only by default: http://127.0.0.1:5055
+```
+
+The UI extra is not required for CLI/Python use. `import ml_lab` and `import ml_lab.ui` stay Flask-free until an app/Blueprint is explicitly created.
 
 ## Discover estimators
 
@@ -316,6 +326,32 @@ register_experiment(
 
 The implementation is loaded only by `load_experiment()` or `run_experiment()`. Future legacy/research imports such as Linux Binary Identification, Max Clique RL, and partitioned RBM training can therefore incubate here without becoming dependencies of classification, regression, clustering, or other stable task families.
 
+## Optional first-party UI
+
+ML Lab owns its UI so it remains an independent PAH submodule instead of requiring PAH to reimplement ML forms or execution behavior. The same UI can run standalone or be mounted at an arbitrary host prefix.
+
+Standalone:
+
+```bash
+pip install -e '.[ui]'
+ml-lab ui --host 127.0.0.1 --port 5055
+```
+
+Mount inside PAH or another Flask host:
+
+```python
+from flask import Flask
+from ml_lab.ui import create_ui_blueprint
+
+app = Flask(__name__)
+app.register_blueprint(
+    create_ui_blueprint(enable_experimental=False),
+    url_prefix="/ml-lab",
+)
+```
+
+The Sprint-1 UI is a capability-aware shell with a generic JSON task workbench. It executes through `ml_lab.application.execute_task()`; the UI does not call its own HTTP API or contain duplicate ML algorithms. Data Lab A1/A2 will add the first dedicated typed workspace on this foundation. Experimental capabilities remain hidden unless explicitly enabled.
+
 ## Optional Flask / PAH adapter
 
 Flask is an optional integration dependency, not part of the ML engine:
@@ -352,7 +388,7 @@ POST /run/gan
 
 When a host explicitly creates the Blueprint with `enable_experimental=True`, it additionally exposes experimental manifest/list/run routes. Experimental HTTP execution is disabled by default.
 
-The run endpoints accept JSON-shaped arrays (`X`, `y`/`y_true`, optional estimator lists, and task config dictionaries) and return serializable ML Lab result records. GAN payloads use a 2-D numeric `X` plus optional `model_config` and `training_config`. Representation payloads use `method="pca"` with `config`, or `method="mlp_autoencoder"` / `method="transformer_autoencoder"` with `model_config` and `training_config`. Transformer payloads may contain either 2-D feature matrices or pre-tokenized 3-D arrays. The adapter is synchronous and intentionally thin; PAH remains responsible for workspace state, long-running job orchestration, authentication, and visualization.
+The run endpoints accept JSON-shaped arrays (`X`, `y`/`y_true`, optional estimator lists, and task config dictionaries) and return serializable ML Lab result records. GAN payloads use a 2-D numeric `X` plus optional `model_config` and `training_config`. Representation payloads use `method="pca"` with `config`, or `method="mlp_autoencoder"` / `method="transformer_autoencoder"` with `model_config` and `training_config`. Transformer payloads may contain either 2-D feature matrices or pre-tokenized 3-D arrays. The adapter is synchronous and intentionally thin; PAH remains responsible for workspace state, long-running job orchestration, authentication, and host-level navigation. ML Lab may supply its own optional mounted UI.
 
 ## Built-in experimental modules
 

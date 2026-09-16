@@ -1,0 +1,6 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Not found · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head"><div><h1>Capability not found</h1><p class="lede">No UI capability named <code>{{ capability_id }}</code> is registered.</p></div></section>
+<a class="button secondary" href="{{ url_for(request.blueprint + '.index') }}">Back to ML Lab</a>
+{% endblock %}

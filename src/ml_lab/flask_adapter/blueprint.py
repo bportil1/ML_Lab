@@ -12,7 +12,7 @@ from ml_lab.core.serialization import to_jsonable
 from ml_lab.experimental import get_manifest, list_experiments, run_experiment
 from ml_lab.registry import list_estimators
 
-from .service import PayloadError, execute_task
+from ml_lab.application import PayloadError, execute_task
 
 
 def create_blueprint(name: str = "ml_lab", *, enable_experimental: bool = False) -> Blueprint:

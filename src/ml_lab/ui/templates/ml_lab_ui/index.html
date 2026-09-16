@@ -1,0 +1,35 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}ML Lab{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">Standalone or host-mounted</p>
+    <h1>Machine Learning Lab</h1>
+    <p class="lede">The UI is a presentation layer over the same application service used by CLI/REST callers. PAH can mount this Blueprint without owning ML Lab's execution logic.</p>
+  </div>
+  <div class="status-card">
+    <strong>Core remains headless</strong>
+    <span>Base imports do not require Flask or PyTorch.</span>
+  </div>
+</section>
+
+{% for group in groups %}
+<section class="capability-section">
+  <h2>{{ group.name }}</h2>
+  <div class="grid">
+    {% for item in group.capabilities %}
+    <article class="card">
+      <div class="card-head">
+        <h3>{{ item.name }}</h3>
+        <span class="badge {{ item.effective_status }}">{{ item.effective_status.replace('_', ' ') }}</span>
+      </div>
+      <p>{{ item.summary }}</p>
+      {% if item.note %}<p class="note">{{ item.note }}</p>{% endif %}
+      {% if item.missing_dependencies %}<p class="warning">Missing: {{ item.missing_dependencies|join(', ') }}</p>{% endif %}
+      <a class="button secondary" href="{{ url_for(request.blueprint + '.task', capability_id=item.id) }}">Open</a>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

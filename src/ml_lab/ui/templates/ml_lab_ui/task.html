@@ -1,0 +1,32 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}{{ capability.name }} · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for(request.blueprint + '.index') }}">← All capabilities</a>
+<section class="workspace-head">
+  <div>
+    <p class="eyebrow">{{ capability.group }}</p>
+    <h1>{{ capability.name }}</h1>
+    <p class="lede">{{ capability.summary }}</p>
+  </div>
+  <span class="badge {{ capability.effective_status }}">{{ capability.effective_status.replace('_', ' ') }}</span>
+</section>
+
+{% if capability.note %}<div class="tip">{{ capability.note }}</div>{% endif %}
+{% if capability.missing_dependencies %}<div class="alert">Install the optional dependency: {{ capability.missing_dependencies|join(', ') }}</div>{% endif %}
+
+<section class="workbench">
+  <div class="panel">
+    <h2>Application payload</h2>
+    <p class="muted">This Sprint-1 workbench intentionally uses the neutral JSON task contract. Typed forms arrive with each dedicated workspace.</p>
+    <form method="post">
+      <textarea name="payload" spellcheck="false" {% if not capability.task %}disabled{% endif %}>{{ payload_text }}</textarea>
+      <button class="button" type="submit" {% if not capability.task or not capability.available %}disabled{% endif %}>Run {{ capability.name }}</button>
+    </form>
+  </div>
+  <div class="panel">
+    <h2>Result</h2>
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+    {% if result_text %}<pre>{{ result_text }}</pre>{% else %}<div class="empty">Run the task to inspect its machine-readable result here.</div>{% endif %}
+  </div>
+</section>
+{% endblock %}
