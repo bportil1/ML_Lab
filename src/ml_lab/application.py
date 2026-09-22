@@ -208,6 +208,26 @@ def _data_profile(payload: dict[str, Any]) -> dict[str, Any]:
     )
     return profile.to_record()
 
+
+def _data_table(payload: dict[str, Any]) -> dict[str, Any]:
+    path = payload.get("path")
+    if not isinstance(path, (str, bytes)) or not str(path):
+        raise PayloadError("data.table payload must contain path")
+    raw_page_size = payload.get("page_size", 50)
+    page_size = None if raw_page_size in (None, "all", "All", 0, "0") else int(raw_page_size)
+    filters = payload.get("filters", {})
+    if not isinstance(filters, dict):
+        raise PayloadError("data.table filters must be an object")
+    return data.read_table_page(
+        str(path),
+        page=int(payload.get("page", 1)),
+        page_size=page_size,
+        search=str(payload.get("search", "")),
+        filters={str(key): str(value) for key, value in filters.items()},
+        sort_column=(None if payload.get("sort_column") in (None, "") else str(payload.get("sort_column"))),
+        sort_direction=str(payload.get("sort_direction", "asc")),
+    )
+
 def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Execute a core task from a JSON-shaped payload without importing Flask."""
     if not isinstance(payload, dict):
@@ -215,6 +235,7 @@ def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     runners = {
         "data.inspect": _data_inspect,
         "data.profile": _data_profile,
+        "data.table": _data_table,
         "classification": _classification,
         "regression": _regression,
         "clustering": _clustering,
@@ -227,7 +248,7 @@ def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     except KeyError as exc:
         raise PayloadError(f"unsupported ML Lab task: {task}") from exc
     output = runner(payload)
-    if task in {"data.inspect", "data.profile", "representation", "gan", "rbm"}:
+    if task in {"data.inspect", "data.profile", "data.table", "representation", "gan", "rbm"}:
         return {"task": task, "result": output}
     if task == "clustering":
         return {"task": task, **output}

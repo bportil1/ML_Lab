@@ -84,25 +84,40 @@ def test_data_lab_mounts_and_inspects_host_local_path(tmp_path):
     assert b"ml-lab.data-inventory@1" in response.data
 
 
-def test_data_lab_profiles_through_shared_application_service(tmp_path):
+def test_data_lab_profiles_with_visible_job_state_and_persisted_profile(tmp_path):
+    import time
+
     source = tmp_path / "profile.csv"
     source.write_text("x,y,label\n1,2,A\n2,4,A\n3,6,B\n", encoding="utf-8")
 
-    app = create_app(config={"TESTING": True})
+    app = create_app(config={"TESTING": True, "ML_LAB_PROFILE_OUTPUT_ROOT": str(tmp_path / "runs")})
     client = app.test_client()
-    response = client.post(
-        "/data",
+    started = client.post(
+        "/data/profile/start",
         data={
             "paths": str(source),
             "recursive": "1",
             "preview_rows": "20",
-            "action": "profile",
             "max_rows": "100000",
             "relationship_rows": "0",
             "max_relationship_columns": "25",
         },
     )
-    assert response.status_code == 200
-    assert b"Statistical profile" in response.data
-    assert b"Pearson/Spearman" in response.data
-    assert b"ml-lab.data-profile-collection@1" in response.data
+    assert started.status_code == 302
+    job_url = started.headers["Location"]
+    assert "/data/profile/job/" in job_url
+    status_url = job_url + "/status"
+
+    deadline = time.time() + 10
+    payload = client.get(status_url).get_json()
+    while payload["status"] not in {"completed", "failed"} and time.time() < deadline:
+        time.sleep(0.02)
+        payload = client.get(status_url).get_json()
+
+    assert payload["status"] == "completed", payload.get("error")
+    assert payload["profile_links"]
+    profile = client.get(payload["profile_links"][0]["url"])
+    assert profile.status_code == 200
+    assert b"Persisted statistical profile" in profile.data
+    assert b"Pearson/Spearman" in profile.data
+    assert b"Open source" in profile.data

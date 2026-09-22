@@ -7,7 +7,7 @@ import re
 from collections import Counter
 from itertools import combinations
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 import numpy as np
 import pandas as pd
@@ -490,6 +490,7 @@ def profile_paths(
     max_relationship_pairs: int = 200,
     outlier_iqr_multiplier: float = 1.5,
     random_state: int = 42,
+    progress: Callable[[dict[str, Any]], None] | None = None,
 ) -> DataProfileCollection:
     inventory = inspect_paths(
         paths,
@@ -499,9 +500,12 @@ def profile_paths(
     )
     profiles: list[DataProfile] = []
     warnings = list(inventory.warnings)
-    for record in inventory.files:
-        if not record.supported or record.parse_status == "failed":
-            continue
+    eligible = [record for record in inventory.files if record.supported and record.parse_status != "failed"]
+    if progress is not None:
+        progress({"stage": "inventory_complete", "current": 0, "total": len(eligible), "path": None})
+    for profile_index, record in enumerate(eligible, start=1):
+        if progress is not None:
+            progress({"stage": "profiling_file", "current": profile_index - 1, "total": len(eligible), "path": record.relative_path})
         try:
             absolute = Path(record.path)
             relative = Path(record.relative_path)
@@ -520,8 +524,12 @@ def profile_paths(
                     random_state=random_state,
                 )
             )
+            if progress is not None:
+                progress({"stage": "profiled_file", "current": profile_index, "total": len(eligible), "path": record.relative_path})
         except (OSError, UnicodeError, csv.Error, ValueError) as exc:
             warnings.append(f"profile failed for {record.relative_path}: {type(exc).__name__}: {exc}")
+            if progress is not None:
+                progress({"stage": "profile_failed", "current": profile_index, "total": len(eligible), "path": record.relative_path, "error": str(exc)})
     return DataProfileCollection(
         requested_paths=inventory.requested_paths,
         inventory=inventory,

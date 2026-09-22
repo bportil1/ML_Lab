@@ -13,10 +13,13 @@ def create_app(*, enable_experimental: bool = False, config: dict[str, Any] | No
     from .blueprint import create_ui_blueprint
 
     app = Flask("ml_lab.ui")
-    app.config.update({"JSON_SORT_KEYS": False})
+    app.config.update({
+        "JSON_SORT_KEYS": False,
+        "ML_LAB_PROFILE_OUTPUT_ROOT": "ml_lab_results/data/profile_runs",
+    })
     if config:
         app.config.update(config)
-    app.register_blueprint(create_ui_blueprint(enable_experimental=enable_experimental), url_prefix="/")
+    app.register_blueprint(create_ui_blueprint(enable_experimental=enable_experimental, profile_output_root=app.config["ML_LAB_PROFILE_OUTPUT_ROOT"]), url_prefix="/")
     return app
 
 

@@ -25,7 +25,7 @@ ml-lab ui
 The UI extra is not required for CLI/Python use. `import ml_lab` and `import ml_lab.ui` stay Flask-free until an app/Blueprint is explicitly created.
 
 
-## Data Lab — A1/A2 intake, inventory & statistical profiling
+## Data Lab — A1/A2/A2.1 intake, profiling & interaction
 
 Data Lab can inspect unknown CSV/TSV files or directory trees without modifying the sources. A1 detects encoding, delimiter, likely header presence, shape, malformed-width rows, likely exported index columns, and source SHA-256. A2 adds read-only statistical profiling: inferred column types, missingness, cardinality, constants, duplicate rows, descriptive numeric/text/date summaries, IQR outlier flags, categorical imbalance signals, and bounded pairwise relationship analysis.
 
@@ -59,11 +59,19 @@ print(inventory.to_record()["summary"])
 print(profiles.to_record()["summary"])
 ```
 
-Application/REST hosts use the same contracts through `execute_task("data.inspect", {"paths": [...]})` and `execute_task("data.profile", {"paths": [...]})`. The optional UI exposes the same operations in one typed Data Lab workspace.
+Application/REST hosts use the same contracts through `execute_task("data.inspect", {"paths": [...]})`, `execute_task("data.profile", {"paths": [...]})`, and `execute_task("data.table", {"path": ...})`. The optional UI exposes the same operations in one typed Data Lab workspace.
+
+Data Lab A2.1 adds UI run visibility and artifact browsing without changing the statistical semantics. UI-triggered profiles immediately move to a Starting/Running/Completed/Failed status view and are persisted under `ml_lab_results/data/profile_runs/`. Completed runs can be reopened from Data Lab, individual profile artifacts have a structured viewer plus raw JSON, and every supported source can be opened as a read-only interactive table. Source-table pagination controls presentation only: the default is 50 rows/page, users can choose 25/50/100/250/500/All, and the complete valid source remains searchable, filterable, sortable, and pageable.
 
 A2 relationship metrics are intentionally descriptive, not causal. Pearson/Spearman are reported only for numeric pairs. Mutual information is computed after quantile discretization (with NMI also reported) so the artifact states exactly what kind of dependence estimate was produced. Constant and identifier-like columns are excluded from pairwise relationship analysis by default.
 
 A1/A2 remain read-only. Cleaning, coercion, filtering, joins, normalization, imputation, and other source-changing behavior are deferred to the controlled transformation sprint.
+
+### ML-1 real-data checkpoint
+
+The first real-data checkpoint exercised the complete A1/A2/A2.1 path against nine existing CSV datasets using all valid rows (`max_rows=0`). The checkpoint is recorded in [`docs/checkpoints/ML-1-real-data-checkpoint.md`](docs/checkpoints/ML-1-real-data-checkpoint.md). It established concrete requirements for the next controlled-transformation sprint rather than adding source-changing behavior prematurely.
+
+The main requirements carried forward are explicit type overrides/coercion; configurable missing/sentinel handling; select/drop/rename/reorder operations; optional constant/all-missing-column removal; row filters; duplicate removal; string/path cleanup; derived columns; normalization/standardization; categorical encoding; preview-before-apply; and persistent transformation recipes. Outlier treatment remains opt-in and raw sources must not be overwritten by default.
 
 ## Discover estimators
 
@@ -391,7 +399,7 @@ app.register_blueprint(
 )
 ```
 
-The UI remains a capability-aware shell over `ml_lab.application.execute_task()`; it does not call its own HTTP API or contain duplicate ML algorithms. Data Lab A1 is the first dedicated typed workspace and presents the same `data.inspect` operation available to CLI/Python/REST callers. Other stable tasks retain the generic JSON workbench until their typed workspaces are added. Experimental capabilities remain hidden unless explicitly enabled.
+The UI remains a capability-aware shell over stable ML Lab application/core services; it does not contain duplicate ML algorithms. Data Lab is the first dedicated typed workspace and presents the same inventory/profile/table contracts available to CLI/Python/REST callers. Profiling is asynchronous only at the UI presentation boundary so users receive visible run state while the core profiler remains synchronous and independently callable. Other stable tasks retain the generic JSON workbench until their typed workspaces are added. Experimental capabilities remain hidden unless explicitly enabled.
 
 ## Optional Flask / PAH adapter
 

@@ -15,7 +15,7 @@ _TASKS: tuple[dict[str, Any], ...] = (
         "task": "data.inspect",
         "ui_route": "data_lab",
         "requires": (),
-        "note": "A1/A2 cover CSV/TSV inventory, quality profiling, distributions, outliers, and bounded relationship analysis. Cleaning remains deferred.",
+        "note": "A1/A2/A2.1 cover CSV/TSV inventory, quality profiling, persisted profile runs, full source-table browsing, and bounded relationship analysis. Cleaning remains deferred.",
     },
     {
         "id": "classification",
