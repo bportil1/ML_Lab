@@ -89,7 +89,7 @@ PAH / another Flask host
 create_ui_blueprint()
 ```
 
-The UI began as a thin capability-aware shell with a generic JSON workbench over `ml_lab.application.execute_task()`. Data Lab A1/A2/A2.1 provide the first typed workspace while still invoking the same host-neutral inventory/profile/table contracts. Future typed workspaces should follow that pattern: core capability first, application contract second, CLI/REST/UI presentation last. HTML forms are never the source of ML semantics.
+The UI began as a thin capability-aware shell with a generic JSON workbench over `ml_lab.application.execute_task()`. Data Lab A1/A2/A2.1/ML-2 provide the first typed workspace while still invoking the same host-neutral inventory/profile/table/transformation contracts. Future typed workspaces should follow that pattern: core capability first, application contract second, CLI/REST/UI presentation last. HTML forms are never the source of ML semantics.
 
 The UI has no CDN, external asset, or network-service requirement. Its static assets are packaged with ML Lab. Experimental UI is hidden unless explicitly enabled.
 
@@ -187,6 +187,30 @@ user-approved derived dataset
 ```
 
 Raw source files remain immutable by default. Every later transformation must be representable as a persistent recipe with observable row/column/value changes and coercion failures.
+
+## ML-2 controlled transformation boundary (0.17.0)
+
+ML-2 adds source-changing behavior only through a separate derived-data contract. Inventory, profiling, and source browsing remain read-only. `ml_lab.data.transform` owns ordered recipe execution; the application service, CLI, and typed UI all delegate to it.
+
+```text
+raw CSV/TSV + source SHA-256
+        ↓
+ml-lab.transformation-recipe@1
+        ↓
+preview_transformation()
+        ↓
+operation diagnostics + bounded display preview
+        ↓ explicit apply
+new derived CSV/TSV
+ + recipe JSON
+ + ml-lab.derived-dataset@1 manifest
+```
+
+The source and output path may never resolve to the same file. Existing derived output artifacts are replaced only when the caller explicitly opts into overwrite. Writes use a temporary file followed by an atomic replace. Malformed input rows are rejected by default; skipping them must be stated by the recipe. These rules prevent a cleaning action from silently turning a read-only profiling workflow into destructive mutation.
+
+Each operation reports rows/columns before and after, columns added/dropped, missing-cell counts, coercion failures, and changed cells when the before/after shapes are comparable. The derived manifest records both source and derived SHA-256 values. This is intentionally enough lineage for ML-2 artifacts to be auditable, but the generalized lineage graph and cross-dataset provenance model remain ML-4 work.
+
+The stable recipe vocabulary covers column selection/removal/reordering/renaming, quality-based constant/all-missing removal, type coercion, missing/sentinel handling, duplicate and row filtering, string cleanup, constrained derived columns (no arbitrary Python evaluation), categorical encoding, scaling, opt-in IQR treatment, joins, melt, and pivot. The UI provides typed controls for the common single-source cleanup path; advanced operations still execute through the exact same recipe engine via Python/application/CLI callers.
 
 ## Sprint 3 built-in experiment boundary
 

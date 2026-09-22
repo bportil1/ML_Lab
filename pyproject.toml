@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ml-lab"
-version = "0.16.1"
+version = "0.17.0"
 description = "Reusable machine-learning operations engine with CLI, Python API, and optional UI"
 readme = "README.md"
 requires-python = ">=3.10"

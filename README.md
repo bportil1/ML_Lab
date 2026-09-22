@@ -25,7 +25,7 @@ ml-lab ui
 The UI extra is not required for CLI/Python use. `import ml_lab` and `import ml_lab.ui` stay Flask-free until an app/Blueprint is explicitly created.
 
 
-## Data Lab — A1/A2/A2.1 intake, profiling & interaction
+## Data Lab — intake, profiling, interaction & controlled transformation
 
 Data Lab can inspect unknown CSV/TSV files or directory trees without modifying the sources. A1 detects encoding, delimiter, likely header presence, shape, malformed-width rows, likely exported index columns, and source SHA-256. A2 adds read-only statistical profiling: inferred column types, missingness, cardinality, constants, duplicate rows, descriptive numeric/text/date summaries, IQR outlier flags, categorical imbalance signals, and bounded pairwise relationship analysis.
 
@@ -65,13 +65,28 @@ Data Lab A2.1 adds UI run visibility and artifact browsing without changing the 
 
 A2 relationship metrics are intentionally descriptive, not causal. Pearson/Spearman are reported only for numeric pairs. Mutual information is computed after quantile discretization (with NMI also reported) so the artifact states exactly what kind of dependence estimate was produced. Constant and identifier-like columns are excluded from pairwise relationship analysis by default.
 
-A1/A2 remain read-only. Cleaning, coercion, filtering, joins, normalization, imputation, and other source-changing behavior are deferred to the controlled transformation sprint.
+A1/A2/A2.1 remain read-only. ML-2 adds a separate transformation layer that creates derived datasets from explicit ordered recipes; raw inputs remain immutable by default.
 
 ### ML-1 real-data checkpoint
 
 The first real-data checkpoint exercised the complete A1/A2/A2.1 path against nine existing CSV datasets using all valid rows (`max_rows=0`). The checkpoint is recorded in [`docs/checkpoints/ML-1-real-data-checkpoint.md`](docs/checkpoints/ML-1-real-data-checkpoint.md). It established concrete requirements for the next controlled-transformation sprint rather than adding source-changing behavior prematurely.
 
 The main requirements carried forward are explicit type overrides/coercion; configurable missing/sentinel handling; select/drop/rename/reorder operations; optional constant/all-missing-column removal; row filters; duplicate removal; string/path cleanup; derived columns; normalization/standardization; categorical encoding; preview-before-apply; and persistent transformation recipes. Outlier treatment remains opt-in and raw sources must not be overwritten by default.
+
+### ML-2 controlled cleaning & transformation
+
+ML-2 implements those checkpoint requirements through one shared transformation recipe contract. Recipes are ordered and explicit; preview and apply execute the same core operations. Applying a recipe writes a **new** CSV/TSV plus a recipe JSON and a derived-dataset manifest containing source/output SHA-256 values, shape changes, per-operation diagnostics, missingness changes, changed-cell counts when comparable, and coercion failures. Existing derived artifacts require an explicit overwrite flag, and the raw source path is rejected as an output even when overwrite is enabled.
+
+Core operations include select/drop/reorder/rename, quality-based removal of all-missing or constant columns, explicit type coercion, sentinel-to-missing conversion, missing-value filling/removal, duplicate removal, row filters, string cleanup, safe derived fields (regex/text/arithmetic), categorical encoding, standard/min-max/robust scaling, opt-in IQR clipping/drop, joins, melt, and pivot. Malformed rows are rejected unless a recipe explicitly permits them to be skipped.
+
+CLI preview and apply use a JSON recipe file:
+
+```bash
+ml-lab data transform data.csv --recipe cleanup.json --preview
+ml-lab data transform data.csv --recipe cleanup.json --output derived/data-clean.csv
+```
+
+Python/application callers use `data.preview_transformation(...)`, `data.apply_transformation(...)`, `execute_task("data.transform.preview", ...)`, and `execute_task("data.transform.apply", ...)`. The Data Lab UI exposes common cleanup operations as typed controls and shows the generated recipe plus operation diagnostics before or after apply. Advanced recipe operations use the same core contract rather than separate UI-only behavior.
 
 ## Discover estimators
 

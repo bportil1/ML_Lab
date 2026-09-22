@@ -121,3 +121,41 @@ def test_data_lab_profiles_with_visible_job_state_and_persisted_profile(tmp_path
     assert b"Persisted statistical profile" in profile.data
     assert b"Pearson/Spearman" in profile.data
     assert b"Open source" in profile.data
+
+
+def test_data_transform_workspace_previews_and_applies_typed_recipe(tmp_path):
+    source = tmp_path / "source.csv"
+    source.write_text("name,trial,label\n A ,1,aug_3\n B ,x,aug_6\n", encoding="utf-8")
+    output = tmp_path / "derived.csv"
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+
+    page = client.get("/data/transform")
+    assert page.status_code == 200
+    assert b"Controlled transformation" in page.data
+
+    form = {
+        "source": str(source),
+        "output": str(output),
+        "recipe_name": "UI cleanup",
+        "type_overrides": "trial=integer",
+        "coerce_errors": "coerce",
+        "clean_columns": "name",
+        "derive_source": "label",
+        "derive_target": "augmentation",
+        "derive_pattern": r"aug_(\\d+)",
+        "derive_group": "0",
+        "preview_rows": "50",
+        "mode": "preview",
+    }
+    preview = client.post("/data/transform", data=form)
+    assert preview.status_code == 200
+    assert b"Operation diagnostics" in preview.data
+    assert b"coerce_types" in preview.data
+    assert not output.exists()
+
+    form["mode"] = "apply"
+    applied = client.post("/data/transform", data=form)
+    assert applied.status_code == 200
+    assert b"Derived dataset written" in applied.data
+    assert output.is_file()

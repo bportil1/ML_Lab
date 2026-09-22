@@ -228,6 +228,37 @@ def _data_table(payload: dict[str, Any]) -> dict[str, Any]:
         sort_direction=str(payload.get("sort_direction", "asc")),
     )
 
+
+def _data_transform_preview(payload: dict[str, Any]) -> dict[str, Any]:
+    path = payload.get("path")
+    if not isinstance(path, (str, bytes)) or not str(path):
+        raise PayloadError("data.transform.preview payload must contain path")
+    recipe = payload.get("recipe", {})
+    if not isinstance(recipe, dict):
+        raise PayloadError("data.transform.preview recipe must be an object")
+    return data.preview_transformation(
+        str(path),
+        recipe,
+        preview_rows=int(payload.get("preview_rows", 50)),
+    )
+
+
+def _data_transform_apply(payload: dict[str, Any]) -> dict[str, Any]:
+    path = payload.get("path")
+    if not isinstance(path, (str, bytes)) or not str(path):
+        raise PayloadError("data.transform.apply payload must contain path")
+    recipe = payload.get("recipe", {})
+    if not isinstance(recipe, dict):
+        raise PayloadError("data.transform.apply recipe must be an object")
+    output = payload.get("output")
+    return data.apply_transformation(
+        str(path),
+        recipe,
+        output=(None if output in (None, "") else str(output)),
+        overwrite=bool(payload.get("overwrite", False)),
+        preview_rows=int(payload.get("preview_rows", 50)),
+    )
+
 def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Execute a core task from a JSON-shaped payload without importing Flask."""
     if not isinstance(payload, dict):
@@ -236,6 +267,8 @@ def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
         "data.inspect": _data_inspect,
         "data.profile": _data_profile,
         "data.table": _data_table,
+        "data.transform.preview": _data_transform_preview,
+        "data.transform.apply": _data_transform_apply,
         "classification": _classification,
         "regression": _regression,
         "clustering": _clustering,
@@ -248,7 +281,7 @@ def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     except KeyError as exc:
         raise PayloadError(f"unsupported ML Lab task: {task}") from exc
     output = runner(payload)
-    if task in {"data.inspect", "data.profile", "data.table", "representation", "gan", "rbm"}:
+    if task in {"data.inspect", "data.profile", "data.table", "data.transform.preview", "data.transform.apply", "representation", "gan", "rbm"}:
         return {"task": task, "result": output}
     if task == "clustering":
         return {"task": task, **output}

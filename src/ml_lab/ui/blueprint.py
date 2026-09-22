@@ -50,6 +50,138 @@ def _profile_payload_from_form() -> dict[str, Any]:
     }
 
 
+
+def _split_names(raw: str) -> list[str]:
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def _scalar(raw: str) -> Any:
+    text = raw.strip()
+    if text.casefold() in {"null", "none", "na", "nan"}:
+        return None
+    if text.casefold() in {"true", "false"}:
+        return text.casefold() == "true"
+    try:
+        return int(text)
+    except ValueError:
+        try:
+            return float(text)
+        except ValueError:
+            return text
+
+
+def _mapping_lines(raw: str, *, label: str) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for number, line in enumerate(raw.splitlines(), start=1):
+        line = line.strip()
+        if not line:
+            continue
+        if "=" not in line:
+            raise ValueError(f"{label} line {number} must use column=value")
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key:
+            raise ValueError(f"{label} line {number} has an empty column name")
+        result[key] = _scalar(value)
+    return result
+
+
+def _recipe_from_transform_form() -> dict[str, Any]:
+    operations: list[dict[str, Any]] = []
+    selected = _split_names(request.form.get("select_columns", ""))
+    dropped = _split_names(request.form.get("drop_columns", ""))
+    renames = _mapping_lines(request.form.get("rename_columns", ""), label="Rename")
+    type_overrides = {key: str(value) for key, value in _mapping_lines(request.form.get("type_overrides", ""), label="Type override").items()}
+    sentinels = [_scalar(value) for value in _split_names(request.form.get("sentinel_values", ""))]
+    sentinel_columns = _split_names(request.form.get("sentinel_columns", ""))
+    fills = _mapping_lines(request.form.get("fill_missing", ""), label="Fill missing")
+    drop_missing_columns = _split_names(request.form.get("drop_missing_columns", ""))
+    clean_columns = _split_names(request.form.get("clean_columns", ""))
+    duplicate_columns = _split_names(request.form.get("duplicate_columns", ""))
+    encode_columns = _split_names(request.form.get("encode_columns", ""))
+    scale_columns = _split_names(request.form.get("scale_columns", ""))
+    outlier_columns = _split_names(request.form.get("outlier_columns", ""))
+
+    if selected:
+        operations.append({"type": "select_columns", "columns": selected})
+    if dropped:
+        operations.append({"type": "drop_columns", "columns": dropped})
+    if request.form.get("drop_all_missing", "") == "1" or request.form.get("drop_constant", "") == "1":
+        operations.append({
+            "type": "drop_quality_columns",
+            "all_missing": request.form.get("drop_all_missing", "") == "1",
+            "constant": request.form.get("drop_constant", "") == "1",
+            "protected_columns": _split_names(request.form.get("protected_quality_columns", "")),
+        })
+    if renames:
+        operations.append({"type": "rename_columns", "mapping": {key: str(value) for key, value in renames.items()}})
+    if type_overrides:
+        operations.append({"type": "coerce_types", "mapping": type_overrides, "errors": request.form.get("coerce_errors", "coerce")})
+    if sentinels:
+        operation: dict[str, Any] = {"type": "sentinel_to_missing", "values": sentinels}
+        if sentinel_columns:
+            operation["columns"] = sentinel_columns
+        operations.append(operation)
+    for column, value in fills.items():
+        operations.append({"type": "fill_missing", "columns": [column], "method": "constant", "value": value})
+    if drop_missing_columns:
+        operations.append({"type": "drop_missing_rows", "columns": drop_missing_columns, "how": request.form.get("drop_missing_how", "any")})
+    if clean_columns:
+        operations.append({
+            "type": "clean_strings",
+            "columns": clean_columns,
+            "strip": True,
+            "collapse_whitespace": request.form.get("collapse_whitespace", "") == "1",
+            "case": request.form.get("clean_case", "preserve"),
+        })
+    if request.form.get("drop_duplicates", "") == "1":
+        operation = {"type": "drop_duplicates", "keep": request.form.get("duplicate_keep", "first")}
+        if duplicate_columns:
+            operation["columns"] = duplicate_columns
+        operations.append(operation)
+
+    filter_column = request.form.get("filter_column", "").strip()
+    if filter_column:
+        operator = request.form.get("filter_operator", "eq")
+        operation = {"type": "filter_rows", "column": filter_column, "operator": operator}
+        if operator not in {"is_missing", "not_missing"}:
+            operation["value"] = _scalar(request.form.get("filter_value", ""))
+        operations.append(operation)
+
+    derive_source = request.form.get("derive_source", "").strip()
+    derive_target = request.form.get("derive_target", "").strip()
+    derive_pattern = request.form.get("derive_pattern", "").strip()
+    if derive_source or derive_target or derive_pattern:
+        if not (derive_source and derive_target and derive_pattern):
+            raise ValueError("Regex derivation requires source column, target column, and pattern.")
+        operations.append({
+            "type": "derive",
+            "method": "regex_extract",
+            "source": derive_source,
+            "target": derive_target,
+            "pattern": derive_pattern,
+            "group": _form_int("derive_group", 0),
+        })
+    if encode_columns:
+        operations.append({"type": "encode_categorical", "columns": encode_columns, "method": "one_hot", "drop_first": request.form.get("encode_drop_first", "") == "1"})
+    if scale_columns:
+        operations.append({"type": "scale", "columns": scale_columns, "method": request.form.get("scale_method", "standard")})
+    if outlier_columns:
+        operations.append({
+            "type": "outliers",
+            "columns": outlier_columns,
+            "method": request.form.get("outlier_method", "clip_iqr"),
+            "iqr_multiplier": float(request.form.get("outlier_iqr_multiplier", "1.5")),
+        })
+
+    return {
+        "schema": "ml-lab.transformation-recipe@1",
+        "name": request.form.get("recipe_name", "Data Lab transformation").strip() or "Data Lab transformation",
+        "description": request.form.get("recipe_description", "").strip(),
+        "allow_malformed_rows": request.form.get("allow_malformed_rows", "") == "1",
+        "operations": operations,
+    }
+
 def create_ui_blueprint(
     name: str = "ml_lab_ui",
     *,
@@ -97,6 +229,9 @@ def create_ui_blueprint(
 
     def source_url(path: str) -> str:
         return url_for(request.blueprint + ".source_view", token=sign_path(path))
+
+    def transform_url(path: str) -> str:
+        return url_for(request.blueprint + ".data_transform", source_token=sign_path(path))
 
     @blueprint.get("/")
     def index():
@@ -154,8 +289,53 @@ def create_ui_blueprint(
             inventory_json=inventory_json,
             error=error,
             source_url=source_url,
+            transform_url=transform_url,
             recent_runs=data.recent_profile_runs(output_root=profile_output_root, limit=12),
             experimental_enabled=enable_experimental,
+        )
+
+
+    @blueprint.route("/data/transform", methods=["GET", "POST"])
+    def data_transform():
+        source = request.form.get("source", "").strip()
+        source_token = request.args.get("source_token", "")
+        if request.method == "GET" and source_token:
+            source = str(verify_path(source_token))
+        recipe = None
+        result = None
+        error = None
+        applied = False
+        if request.method == "POST":
+            try:
+                if not source:
+                    raise ValueError("Choose a CSV/TSV source path.")
+                recipe = _recipe_from_transform_form()
+                mode = request.form.get("mode", "preview")
+                payload = {
+                    "path": source,
+                    "recipe": recipe,
+                    "preview_rows": _form_int("preview_rows", 50),
+                }
+                if mode == "apply":
+                    payload["output"] = request.form.get("output", "").strip() or None
+                    payload["overwrite"] = request.form.get("overwrite", "") == "1"
+                    result = execute_task("data.transform.apply", payload)["result"]
+                    applied = True
+                else:
+                    result = execute_task("data.transform.preview", payload)["result"]
+            except (PayloadError, OSError, UnicodeError, ValueError, TypeError, KeyError, FileExistsError, json.JSONDecodeError) as exc:
+                error = f"{type(exc).__name__}: {exc}"
+        return render_template(
+            "ml_lab_ui/transform.html",
+            version=__version__,
+            source=source,
+            recipe=recipe,
+            recipe_json=(_pretty(recipe) if recipe is not None else None),
+            result=result,
+            result_json=(_pretty(result) if result is not None else None),
+            error=error,
+            applied=applied,
+            data_url=url_for(request.blueprint + ".data_lab"),
         )
 
     @blueprint.post("/data/profile/start")
@@ -275,6 +455,7 @@ def create_ui_blueprint(
             source=record.to_record(),
             rows_url=url_for(request.blueprint + ".source_rows", token=token),
             raw_url=url_for(request.blueprint + ".source_raw", token=token),
+            transform_url=url_for(request.blueprint + ".data_transform", source_token=token),
             data_url=url_for(request.blueprint + ".data_lab"),
         )
 

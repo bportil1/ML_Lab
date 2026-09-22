@@ -50,6 +50,14 @@ def _parser() -> argparse.ArgumentParser:
     data_profile.add_argument("--random-state", type=int, default=42)
     data_profile.add_argument("--output", default="ml_lab_results/data/profile.json", help="Profile JSON destination")
 
+    data_transform = data_sub.add_parser("transform", help="Preview or apply an explicit non-destructive transformation recipe")
+    data_transform.add_argument("source", help="CSV/TSV source file")
+    data_transform.add_argument("--recipe", required=True, help="Transformation recipe JSON file")
+    data_transform.add_argument("--preview", action="store_true", help="Preview the transformation without writing a derived dataset")
+    data_transform.add_argument("--preview-rows", type=int, default=50, help="Rows included in preview output")
+    data_transform.add_argument("--output", default=None, help="Derived CSV/TSV path; defaults under ml_lab_results/data/derived")
+    data_transform.add_argument("--overwrite", action="store_true", help="Explicitly replace an existing derived output; raw sources are never overwritten")
+
     ui = sub.add_parser("ui", help="Start the optional standalone ML Lab web UI")
     ui.add_argument("--host", default="127.0.0.1", help="Bind address; defaults to local-only 127.0.0.1")
     ui.add_argument("--port", type=int, default=5055)
@@ -260,6 +268,28 @@ def main(argv: list[str] | None = None) -> int:
             )
             for warning in profile.warnings:
                 print(f"warning: {warning}")
+            return 0
+
+        if args.data_command == "transform":
+            recipe = data.load_recipe(args.recipe)
+            if args.preview:
+                payload = data.preview_transformation(args.source, recipe, preview_rows=args.preview_rows)
+                print(json.dumps(to_jsonable(payload), indent=2, sort_keys=True))
+                return 0
+            payload = data.apply_transformation(
+                args.source,
+                recipe,
+                output=args.output,
+                overwrite=args.overwrite,
+                preview_rows=args.preview_rows,
+            )
+            print(f"Derived dataset written to: {payload['derived']['path']}")
+            print(f"Recipe written to: {payload['recipe_path']}")
+            print(f"Manifest written to: {payload['manifest_path']}")
+            print(
+                f"rows={payload['source']['rows']}->{payload['derived']['rows']} "
+                f"columns={payload['source']['columns']}->{payload['derived']['columns']}"
+            )
             return 0
 
     if args.command == "ui":
