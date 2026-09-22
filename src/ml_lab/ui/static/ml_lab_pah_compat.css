@@ -1,0 +1,423 @@
+/*
+ * ML_Lab compatibility layer for the shared PAH visual identity.
+ *
+ * Load after ml_lab.css and pah-module-theme.css. This file maps ML_Lab's
+ * existing presentation classes onto the PAH navy/sky/teal technical-tool
+ * grammar without changing routes, forms, JavaScript contracts, or analytics.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Map the existing ML_Lab tokens onto the shared PAH palette. */
+  --bg: var(--pah-page);
+  --surface: var(--pah-surface);
+  --surface-2: var(--pah-surface-2);
+  --text: var(--pah-text);
+  --muted: var(--pah-muted);
+  --line: var(--pah-border);
+  --accent: var(--pah-blue-600);
+  --good: var(--pah-green-500);
+  --warn: #966d12;
+  --bad: #a83a3a;
+}
+
+html,
+body.pah-module {
+  background: var(--pah-page);
+  color: var(--pah-text);
+}
+
+/* Application framing: same navy header / sky identity edge as PAH modules. */
+.topbar.pah-module-header {
+  min-height: 44px;
+  padding: 5px 12px;
+  background: linear-gradient(180deg, var(--pah-navy-800), var(--pah-navy-900));
+  border-bottom: 2px solid var(--pah-sky-300);
+  box-shadow: 0 1px 3px rgb(5 36 76 / 0.18);
+}
+
+.brand {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .065em;
+  text-transform: uppercase;
+}
+
+.version,
+.mode {
+  color: rgb(255 255 255 / .68);
+  font-size: 10px;
+  letter-spacing: .035em;
+}
+
+/* Compact application tabs rather than rounded SaaS navigation. */
+.module-nav.pah-tool-nav {
+  min-height: 34px;
+  margin-left: 8px;
+  background: transparent;
+  border: 0;
+  align-self: stretch;
+}
+
+.module-nav.pah-tool-nav .nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 11px;
+  color: rgb(255 255 255 / .72);
+  border: 0;
+  border-left: 1px solid rgb(255 255 255 / .10);
+  border-radius: 0;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.module-nav.pah-tool-nav .nav-link:last-child {
+  border-right: 1px solid rgb(255 255 255 / .10);
+}
+
+.module-nav.pah-tool-nav .nav-link:hover,
+.module-nav.pah-tool-nav .nav-link:focus-visible {
+  color: #fff;
+  background: rgb(142 202 230 / .16);
+}
+
+.module-nav.pah-tool-nav .nav-link.active {
+  color: #fff;
+  background: rgb(255 255 255 / .08);
+  box-shadow: inset 0 -3px var(--pah-sky-300);
+}
+
+.shell {
+  max-width: 1320px;
+  padding-top: 26px;
+}
+
+/* Work surfaces: restrained radius, crisp borders, explicit technical hierarchy. */
+.card,
+.panel,
+.status-card,
+.tip,
+.alert,
+.metric,
+.comparison-card {
+  border-color: var(--pah-border);
+  border-radius: var(--pah-radius-sm);
+  box-shadow: var(--pah-shadow-sm);
+}
+
+.card,
+.panel,
+.status-card,
+.metric {
+  background: var(--pah-surface);
+}
+
+.comparison-card {
+  background: var(--pah-surface-2);
+}
+
+.hero,
+.workspace-head {
+  border-bottom: 1px solid var(--pah-border);
+  padding-bottom: 18px;
+  margin-bottom: 22px;
+}
+
+h1 {
+  color: var(--pah-navy-950);
+  font-size: 29px;
+  letter-spacing: -.015em;
+}
+
+h2,
+h3 {
+  color: var(--pah-navy-900);
+}
+
+.eyebrow {
+  color: var(--pah-blue-700);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .085em;
+}
+
+.lede {
+  color: var(--pah-muted);
+}
+
+/* Section headings gain the explicit PAH navy framing without restructuring templates. */
+.panel > h2:first-child,
+.panel > .section-head:first-child,
+.visual-panel > .section-head:first-child,
+.inventory-panel > .section-head:first-child {
+  margin: -18px -18px 16px;
+  padding: 7px 9px;
+  background: var(--pah-navy-900);
+  color: #fff;
+  border-bottom: 2px solid var(--pah-sky-300);
+}
+
+.panel > h2:first-child {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.panel > .section-head:first-child h2,
+.visual-panel > .section-head:first-child h2,
+.inventory-panel > .section-head:first-child h2 {
+  color: #fff;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.panel > .section-head:first-child .muted,
+.visual-panel > .section-head:first-child .muted,
+.inventory-panel > .section-head:first-child .muted {
+  color: rgb(255 255 255 / .68);
+}
+
+/* Utility controls follow the compact PAH desktop-tool pattern. */
+.button {
+  min-height: 29px;
+  margin-top: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--pah-blue-700);
+  border-radius: var(--pah-radius-sm);
+  background: linear-gradient(180deg, var(--pah-blue-600), var(--pah-blue-700));
+  color: #fff;
+  box-shadow: 0 1px 0 rgb(255 255 255 / .16) inset;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.button:hover,
+.button:focus-visible {
+  background: var(--pah-navy-800);
+  border-color: var(--pah-navy-950);
+  color: #fff;
+}
+
+.button.secondary,
+.button.mini.secondary {
+  background: linear-gradient(#ffffff, #e2e8ed);
+  color: var(--pah-text);
+  border-color: var(--pah-border-strong);
+}
+
+.button.secondary:hover,
+.button.secondary:focus-visible {
+  background: #e6f2f8;
+  color: var(--pah-navy-900);
+  border-color: var(--pah-blue-600);
+}
+
+.small-input,
+.medium-input,
+.wide-input,
+.table-search,
+.table-select,
+.column-filter,
+textarea.paths-input,
+textarea.small-textarea,
+textarea.compact-textarea {
+  background: #fff;
+  color: var(--pah-text);
+  border-color: var(--pah-border-strong);
+  border-radius: var(--pah-radius-sm);
+}
+
+.small-input:focus,
+.medium-input:focus,
+.wide-input:focus,
+.table-search:focus,
+.table-select:focus,
+.column-filter:focus,
+textarea:focus {
+  outline: 2px solid rgb(36 126 176 / .22);
+  outline-offset: 1px;
+  border-color: var(--pah-blue-600);
+}
+
+/* Status labels remain compact rather than becoming a pill system. */
+.badge,
+.pah-state {
+  border-radius: var(--pah-radius-xs);
+  background: var(--pah-surface-2);
+  color: var(--pah-muted);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.badge.ready {
+  color: #2d6f38;
+  border-color: #79ad7f;
+  background: #edf7ee;
+}
+
+.badge.experimental {
+  color: var(--pah-blue-700);
+  border-color: var(--pah-sky-300);
+  background: #edf6fb;
+}
+
+.badge.dependency_missing,
+.badge.planned {
+  color: #7f5b0f;
+  border-color: #d0b36c;
+  background: #fff8e6;
+}
+
+.tip {
+  background: #edf6fb;
+  border-left: 4px solid var(--pah-sky-300);
+  color: var(--pah-text);
+}
+
+.alert,
+.warning {
+  color: #7f5b0f;
+}
+
+.alert {
+  background: #fff8e6;
+  border-color: #d0b36c;
+}
+
+.transform-success {
+  background: #edf7ee;
+  border-color: #79ad7f;
+}
+
+/* Scan-friendly data grids shared with References / Research Search. */
+table {
+  background: #fff;
+  border: 1px solid var(--pah-border);
+}
+
+th {
+  background: var(--pah-navy-900);
+  color: #fff;
+  border: 1px solid var(--pah-navy-950);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .045em;
+}
+
+td {
+  border: 1px solid #d6dfe5;
+}
+
+tbody tr:nth-child(even) {
+  background: #edf6fb;
+}
+
+tbody tr:hover {
+  background: #dceef8;
+}
+
+.column-filter-row th {
+  background: var(--pah-navy-800);
+}
+
+.sortable-head:hover {
+  color: #fff;
+  background: var(--pah-navy-800);
+}
+
+.row-error { background: #fff0f0 !important; }
+.row-warning { background: #fff8e6 !important; }
+.row-info { background: #edf6fb !important; }
+.row-ok { background: #f2f8f3 !important; }
+.cell-missing { background: #fff4d6 !important; }
+
+/* Visualization color grammar: blue structure, teal overlap, green dependence, amber missingness. */
+.viz-progress,
+.range-meter {
+  background: #e3ebf0;
+  accent-color: var(--pah-blue-600);
+}
+
+.viz-progress::-webkit-progress-bar {
+  background: #e3ebf0;
+}
+
+.viz-progress::-webkit-progress-value,
+.viz-progress.schema::-webkit-progress-value {
+  background: var(--pah-blue-600);
+}
+
+.viz-progress::-moz-progress-bar,
+.viz-progress.schema::-moz-progress-bar {
+  background: var(--pah-blue-600);
+}
+
+.viz-progress.rows {
+  accent-color: var(--pah-teal-600);
+}
+
+.viz-progress.rows::-webkit-progress-value { background: var(--pah-teal-600); }
+.viz-progress.rows::-moz-progress-bar { background: var(--pah-teal-600); }
+
+.viz-progress.relationship {
+  accent-color: var(--pah-green-500);
+}
+
+.viz-progress.relationship::-webkit-progress-value { background: var(--pah-green-500); }
+.viz-progress.relationship::-moz-progress-bar { background: var(--pah-green-500); }
+
+.viz-progress.missingness {
+  accent-color: #b9851c;
+}
+
+.viz-progress.missingness::-webkit-progress-value { background: #b9851c; }
+.viz-progress.missingness::-moz-progress-bar { background: #b9851c; }
+
+/* Machine-readable/code regions stay semantically dark. */
+pre,
+textarea:not(.paths-input):not(.small-textarea):not(.compact-textarea) {
+  background: var(--pah-editor);
+  color: var(--pah-editor-text, #d7dee8);
+  border-color: #303946;
+  border-radius: var(--pah-radius-sm);
+}
+
+.json-details {
+  border-radius: var(--pah-radius-sm);
+}
+
+.json-details > summary {
+  color: var(--pah-navy-900);
+  font-size: 11px;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+
+.back {
+  color: var(--pah-blue-700);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.back:hover,
+.back:focus-visible {
+  color: var(--pah-navy-900);
+}
+
+@media (max-width: 960px) {
+  .module-nav.pah-tool-nav {
+    margin-left: 0;
+    width: 100%;
+    background: var(--pah-navy-900);
+    border-top: 1px solid rgb(255 255 255 / .10);
+  }
+}

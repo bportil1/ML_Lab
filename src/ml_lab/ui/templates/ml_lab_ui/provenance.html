@@ -1,0 +1,70 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Data provenance · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ data_url }}">← Data Lab</a>
+<section class="workspace-head">
+  <div>
+    <p class="eyebrow">Data · ML-4</p>
+    <h1>Formal data provenance</h1>
+    <p class="lede">Trace only transformation relationships ML Lab explicitly recorded. Dataset-comparison heuristics are never promoted into authoritative lineage.</p>
+  </div>
+  <span class="badge ready">recorded lineage</span>
+</section>
+<div class="tip">A raw dataset with no provenance sidecar is shown as an unrecorded root. Derived datasets created by ML Lab carry a sidecar containing exact source/derived hashes, logical table fingerprints, the ordered recipe snapshot, operation diagnostics, and parent-event linkage.</div>
+
+<section class="panel data-input-panel">
+  <form method="post">
+    <label for="provenance-source"><strong>Dataset path</strong></label>
+    <p class="muted compact">Choose a CSV/TSV source or ML Lab-derived dataset.</p>
+    <input class="wide-input" id="provenance-source" type="text" name="source" value="{{ source }}" placeholder="/path/to/dataset.csv" required>
+    <div class="button-row"><button class="button" type="submit">Trace lineage</button></div>
+  </form>
+</section>
+
+{% if error %}<div class="alert data-alert">{{ error }}</div>{% endif %}
+
+{% if lineage %}
+<section class="summary-grid">
+  <div class="metric"><strong>{{ lineage.event_count }}</strong><span>Recorded events</span></div>
+  <div class="metric"><strong>{{ 'yes' if lineage.chain_valid else 'no' }}</strong><span>Hash-valid chain</span></div>
+  <div class="metric"><strong>{{ 'yes' if lineage.authoritative else 'no' }}</strong><span>Authoritative derived lineage</span></div>
+  <div class="metric"><strong>{{ lineage.status }}</strong><span>Status</span></div>
+</section>
+
+{% if lineage.warnings %}<div class="alert">{% for warning in lineage.warnings %}<div>{{ warning }}</div>{% endfor %}</div>{% endif %}
+
+<section class="panel provenance-root-panel">
+  <h2>Lineage endpoints</h2>
+  <div class="provenance-endpoints">
+    <div><span class="tiny muted">Root</span><code>{{ lineage.root.path }}</code><div class="tiny">{{ lineage.root.rows }} rows × {{ lineage.root.columns }} columns</div><div class="tiny muted">{{ lineage.root.dataset_id }}</div></div>
+    <div class="provenance-arrow" aria-hidden="true">→</div>
+    <div><span class="tiny muted">Target</span><code>{{ lineage.target.path }}</code><div class="tiny">{{ lineage.target.rows }} rows × {{ lineage.target.columns }} columns</div><div class="tiny muted">{{ lineage.target.dataset_id }}</div></div>
+  </div>
+</section>
+
+{% if lineage.events %}
+<section class="panel inventory-panel">
+  <div class="section-head"><div><h2>Recorded transformation chain</h2><p class="muted compact">Ordered from the raw/root dataset toward the selected target.</p></div></div>
+  <div class="provenance-chain">
+    {% for event in lineage.events %}
+    <article class="provenance-event {% if event.authoritative %}row-ok{% else %}row-warning{% endif %}">
+      <header><strong>Step {{ loop.index }} · {{ event.relation }}</strong><span class="badge ready">authoritative</span></header>
+      <div class="tiny muted"><code>{{ event.event_id }}</code></div>
+      <div class="provenance-grid">
+        <div><span class="tiny muted">Source</span><code>{{ event.source.path }}</code><div class="tiny">{{ event.source.rows }} × {{ event.source.columns }}</div></div>
+        <div><span class="tiny muted">Recipe</span><code>{{ event.recipe.sha256 }}</code><div class="tiny">{{ event.changes.operation_count }} operations</div></div>
+        <div><span class="tiny muted">Derived</span><code>{{ event.derived.path }}</code><div class="tiny">{{ event.derived.rows }} × {{ event.derived.columns }}</div></div>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Rows</th><th>Columns</th><th>Coercion failures</th><th>Software</th><th>Created</th></tr></thead><tbody><tr><td>{{ event.changes.rows_before }} → {{ event.changes.rows_after }}</td><td>{{ event.changes.columns_before }} → {{ event.changes.columns_after }}</td><td>{{ event.changes.coercion_failures }}</td><td>{{ event.software.name }} {{ event.software.version }}</td><td>{{ event.created_at }}</td></tr></tbody></table></div>
+      <details class="profile-details"><summary><strong>Recipe snapshot & operation diagnostics</strong></summary><pre>{{ event.recipe.snapshot | tojson(indent=2) }}</pre><pre>{{ event.operations | tojson(indent=2) }}</pre></details>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% else %}
+<div class="status-card"><strong>No recorded transformation parent</strong><span>This dataset is currently an unrecorded/root input from ML Lab's point of view. Similar-looking datasets discovered by ML-3 remain heuristic relationships, not provenance edges.</span></div>
+{% endif %}
+
+<details class="panel json-details"><summary><strong>Machine-readable lineage</strong></summary><pre>{{ lineage_json }}</pre></details>
+{% endif %}
+{% endblock %}
