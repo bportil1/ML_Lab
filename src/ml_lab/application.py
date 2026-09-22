@@ -259,6 +259,14 @@ def _data_transform_preview(payload: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+
+def _data_lineage(payload: dict[str, Any]) -> dict[str, Any]:
+    path = payload.get("path")
+    if not isinstance(path, (str, bytes)) or not str(path):
+        raise PayloadError("data.lineage payload must contain path")
+    return data.trace_lineage(str(path), max_depth=int(payload.get("max_depth", 100)))
+
+
 def _data_transform_apply(payload: dict[str, Any]) -> dict[str, Any]:
     path = payload.get("path")
     if not isinstance(path, (str, bytes)) or not str(path):
@@ -286,6 +294,7 @@ def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
         "data.table": _data_table,
         "data.transform.preview": _data_transform_preview,
         "data.transform.apply": _data_transform_apply,
+        "data.lineage": _data_lineage,
         "classification": _classification,
         "regression": _regression,
         "clustering": _clustering,
@@ -298,7 +307,7 @@ def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     except KeyError as exc:
         raise PayloadError(f"unsupported ML Lab task: {task}") from exc
     output = runner(payload)
-    if task in {"data.inspect", "data.profile", "data.compare", "data.table", "data.transform.preview", "data.transform.apply", "representation", "gan", "rbm"}:
+    if task in {"data.inspect", "data.profile", "data.compare", "data.table", "data.transform.preview", "data.transform.apply", "data.lineage", "representation", "gan", "rbm"}:
         return {"task": task, "result": output}
     if task == "clustering":
         return {"task": task, **output}

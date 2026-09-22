@@ -191,3 +191,20 @@ th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spa
   .mode { display: none; }
   .category-row { grid-template-columns: minmax(70px, 1fr) minmax(70px, 1.6fr) auto; }
 }
+
+/* ML-4 formal data provenance */
+.provenance-endpoints { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 16px; align-items: center; }
+.provenance-endpoints > div:not(.provenance-arrow) { display: grid; gap: 5px; min-width: 0; }
+.provenance-endpoints code, .provenance-event code { overflow-wrap: anywhere; }
+.provenance-arrow { color: var(--muted); font-size: 28px; font-weight: 700; }
+.provenance-chain { display: grid; gap: 14px; }
+.provenance-event { border: 1px solid var(--line); border-radius: 7px; padding: 13px; display: grid; gap: 10px; }
+.provenance-event > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.provenance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.provenance-grid > div { display: grid; gap: 4px; min-width: 0; }
+.provenance-event pre { max-height: 280px; overflow: auto; }
+@media (max-width: 800px) {
+  .provenance-endpoints { grid-template-columns: 1fr; }
+  .provenance-arrow { transform: rotate(90deg); justify-self: start; }
+  .provenance-grid { grid-template-columns: 1fr; }
+}

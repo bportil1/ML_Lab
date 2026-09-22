@@ -706,3 +706,24 @@ The optional first-party UI now includes a compact module navigation bar and off
 ML_Lab now uses the same shared PAH navy/sky/teal visual grammar as the other standalone modules while retaining its existing workflows and layout. The UI loads a synchronized `pah-module-theme.css` after the ML_Lab baseline stylesheet and then a narrow `ml_lab_pah_compat.css` adapter.
 
 The adapter maps the existing ML_Lab tokens and controls onto PAH's light technical surfaces, navy framing, sky identity edges, compact utility controls, navy data-grid headers, alternating light-blue rows, semantic dark code/JSON surfaces, and blue/teal/green/amber data-visualization signals. No analytics or route behavior changes in this release.
+
+## ML-4 formal data provenance (0.19.0)
+
+Data Lab now records authoritative lineage for datasets that ML_Lab actually creates. Every applied transformation writes a sibling `*.provenance.json` event in addition to the existing recipe and derived-dataset manifest. The event records exact source/derived byte SHA-256 values, a logical table fingerprint, stable dataset IDs, a reproducible transformation identity, a unique execution-event ID, the ordered recipe snapshot and digest, operation diagnostics, row/column changes, software identity, and a parent event when the source is itself a prior ML_Lab-derived dataset.
+
+```bash
+ml-lab data lineage results/cleaned.csv
+ml-lab data lineage results/cleaned.csv --output results/cleaned.lineage.json
+```
+
+Python and host callers use the same contract:
+
+```python
+from ml_lab import data
+
+lineage = data.trace_lineage("results/cleaned.csv")
+```
+
+`ml-lab.data-lineage@1` is deliberately narrower than ML-3 relationship discovery. A file that merely resembles another dataset remains an inferred comparison relationship. Only a recorded transformation event creates an authoritative `derived_from` provenance edge. The lineage checker verifies the current source and derived byte hashes and marks a chain invalid if an intermediate file has been modified or disappeared.
+
+The optional UI exposes a **Provenance** workspace and lineage links from Data Lab, source browsing, and successful transformation results. Raw datasets without an ML_Lab provenance sidecar remain valid `unrecorded_root` inputs rather than receiving invented ancestry.

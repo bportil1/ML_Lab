@@ -233,6 +233,9 @@ def create_ui_blueprint(
     def transform_url(path: str) -> str:
         return url_for(request.blueprint + ".data_transform", source_token=sign_path(path))
 
+    def provenance_url(path: str) -> str:
+        return url_for(request.blueprint + ".data_provenance", source_token=sign_path(path))
+
     @blueprint.get("/")
     def index():
         return render_template(
@@ -290,6 +293,7 @@ def create_ui_blueprint(
             error=error,
             source_url=source_url,
             transform_url=transform_url,
+            provenance_url=provenance_url,
             recent_runs=data.recent_profile_runs(output_root=profile_output_root, limit=12),
             experimental_enabled=enable_experimental,
         )
@@ -329,6 +333,31 @@ def create_ui_blueprint(
             max_pairs=max_pairs,
             result=result,
             result_json=(_pretty(result) if result is not None else None),
+            error=error,
+            data_url=url_for(request.blueprint + ".data_lab"),
+        )
+
+    @blueprint.route("/data/provenance", methods=["GET", "POST"])
+    def data_provenance():
+        source = request.form.get("source", "").strip()
+        source_token = request.args.get("source_token", "")
+        if request.method == "GET" and source_token:
+            source = str(verify_path(source_token))
+        lineage = None
+        error = None
+        if request.method == "POST" or source:
+            try:
+                if not source:
+                    raise ValueError("Choose a CSV/TSV dataset path.")
+                lineage = execute_task("data.lineage", {"path": source})["result"]
+            except (PayloadError, OSError, UnicodeError, ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+                error = f"{type(exc).__name__}: {exc}"
+        return render_template(
+            "ml_lab_ui/provenance.html",
+            version=__version__,
+            source=source,
+            lineage=lineage,
+            lineage_json=(_pretty(lineage) if lineage is not None else None),
             error=error,
             data_url=url_for(request.blueprint + ".data_lab"),
         )
@@ -373,6 +402,7 @@ def create_ui_blueprint(
             result_json=(_pretty(result) if result is not None else None),
             error=error,
             applied=applied,
+            provenance_url=(provenance_url(result["derived"]["path"]) if applied and result else None),
             data_url=url_for(request.blueprint + ".data_lab"),
         )
 
@@ -494,6 +524,7 @@ def create_ui_blueprint(
             rows_url=url_for(request.blueprint + ".source_rows", token=token),
             raw_url=url_for(request.blueprint + ".source_raw", token=token),
             transform_url=url_for(request.blueprint + ".data_transform", source_token=token),
+            provenance_url=url_for(request.blueprint + ".data_provenance", source_token=token),
             data_url=url_for(request.blueprint + ".data_lab"),
         )
 

@@ -6,7 +6,7 @@
   <div><p class="eyebrow">Source data · read only</p><h1>{{ source.relative_path }}</h1><p class="lede">Browse the complete source table. Page size changes rendering only; every valid row remains accessible.</p></div>
   <span class="badge {{ 'planned' if source.parse_status == 'partial' else 'ready' }}">{{ source.parse_status }}</span>
 </section>
-<div class="button-row action-strip"><a class="button secondary" href="{{ raw_url }}" target="_blank" rel="noopener">Open raw file</a><a class="button" href="{{ transform_url }}">Transform this source</a></div>
+<div class="button-row action-strip"><a class="button secondary" href="{{ raw_url }}" target="_blank" rel="noopener">Open raw file</a><a class="button" href="{{ transform_url }}">Transform this source</a><a class="button secondary" href="{{ provenance_url }}">Trace provenance</a></div>
 <section class="summary-grid">
   <div class="metric"><strong>{{ source.row_count }}</strong><span>Source rows</span></div><div class="metric"><strong>{{ source.column_count }}</strong><span>Columns</span></div><div class="metric"><strong>{{ source.malformed_row_count }}</strong><span>Malformed rows</span></div><div class="metric"><strong>{{ source.encoding }}</strong><span>Encoding</span></div>
 </section>

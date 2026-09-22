@@ -63,3 +63,27 @@ def test_data_compare_cli(tmp_path, capsys):
     assert payload["schema"] == "ml-lab.dataset-comparison-collection@1"
     assert payload["summary"]["compared_pair_count"] == 1
     assert "pairs=1/1" in capsys.readouterr().out
+
+
+def test_data_lineage_cli_writes_authoritative_lineage(tmp_path: Path, capsys):
+    from ml_lab import data
+
+    source = tmp_path / "source.csv"
+    source.write_text("id,value\n1,10\n2,20\n", encoding="utf-8")
+    derived = tmp_path / "derived.csv"
+    data.apply_transformation(
+        source,
+        {"operations": [{"type": "filter_rows", "column": "value", "operator": "ge", "value": 20}]},
+        output=derived,
+    )
+    output = tmp_path / "lineage.json"
+
+    status = main(["data", "lineage", str(derived), "--output", str(output)])
+    captured = capsys.readouterr().out
+
+    assert status == 0
+    assert "events=1" in captured
+    assert "authoritative=True" in captured
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["schema"] == "ml-lab.data-lineage@1"
+    assert payload["event_count"] == 1

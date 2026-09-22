@@ -4,15 +4,15 @@
 <a class="back" href="{{ url_for(request.blueprint + '.index') }}">← All capabilities</a>
 <section class="workspace-head">
   <div>
-    <p class="eyebrow">Data · A1/A2.1 · ML-2/ML-3</p>
-    <h1>Data intake, profiling, transformation & discovery</h1>
-    <p class="lede">Inspect unknown CSV/TSV files, run statistical profiles with visible status, browse complete source tables, and create non-destructive derived datasets from explicit recipes.</p>
+    <p class="eyebrow">Data · A1/A2.1 · ML-2/ML-3/ML-4</p>
+    <h1>Data intake, profiling, transformation, discovery & provenance</h1>
+    <p class="lede">Inspect unknown CSV/TSV files, run statistical profiles with visible status, browse complete source tables, create non-destructive derived datasets, and trace authoritative ML Lab lineage.</p>
   </div>
   <span class="badge ready">ready</span>
 </section>
 
 <div class="tip">Inventory and profiling remain read-only. Transformations always create a derived dataset and never silently overwrite the raw source.</div>
-<div class="button-row action-strip"><a class="button secondary" href="{{ url_for(request.blueprint + '.data_transform') }}">Transform a dataset</a></div>
+<div class="button-row action-strip"><a class="button secondary" href="{{ url_for(request.blueprint + '.data_transform') }}">Transform a dataset</a><a class="button secondary" href="{{ url_for(request.blueprint + '.data_provenance') }}">Trace provenance</a></div>
 
 <section class="panel data-input-panel">
   <form method="post" action="{{ url_for(request.blueprint + '.data_lab') }}">
@@ -70,7 +70,7 @@
           <td>{% if file.has_header is sameas true %}yes{% elif file.has_header is sameas false %}no{% else %}—{% endif %}</td>
           <td>{{ file.likely_exported_index_columns|join(', ') if file.likely_exported_index_columns else '—' }}</td>
           <td>{% if file.error %}<div class="warning">{{ file.error }}</div>{% endif %}{% if file.warnings %}{{ file.warnings|join('; ') }}{% else %}—{% endif %}</td>
-          <td>{% if file.supported and file.parse_status != 'failed' %}<a class="button mini secondary" href="{{ source_url(file.path) }}">Open source</a> <a class="button mini secondary" href="{{ transform_url(file.path) }}">Transform</a>{% else %}—{% endif %}</td>
+          <td>{% if file.supported and file.parse_status != 'failed' %}<a class="button mini secondary" href="{{ source_url(file.path) }}">Open source</a> <a class="button mini secondary" href="{{ transform_url(file.path) }}">Transform</a> <a class="button mini secondary" href="{{ provenance_url(file.path) }}">Lineage</a>{% else %}—{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>

@@ -65,6 +65,11 @@ def _parser() -> argparse.ArgumentParser:
     data_transform.add_argument("--output", default=None, help="Derived CSV/TSV path; defaults under ml_lab_results/data/derived")
     data_transform.add_argument("--overwrite", action="store_true", help="Explicitly replace an existing derived output; raw sources are never overwritten")
 
+    data_lineage = data_sub.add_parser("lineage", help="Trace authoritative ML Lab provenance for a CSV/TSV dataset")
+    data_lineage.add_argument("path", help="Dataset path to trace back through recorded ML Lab transformations")
+    data_lineage.add_argument("--max-depth", type=int, default=100, help="Maximum recorded transformation depth")
+    data_lineage.add_argument("--output", default=None, help="Optional JSON destination for the lineage artifact")
+
     ui = sub.add_parser("ui", help="Start the optional standalone ML Lab web UI")
     ui.add_argument("--host", default="127.0.0.1", help="Bind address; defaults to local-only 127.0.0.1")
     ui.add_argument("--port", type=int, default=5055)
@@ -294,6 +299,23 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
+        if args.data_command == "lineage":
+            lineage = data.trace_lineage(args.path, max_depth=args.max_depth)
+            if args.output:
+                output = data.save_lineage(lineage, args.output)
+                print(f"Lineage written to: {output}")
+            print(
+                f"status={lineage['status']} events={lineage['event_count']} "
+                f"valid={lineage['chain_valid']} authoritative={lineage['authoritative']}"
+            )
+            print(f"root={lineage['root']['path']}")
+            print(f"target={lineage['target']['path']}")
+            for warning in lineage["warnings"]:
+                print(f"warning: {warning}")
+            if not args.output:
+                print(json.dumps(to_jsonable(lineage), indent=2, sort_keys=True))
+            return 0
+
         if args.data_command == "transform":
             recipe = data.load_recipe(args.recipe)
             if args.preview:
@@ -310,6 +332,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Derived dataset written to: {payload['derived']['path']}")
             print(f"Recipe written to: {payload['recipe_path']}")
             print(f"Manifest written to: {payload['manifest_path']}")
+            print(f"Provenance written to: {payload['provenance']['path']}")
             print(
                 f"rows={payload['source']['rows']}->{payload['derived']['rows']} "
                 f"columns={payload['source']['columns']}->{payload['derived']['columns']}"

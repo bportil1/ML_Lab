@@ -20,6 +20,7 @@
       <a href="{{ url_for(request.blueprint + '.data_lab') }}" class="nav-link {% if request.endpoint == request.blueprint + ".data_lab" %}active{% endif %}">Data</a>
       <a href="{{ url_for(request.blueprint + '.data_compare') }}" class="nav-link {% if request.endpoint == request.blueprint + ".data_compare" %}active{% endif %}">Compare</a>
       <a href="{{ url_for(request.blueprint + '.data_transform') }}" class="nav-link {% if request.endpoint == request.blueprint + ".data_transform" %}active{% endif %}">Transform</a>
+      <a href="{{ url_for(request.blueprint + '.data_provenance') }}" class="nav-link {% if request.endpoint == request.blueprint + ".data_provenance" %}active{% endif %}">Provenance</a>
     </nav>
     <span class="mode">local · optional UI</span>
   </header>

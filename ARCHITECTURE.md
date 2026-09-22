@@ -337,3 +337,23 @@ The UI may render compact visual summaries from metrics already present in Data 
 ML_Lab remains independently runnable, but its optional UI now participates in the same presentation contract as the other PAH modules. `ml_lab.css` remains the module-owned baseline. A synchronized copy of `pah-module-theme.css` is loaded afterward, followed by `ml_lab_pah_compat.css`, which adapts the existing ML_Lab selectors without moving application logic into PAH or requiring PAH to be present.
 
 The shared palette is presentation-only. Data/profile/comparison/transform semantics remain owned by the ML_Lab core. Visualization colors communicate stable categories (blue structure/schema, teal overlap, green relationship/dependence, amber missingness/warning) and must not encode new scientific conclusions.
+
+## ML-4 formal provenance boundary (0.19.0)
+
+Formal lineage lives in `ml_lab.data.provenance`. Provenance is **recorded fact**, not a promotion of ML-3 similarity heuristics. `ml_lab.data.comparison` may suggest that two files are duplicates, versions, train/test partitions, or derivatives; those labels remain hypotheses until an explicit transformation or future import/provenance adapter records the relationship.
+
+Each ML_Lab-derived CSV/TSV receives a sibling `*.provenance.json` event using schema `ml-lab.transformation-event@1`. The event records:
+
+- exact byte-level SHA-256 for source and derived files,
+- `ml-lab.logical-table@1` fingerprints that normalize delimiter/line-ending representation while preserving parsed dtype, column order, row order, and values,
+- stable dataset IDs derived from the logical table fingerprint,
+- a reproducible transformation ID derived from source dataset ID, derived dataset ID, and recipe digest,
+- a unique execution event ID for the particular recorded run,
+- the exact ordered `ml-lab.transformation-recipe@1` snapshot and recipe digest,
+- operation diagnostics and aggregate row/column changes,
+- ML_Lab software identity,
+- the preceding authoritative event when the source is itself a recorded derived dataset.
+
+`trace_lineage()` follows only those explicit sidecars and emits `ml-lab.data-lineage@1`. It rechecks current byte hashes at every edge. Missing or modified intermediate data invalidates the chain and is reported rather than silently accepted. Raw/unrecorded inputs terminate the trace as roots without invented parentage.
+
+The derived-dataset manifest remains the operational ML-2 artifact and now references its provenance event. This keeps transformation execution and lineage complementary: the manifest describes the produced artifact; provenance describes the authoritative source→recipe→derived relationship. ML-5 may register these neutral lineage artifacts with PAH, but PAH must not become the owner of provenance semantics.

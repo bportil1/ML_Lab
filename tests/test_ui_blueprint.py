@@ -19,6 +19,7 @@ def test_standalone_ui_renders_dashboard_and_capability_api():
     assert b"Data Lab" in response.data
     assert b">Compare</a>" in response.data
     assert b">Transform</a>" in response.data
+    assert b">Provenance</a>" in response.data
 
     payload = client.get("/api/capabilities").get_json()
     assert payload["version"]
@@ -189,3 +190,62 @@ def test_data_compare_workspace(tmp_path):
     assert b"Pair overview" in response.data
     assert b"Schema" in response.data
     assert b"Left rows" in response.data
+
+
+def test_data_provenance_workspace_traces_recorded_lineage(tmp_path):
+    from ml_lab import data
+
+    source = tmp_path / "source.csv"
+    source.write_text("id,value\n1,10\n2,20\n", encoding="utf-8")
+    derived = tmp_path / "derived.csv"
+    data.apply_transformation(
+        source,
+        {"name": "UI lineage", "operations": [{"type": "filter_rows", "column": "value", "operator": "ge", "value": 20}]},
+        output=derived,
+    )
+
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+    response = client.post("/data/provenance", data={"source": str(derived)})
+
+    assert response.status_code == 200
+    assert b"Formal data provenance" in response.data
+    assert b"Recorded transformation chain" in response.data
+    assert b"authoritative" in response.data
+    assert str(source.resolve()).encode("utf-8") in response.data
+    assert str(derived.resolve()).encode("utf-8") in response.data
+
+
+def test_data_provenance_workspace_traces_applied_transform(tmp_path):
+    source = tmp_path / "source.csv"
+    source.write_text("id,value\n1,10\n2,20\n", encoding="utf-8")
+    derived = tmp_path / "derived.csv"
+
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+
+    transform = client.post(
+        "/data/transform",
+        data={
+            "source": str(source),
+            "output": str(derived),
+            "recipe_name": "provenance test",
+            "filter_column": "value",
+            "filter_operator": "ge",
+            "filter_value": "20",
+            "preview_rows": "50",
+            "mode": "apply",
+        },
+    )
+    assert transform.status_code == 200
+    assert derived.is_file()
+    assert b"Provenance:" in transform.data
+    assert b"Open lineage" in transform.data
+
+    page = client.post("/data/provenance", data={"source": str(derived)})
+    assert page.status_code == 200
+    assert b"Formal data provenance" in page.data
+    assert b"Recorded transformation chain" in page.data
+    assert b"Hash-valid chain" in page.data
+    assert b"authoritative" in page.data
+    assert b"ml-lab.data-lineage@1" in page.data

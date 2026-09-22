@@ -55,6 +55,7 @@ def test_apply_transformation_writes_derived_recipe_and_manifest_without_touchin
     assert output.is_file()
     assert Path(manifest["recipe_path"]).is_file()
     assert Path(manifest["manifest_path"]).is_file()
+    assert Path(manifest["provenance"]["path"]).is_file()
     assert data.inspect_file(source).sha256 == before_hash
     derived = pd.read_csv(output)
     assert list(derived["value"]) == [0.0, 1.0]
@@ -62,6 +63,7 @@ def test_apply_transformation_writes_derived_recipe_and_manifest_without_touchin
     persisted = json.loads(Path(manifest["manifest_path"]).read_text(encoding="utf-8"))
     assert persisted["source"]["sha256"] == before_hash
     assert persisted["derived"]["sha256"] == manifest["derived"]["sha256"]
+    assert persisted["provenance"]["event_id"] == manifest["provenance"]["event_id"]
 
 
 def test_apply_refuses_raw_source_overwrite_and_existing_derived_without_explicit_permission(tmp_path: Path):

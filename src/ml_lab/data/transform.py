@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 from .intake import inspect_file
+from .provenance import persist_transformation_provenance, provenance_sidecar_path
 
 _RECIPE_SCHEMA = "ml-lab.transformation-recipe@1"
 _PREVIEW_SCHEMA = "ml-lab.transformation-preview@1"
@@ -590,7 +591,8 @@ def apply_transformation(
         raise ValueError("derived dataset output must end in .csv or .tsv")
     recipe_path = destination.with_suffix(destination.suffix + ".recipe.json")
     manifest_path = destination.with_suffix(destination.suffix + ".manifest.json")
-    existing = [candidate for candidate in (destination, recipe_path, manifest_path) if candidate.exists()]
+    provenance_path = provenance_sidecar_path(destination)
+    existing = [candidate for candidate in (destination, recipe_path, manifest_path, provenance_path) if candidate.exists()]
     if existing and not overwrite:
         raise FileExistsError(
             "derived output artifact already exists: " + ", ".join(str(candidate) for candidate in existing) +
@@ -610,25 +612,33 @@ def apply_transformation(
             temporary.unlink()
 
     recipe_path.write_text(json.dumps(normalized, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    created_at = datetime.now(timezone.utc).isoformat()
+    transformation_warnings = ([f"Skipped {source_record.malformed_row_count} malformed source row(s)."] if source_record.malformed_row_count else [])
+    provenance = persist_transformation_provenance(
+        source_path=source,
+        derived_path=destination,
+        recipe=normalized,
+        operations=diagnostics,
+        recipe_path=recipe_path,
+        manifest_path=manifest_path,
+        warnings=transformation_warnings,
+        created_at=created_at,
+    )
     manifest = {
         "schema": _DERIVED_SCHEMA,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "source": {
-            "path": source_record.path,
-            "sha256": source_record.sha256,
-            "rows": int(len(frame)),
-            "columns": int(len(frame.columns)),
-        },
-        "derived": {
-            "path": str(destination),
-            "sha256": _sha256(destination),
-            "rows": int(len(result)),
-            "columns": int(len(result.columns)),
-        },
+        "created_at": created_at,
+        "source": provenance["source"],
+        "derived": provenance["derived"],
         "recipe_path": str(recipe_path),
         "recipe": normalized,
         "operations": diagnostics,
-        "warnings": ([f"Skipped {source_record.malformed_row_count} malformed source row(s)."] if source_record.malformed_row_count else []),
+        "warnings": provenance["warnings"],
+        "provenance": {
+            "schema": provenance["schema"],
+            "event_id": provenance["event_id"],
+            "path": provenance["provenance_path"],
+            "parent": provenance["parent"],
+        },
         "preview": _records(result, preview_rows),
     }
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True, default=_jsonable) + "\n", encoding="utf-8")
