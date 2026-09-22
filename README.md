@@ -727,3 +727,18 @@ lineage = data.trace_lineage("results/cleaned.csv")
 `ml-lab.data-lineage@1` is deliberately narrower than ML-3 relationship discovery. A file that merely resembles another dataset remains an inferred comparison relationship. Only a recorded transformation event creates an authoritative `derived_from` provenance edge. The lineage checker verifies the current source and derived byte hashes and marks a chain invalid if an intermediate file has been modified or disappeared.
 
 The optional UI exposes a **Provenance** workspace and lineage links from Data Lab, source browsing, and successful transformation results. Raw datasets without an ML_Lab provenance sidecar remain valid `unrecorded_root` inputs rather than receiving invented ancestry.
+
+## 0.20.0 — PAH integration
+
+ML Lab remains a standalone package and owns its CLI, Python API, and Flask UI. The
+optional PAH integration is now advertised through Python entry points rather than
+through host-specific imports in the scientific core:
+
+- `pah.modules:ml_lab` exposes ML Lab's capability manifest.
+- `pah.runtimes:ml_lab` exposes a local runtime adapter that launches the same
+  first-party UI used by `ml-lab ui`.
+- the runtime adapter discovers known ML Lab result schemas under the host-provided
+  `results_root` and returns dependency-free artifact mappings for PAH's registry.
+
+PAH therefore orchestrates ML Lab without reimplementing Data Lab forms or model
+logic. ML Lab does not import the PAH package and remains usable without PAH.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ml-lab"
-version = "0.19.0"
+version = "0.20.0"
 description = "Reusable machine-learning operations engine with CLI, Python API, and optional UI"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,6 +25,12 @@ experimental-neural = ["torch>=2.0"]
 
 [project.scripts]
 ml-lab = "ml_lab.cli:main"
+
+[project.entry-points."pah.modules"]
+ml_lab = "ml_lab.pah_integration:module_manifest"
+
+[project.entry-points."pah.runtimes"]
+ml_lab = "ml_lab.pah_integration:runtime_adapter"
 
 [tool.setuptools.packages.find]
 where = ["src"]

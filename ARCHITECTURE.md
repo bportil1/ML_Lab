@@ -357,3 +357,22 @@ Each ML_Lab-derived CSV/TSV receives a sibling `*.provenance.json` event using s
 `trace_lineage()` follows only those explicit sidecars and emits `ml-lab.data-lineage@1`. It rechecks current byte hashes at every edge. Missing or modified intermediate data invalidates the chain and is reported rather than silently accepted. Raw/unrecorded inputs terminate the trace as roots without invented parentage.
 
 The derived-dataset manifest remains the operational ML-2 artifact and now references its provenance event. This keeps transformation execution and lineage complementary: the manifest describes the produced artifact; provenance describes the authoritative source→recipe→derived relationship. ML-5 may register these neutral lineage artifacts with PAH, but PAH must not become the owner of provenance semantics.
+
+## PAH adapter boundary (0.20.0)
+
+`ml_lab.pah_integration` is a thin optional host boundary. It declares ML Lab to
+PAH through dependency-free mappings and owns only UI lifecycle plus artifact
+discovery. Scientific execution remains in `ml_lab.application` and the domain
+packages; the PAH adapter must not duplicate those operations.
+
+The adapter uses the explicit host context when supplied:
+
+- `project_root` identifies the active PAH workspace,
+- `results_root` scopes artifact discovery and profile persistence,
+- `ports["ml_lab"]` selects the local UI port,
+- `host` controls the local bind address.
+
+Only files carrying recognized `ml-lab.*@1` schemas are surfaced as PAH artifacts.
+ML-3 heuristic comparison relationships are never converted into provenance edges;
+ML-4 recorded transformation/provenance artifacts remain the authoritative lineage
+source.

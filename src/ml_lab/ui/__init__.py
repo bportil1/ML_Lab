@@ -14,10 +14,16 @@ def create_ui_blueprint(
     *,
     enable_experimental: bool = False,
     profile_output_root: str = "ml_lab_results/data/profile_runs",
+    derived_output_root: str = "ml_lab_results/data/derived",
 ):
     from .blueprint import create_ui_blueprint as _create_ui_blueprint
 
-    return _create_ui_blueprint(name=name, enable_experimental=enable_experimental, profile_output_root=profile_output_root)
+    return _create_ui_blueprint(
+        name=name,
+        enable_experimental=enable_experimental,
+        profile_output_root=profile_output_root,
+        derived_output_root=derived_output_root,
+    )
 
 
 def create_app(*, enable_experimental: bool = False, config: dict | None = None):

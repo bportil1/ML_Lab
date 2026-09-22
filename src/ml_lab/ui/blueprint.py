@@ -187,6 +187,7 @@ def create_ui_blueprint(
     *,
     enable_experimental: bool = False,
     profile_output_root: str | Path = "ml_lab_results/data/profile_runs",
+    derived_output_root: str | Path = "ml_lab_results/data/derived",
 ) -> Blueprint:
     """Create ML Lab's mountable first-party UI Blueprint.
 
@@ -384,7 +385,13 @@ def create_ui_blueprint(
                     "preview_rows": _form_int("preview_rows", 50),
                 }
                 if mode == "apply":
-                    payload["output"] = request.form.get("output", "").strip() or None
+                    requested_output = request.form.get("output", "").strip()
+                    if requested_output:
+                        payload["output"] = requested_output
+                    else:
+                        source_path = Path(source).expanduser().resolve()
+                        output_root = Path(derived_output_root).expanduser().resolve()
+                        payload["output"] = str(output_root / f"{source_path.stem}-derived{source_path.suffix.lower()}")
                     payload["overwrite"] = request.form.get("overwrite", "") == "1"
                     result = execute_task("data.transform.apply", payload)["result"]
                     applied = True
