@@ -5,13 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}ML Lab{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab.css') }}">
+  <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='pah-module-theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_pah_compat.css') }}">
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_tables.js') }}"></script>
 </head>
-<body>
-  <header class="topbar">
-    <a class="brand" href="{{ url_for(request.blueprint + '.index') }}">ML Lab</a>
-    <span class="version">v{{ version }}</span>
-    <span class="mode">optional first-party UI</span>
+<body class="pah-module" data-pah-module-root>
+  <header class="topbar pah-module-header">
+    <div class="brand-group">
+      <a class="brand" href="{{ url_for(request.blueprint + '.index') }}">ML Lab</a>
+      <span class="version">v{{ version }}</span>
+    </div>
+    <nav class="module-nav pah-tool-nav" data-pah-tool-nav aria-label="ML Lab">
+      <a href="{{ url_for(request.blueprint + '.index') }}" class="nav-link {% if request.endpoint == request.blueprint + ".index" %}active{% endif %}">Overview</a>
+      <a href="{{ url_for(request.blueprint + '.data_lab') }}" class="nav-link {% if request.endpoint == request.blueprint + ".data_lab" %}active{% endif %}">Data</a>
+      <a href="{{ url_for(request.blueprint + '.data_compare') }}" class="nav-link {% if request.endpoint == request.blueprint + ".data_compare" %}active{% endif %}">Compare</a>
+      <a href="{{ url_for(request.blueprint + '.data_transform') }}" class="nav-link {% if request.endpoint == request.blueprint + ".data_transform" %}active{% endif %}">Transform</a>
+    </nav>
+    <span class="mode">local · optional UI</span>
   </header>
   <main class="shell">
     {% block content %}{% endblock %}

@@ -34,6 +34,20 @@
   <div class="metric"><strong>{{ summary.possible_pair_count }}</strong><span>Possible pairs</span></div>
   <div class="metric"><strong>{{ 'yes' if summary.truncated else 'no' }}</strong><span>Truncated</span></div>
 </section>
+<section class="panel comparison-visual-panel">
+  <div class="section-head"><div><h2>Pair overview</h2><p class="muted compact">Schema and duplicate-aware row overlap for the compared pairs.</p></div></div>
+  <div class="comparison-cards">
+  {% for item in result.comparisons[:12] %}
+    <article class="comparison-card">
+      <div class="comparison-card-head"><strong>{{ item.left.name }} ↔ {{ item.right.name }}</strong><span class="badge relation-badge">{{ item.relationship.label }}</span></div>
+      <label class="signal-bar"><span>Schema</span><progress class="viz-progress schema" max="1" value="{{ item.schema_comparison.column_jaccard }}">{{ item.schema_comparison.column_jaccard }}</progress><strong>{{ '%.0f'|format(item.schema_comparison.column_jaccard * 100) }}%</strong></label>
+      <label class="signal-bar"><span>Left rows</span><progress class="viz-progress rows" max="1" value="{{ item.row_comparison.left_overlap_fraction }}">{{ item.row_comparison.left_overlap_fraction }}</progress><strong>{{ '%.0f'|format(item.row_comparison.left_overlap_fraction * 100) }}%</strong></label>
+      <label class="signal-bar"><span>Right rows</span><progress class="viz-progress rows" max="1" value="{{ item.row_comparison.right_overlap_fraction }}">{{ item.row_comparison.right_overlap_fraction }}</progress><strong>{{ '%.0f'|format(item.row_comparison.right_overlap_fraction * 100) }}%</strong></label>
+    </article>
+  {% endfor %}
+  </div>
+  {% if result.comparisons|length > 12 %}<p class="tiny muted">Showing the first 12 pair summaries here; the complete relationship table remains below.</p>{% endif %}
+</section>
 <section class="panel inventory-panel">
   <div class="section-head"><div><h2>Relationships</h2><p class="muted compact">Search, filter, and sort inferred dataset relationships.</p></div></div>
   <div class="table-wrap">
@@ -45,8 +59,8 @@
           <td><strong>{{ item.left.name }}</strong><div class="tiny muted">{{ item.left.rows }} rows</div></td>
           <td><strong>{{ item.right.name }}</strong><div class="tiny muted">{{ item.right.rows }} rows</div></td>
           <td><span class="badge ready">{{ item.relationship.label }}</span></td>
-          <td>{{ '%.1f'|format(item.schema_comparison.column_jaccard * 100) }}%</td>
-          <td>L {{ '%.1f'|format(item.row_comparison.left_overlap_fraction * 100) }}% · R {{ '%.1f'|format(item.row_comparison.right_overlap_fraction * 100) }}%</td>
+          <td><div class="table-signal"><progress class="viz-progress schema" max="1" value="{{ item.schema_comparison.column_jaccard }}"></progress><span>{{ '%.1f'|format(item.schema_comparison.column_jaccard * 100) }}%</span></div></td>
+          <td><div class="table-overlap"><span>L {{ '%.1f'|format(item.row_comparison.left_overlap_fraction * 100) }}%</span><progress class="viz-progress rows" max="1" value="{{ item.row_comparison.left_overlap_fraction }}"></progress><span>R {{ '%.1f'|format(item.row_comparison.right_overlap_fraction * 100) }}%</span><progress class="viz-progress rows" max="1" value="{{ item.row_comparison.right_overlap_fraction }}"></progress></div></td>
           <td>{{ item.identifier_comparison.column or '—' }}</td>
           <td>{{ item.relationship.signals|join('; ') if item.relationship.signals else '—' }}</td>
         </tr>

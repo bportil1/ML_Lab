@@ -4,6 +4,6 @@ from . import classification, clustering, data, energy_based, generative, neural
 from .core import EstimatorSpec
 from .registry import list_estimators
 
-__version__ = "0.18.0"
+__version__ = "0.18.2"
 
 __all__ = ["EstimatorSpec", "classification", "clustering", "data", "energy_based", "generative", "neural", "optimization", "preprocessing", "regression", "representation", "list_estimators"]

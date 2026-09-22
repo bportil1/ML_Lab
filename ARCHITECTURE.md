@@ -327,3 +327,13 @@ Stable clustering keeps model selection, repeat stability, and algorithm agreeme
 ## ML-3 dataset comparison boundary
 
 Dataset discovery is implemented in `ml_lab.data.comparison` and is callable from Python, the application task `data.compare`, CLI, and the optional Data Lab UI. Comparisons use file fingerprints, ordered/unordered schema comparisons, multiset row overlap, likely identifier overlap, and conservative filename/schema heuristics. Inferred labels such as train/test or version/derivative are descriptive hypotheses only. ML-4 remains responsible for formal lineage and provenance.
+
+## ML-UI2: visual representation boundary
+
+The UI may render compact visual summaries from metrics already present in Data Lab artifacts, but visualization code must not silently recompute or reinterpret scientific statistics. The 0.18.1 visual layer uses native HTML progress/meter elements and existing profile/comparison fields so it remains offline and dependency-light. Scientific computation remains in the core Data Lab modules; the UI is a representation layer only.
+
+### PAH visual identity contract (0.18.2)
+
+ML_Lab remains independently runnable, but its optional UI now participates in the same presentation contract as the other PAH modules. `ml_lab.css` remains the module-owned baseline. A synchronized copy of `pah-module-theme.css` is loaded afterward, followed by `ml_lab_pah_compat.css`, which adapts the existing ML_Lab selectors without moving application logic into PAH or requiring PAH to be present.
+
+The shared palette is presentation-only. Data/profile/comparison/transform semantics remain owned by the ML_Lab core. Visualization colors communicate stable categories (blue structure/schema, teal overlap, green relationship/dependence, amber missingness/warning) and must not encode new scientific conclusions.

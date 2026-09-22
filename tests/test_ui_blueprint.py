@@ -17,6 +17,8 @@ def test_standalone_ui_renders_dashboard_and_capability_api():
     assert response.status_code == 200
     assert b"Machine Learning Lab" in response.data
     assert b"Data Lab" in response.data
+    assert b">Compare</a>" in response.data
+    assert b">Transform</a>" in response.data
 
     payload = client.get("/api/capabilities").get_json()
     assert payload["version"]
@@ -33,6 +35,11 @@ def test_ui_blueprint_mounts_under_host_prefix_without_route_assumptions():
     assert response.status_code == 200
     assert b"ML Lab" in response.data
     assert b"/tools/ml-lab/static/ml_lab.css" in response.data
+    assert b"/tools/ml-lab/static/pah-module-theme.css" in response.data
+    assert b"/tools/ml-lab/static/ml_lab_pah_compat.css" in response.data
+    assert response.data.index(b"ml_lab.css") < response.data.index(b"pah-module-theme.css") < response.data.index(b"ml_lab_pah_compat.css")
+    assert b'data-pah-module-root' in response.data
+    assert b'data-pah-tool-nav' in response.data
 
     task = client.get("/tools/ml-lab/task/clustering")
     assert task.status_code == 200
@@ -121,6 +128,10 @@ def test_data_lab_profiles_with_visible_job_state_and_persisted_profile(tmp_path
     assert b"Persisted statistical profile" in profile.data
     assert b"Pearson/Spearman" in profile.data
     assert b"Open source" in profile.data
+    assert b"Profile visual summary" in profile.data
+    assert b"Missingness" in profile.data
+    assert b"Numeric spread" in profile.data
+    assert b"Relationship strength" in profile.data
 
 
 def test_data_transform_workspace_previews_and_applies_typed_recipe(tmp_path):
@@ -175,3 +186,6 @@ def test_data_compare_workspace(tmp_path):
     assert response.status_code == 200
     assert b"Dataset comparison" in response.data
     assert b"same_schema_distinct_data" in response.data or b"likely_version_or_derivative" in response.data
+    assert b"Pair overview" in response.data
+    assert b"Schema" in response.data
+    assert b"Left rows" in response.data

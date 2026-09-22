@@ -18,6 +18,66 @@
 {% if profile.summary.sampled %}<div class="alert">Profile statistics are sampled ({{ profile.summary.sample_strategy }}). Source browsing is still complete and untruncated.</div>{% endif %}
 {% if profile.warnings %}<div class="profile-warnings">{% for warning in profile.warnings %}<div class="tiny muted">• {{ warning }}</div>{% endfor %}</div>{% endif %}
 
+<section class="visual-grid" aria-label="Profile visual summary">
+  <article class="panel visual-panel">
+    <div class="section-head"><div><h2>Missingness</h2><p class="muted compact">Per-column missing values in the profiled rows.</p></div></div>
+    <div class="viz-list">
+      {% for column in profile.columns %}
+      <div class="viz-row">
+        <div class="viz-label"><strong>{{ column.name }}</strong><span>{{ '%.1f'|format(column.missing_rate * 100) }}%</span></div>
+        <progress class="viz-progress missingness" max="1" value="{{ column.missing_rate }}">{{ '%.1f'|format(column.missing_rate * 100) }}%</progress>
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel visual-panel">
+    <div class="section-head"><div><h2>Numeric spread</h2><p class="muted compact">Five-number summaries already computed by the profiler.</p></div></div>
+    <div class="viz-list">
+      {% set ns = namespace(count=0) %}
+      {% for column in profile.columns if column.numeric_summary and ns.count < 8 %}
+      {% set ns.count = ns.count + 1 %}
+      <div class="range-card">
+        <div class="viz-label"><strong>{{ column.name }}</strong><span>median {{ '%.4g'|format(column.numeric_summary.median) }}</span></div>
+        <meter class="range-meter" min="{{ column.numeric_summary.min }}" max="{{ column.numeric_summary.max }}" value="{{ column.numeric_summary.median }}">{{ column.numeric_summary.median }}</meter>
+        <div class="range-scale tiny muted"><span>{{ '%.4g'|format(column.numeric_summary.min) }}</span><span>Q1 {{ '%.4g'|format(column.numeric_summary.q1) }} · Q3 {{ '%.4g'|format(column.numeric_summary.q3) }}</span><span>{{ '%.4g'|format(column.numeric_summary.max) }}</span></div>
+      </div>
+      {% endfor %}
+      {% if ns.count == 0 %}<p class="muted">No numeric columns were profiled.</p>{% endif %}
+    </div>
+  </article>
+
+  <article class="panel visual-panel">
+    <div class="section-head"><div><h2>Common values</h2><p class="muted compact">Top observed values for categorical, boolean, and text fields.</p></div></div>
+    <div class="viz-list">
+      {% set cs = namespace(count=0) %}
+      {% for column in profile.columns if column.top_values and column.inferred_type in ['categorical', 'boolean', 'text'] and cs.count < 6 %}
+      {% set cs.count = cs.count + 1 %}
+      <div class="category-card">
+        <strong>{{ column.name }}</strong>
+        {% for top in column.top_values[:3] %}
+        <div class="category-row"><code title="{{ top.value }}">{{ top.value }}</code><progress class="viz-progress category" max="{{ column.non_missing_count if column.non_missing_count else 1 }}" value="{{ top.count }}">{{ top.count }}</progress><span class="tiny">{{ top.count }}</span></div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+      {% if cs.count == 0 %}<p class="muted">No categorical/text value summaries are available.</p>{% endif %}
+    </div>
+  </article>
+
+  <article class="panel visual-panel">
+    <div class="section-head"><div><h2>Relationship strength</h2><p class="muted compact">Top profiled pairs. NMI is shown when available; otherwise absolute Pearson correlation is used.</p></div></div>
+    <div class="viz-list">
+      {% for rel in profile.relationships[:10] %}
+      {% set strength = rel.normalized_mutual_information if rel.normalized_mutual_information is not none else ((rel.pearson|abs) if rel.pearson is not none else 0) %}
+      <div class="viz-row">
+        <div class="viz-label relation-label"><strong>{{ rel.left }} ↔ {{ rel.right }}</strong><span>{{ 'NMI %.3f'|format(rel.normalized_mutual_information) if rel.normalized_mutual_information is not none else ('|r| %.3f'|format(rel.pearson|abs) if rel.pearson is not none else '—') }}</span></div>
+        <progress class="viz-progress relationship" max="1" value="{{ strength }}">{{ strength }}</progress>
+      </div>
+      {% else %}<p class="muted">No eligible relationships were produced.</p>{% endfor %}
+    </div>
+  </article>
+</section>
+
 {% if profile.quality_issues %}
 <section class="panel profile-panel"><h2>Quality signals</h2><div class="table-wrap"><table class="interactive-table" data-page-size="50"><thead><tr><th>Severity</th><th>Code</th><th>Column</th><th>Message</th></tr></thead><tbody>
 {% for issue in profile.quality_issues %}<tr class="{% if issue.severity == 'error' %}row-error{% elif issue.severity == 'warning' %}row-warning{% else %}row-info{% endif %}"><td><span class="badge {{ 'dependency_missing' if issue.severity == 'error' else ('planned' if issue.severity == 'warning' else '') }}">{{ issue.severity }}</span></td><td><code>{{ issue.code }}</code></td><td>{{ issue.column or '—' }}</td><td>{{ issue.message }}</td></tr>{% endfor %}

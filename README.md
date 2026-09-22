@@ -696,3 +696,13 @@ The generic layer supports continuous, log-continuous, integer, and categorical 
 ### ML-3 dataset comparison and discovery
 
 Data Lab can compare discovered CSV/TSV datasets with `ml-lab data compare`. The comparison artifact records schema overlap, row overlap, subset/superset evidence, shared identifier candidates, exact/content duplicates, likely train/test splits, and likely version/derivative relationships. Relationship labels are heuristic discovery signals; they do not replace explicit provenance.
+
+## ML-UI2 visual basics (0.18.1)
+
+The optional first-party UI now includes a compact module navigation bar and offline visual summaries for persisted Data Lab profiles and dataset comparisons. Profile views visualize missingness, numeric spread, common categorical/text values, and top relationship strength using metrics already present in `ml-lab.data-profile@1`. Comparison views visualize schema and duplicate-aware row overlap for ML-3 pair results. These views add no new scientific estimators and require no remote JavaScript or plotting service.
+
+## PAH visual identity alignment (0.18.2)
+
+ML_Lab now uses the same shared PAH navy/sky/teal visual grammar as the other standalone modules while retaining its existing workflows and layout. The UI loads a synchronized `pah-module-theme.css` after the ML_Lab baseline stylesheet and then a narrow `ml_lab_pah_compat.css` adapter.
+
+The adapter maps the existing ML_Lab tokens and controls onto PAH's light technical surfaces, navy framing, sky identity edges, compact utility controls, navy data-grid headers, alternating light-blue rows, semantic dark code/JSON surfaces, and blue/teal/green/amber data-visualization signals. No analytics or route behavior changes in this release.
