@@ -1,0 +1,36 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}{{ profile.relative_path }} profile · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ data_url }}">← Data Lab</a>
+<section class="workspace-head">
+  <div><p class="eyebrow">Persisted statistical profile</p><h1>{{ profile.relative_path }}</h1><p class="lede">Collected profile from run <code>{{ manifest.run_id }}</code>. The source SHA-256 and profile JSON remain available for provenance.</p></div>
+  <span class="badge {{ 'planned' if profile.summary.quality_issue_count else 'ready' }}">{{ profile.summary.quality_issue_count }} issues</span>
+</section>
+<div class="button-row action-strip">{% if source_url %}<a class="button" href="{{ source_url }}">Open source</a>{% endif %}<a class="button secondary" href="{{ raw_profile_url }}">Open profile JSON</a></div>
+
+<section class="summary-grid">
+  <div class="metric"><strong>{{ profile.summary.profiled_row_count }}</strong><span>Profiled rows</span></div>
+  <div class="metric"><strong>{{ profile.summary.source_row_count }}</strong><span>Valid source rows</span></div>
+  <div class="metric"><strong>{{ profile.summary.column_count }}</strong><span>Columns</span></div>
+  <div class="metric"><strong>{{ profile.summary.duplicate_row_count }}</strong><span>Duplicates</span></div>
+  <div class="metric"><strong>{{ profile.summary.relationship_count }}</strong><span>Relationships</span></div>
+</section>
+{% if profile.summary.sampled %}<div class="alert">Profile statistics are sampled ({{ profile.summary.sample_strategy }}). Source browsing is still complete and untruncated.</div>{% endif %}
+{% if profile.warnings %}<div class="profile-warnings">{% for warning in profile.warnings %}<div class="tiny muted">• {{ warning }}</div>{% endfor %}</div>{% endif %}
+
+{% if profile.quality_issues %}
+<section class="panel profile-panel"><h2>Quality signals</h2><div class="table-wrap"><table class="interactive-table" data-page-size="50"><thead><tr><th>Severity</th><th>Code</th><th>Column</th><th>Message</th></tr></thead><tbody>
+{% for issue in profile.quality_issues %}<tr class="{% if issue.severity == 'error' %}row-error{% elif issue.severity == 'warning' %}row-warning{% else %}row-info{% endif %}"><td><span class="badge {{ 'dependency_missing' if issue.severity == 'error' else ('planned' if issue.severity == 'warning' else '') }}">{{ issue.severity }}</span></td><td><code>{{ issue.code }}</code></td><td>{{ issue.column or '—' }}</td><td>{{ issue.message }}</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endif %}
+
+<section class="panel profile-panel"><h2>Columns</h2><div class="table-wrap"><table class="interactive-table" data-page-size="50"><thead><tr><th>Column</th><th>Type</th><th>Missing</th><th>Unique</th><th>Flags</th><th>Distribution</th><th>Top values</th></tr></thead><tbody>
+{% for column in profile.columns %}<tr class="{% if column.constant or column.missing_rate >= 0.5 %}row-warning{% elif column.missing_rate > 0 %}row-info{% endif %}"><td><strong>{{ column.name }}</strong></td><td><code>{{ column.inferred_type }}</code></td><td>{{ '%.1f'|format(column.missing_rate * 100) }}%<div class="tiny muted">{{ column.missing_count }} / {{ profile.summary.profiled_row_count }}</div></td><td>{{ column.unique_count }}<div class="tiny muted">{{ '%.1f'|format(column.cardinality_ratio * 100) }}%</div></td><td>{% if column.constant %}<span class="badge planned">constant</span>{% endif %}{% if column.likely_identifier %}<span class="badge">identifier</span>{% endif %}{% if not column.constant and not column.likely_identifier %}—{% endif %}</td><td>{% if column.numeric_summary %}<div>median {{ '%.4g'|format(column.numeric_summary.median) }}</div><div class="tiny muted">{{ '%.4g'|format(column.numeric_summary.min) }} → {{ '%.4g'|format(column.numeric_summary.max) }} · outliers {{ '%.1f'|format(column.numeric_summary.outlier_rate * 100) }}%</div>{% elif column.detail_summary.min is defined and column.detail_summary.max is defined %}<div class="tiny">{{ column.detail_summary.min }} → {{ column.detail_summary.max }}</div>{% elif column.detail_summary.mean_length is defined %}<div class="tiny">mean length {{ '%.1f'|format(column.detail_summary.mean_length) }}</div>{% else %}—{% endif %}</td><td>{% if column.top_values %}{% for top in column.top_values[:3] %}<div class="tiny"><code>{{ top.value }}</code> · {{ top.count }}</div>{% endfor %}{% else %}—{% endif %}</td></tr>{% endfor %}
+</tbody></table></div></section>
+
+<section class="panel profile-panel"><h2>Relationships</h2><p class="muted compact">Pearson/Spearman for numeric pairs; quantile-discretized MI/NMI for eligible pairs.</p>{% if profile.relationships %}<div class="table-wrap"><table class="interactive-table" data-page-size="50"><thead><tr><th>Left</th><th>Right</th><th>N</th><th>Pearson</th><th>Spearman</th><th>MI</th><th>NMI</th></tr></thead><tbody>
+{% for rel in profile.relationships %}<tr><td><strong>{{ rel.left }}</strong></td><td><strong>{{ rel.right }}</strong></td><td>{{ rel.pair_count }}</td><td>{% if rel.pearson is not none %}{{ '%.4f'|format(rel.pearson) }}{% else %}—{% endif %}</td><td>{% if rel.spearman is not none %}{{ '%.4f'|format(rel.spearman) }}{% else %}—{% endif %}</td><td>{% if rel.mutual_information is not none %}{{ '%.4f'|format(rel.mutual_information) }}{% else %}—{% endif %}</td><td>{% if rel.normalized_mutual_information is not none %}{{ '%.4f'|format(rel.normalized_mutual_information) }}{% else %}—{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="muted">No eligible relationships were produced.</p>{% endif %}</section>
+
+<details class="panel json-details"><summary><strong>Profile JSON</strong></summary><pre>{{ profile_json }}</pre></details>
+{% endblock %}

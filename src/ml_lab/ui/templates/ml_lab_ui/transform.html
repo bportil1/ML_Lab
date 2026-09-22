@@ -1,0 +1,111 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Transform data · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ data_url }}">← Data Lab</a>
+<section class="workspace-head">
+  <div>
+    <p class="eyebrow">Data · ML-2</p>
+    <h1>Controlled transformation</h1>
+    <p class="lede">Build an ordered recipe, preview its effects, then explicitly write a new derived CSV/TSV. The source path is never overwritten.</p>
+  </div>
+  <span class="badge ready">non-destructive</span>
+</section>
+<div class="tip">Preview runs the complete transformation so global operations such as scaling, duplicate removal, and IQR handling use the same semantics as Apply. Only the displayed preview rows are truncated.</div>
+
+<form method="post" class="transform-form">
+<section class="panel transform-source-panel">
+  <h2>1. Source & output</h2>
+  <div class="field-grid">
+    <label>Source CSV/TSV<input class="wide-input" type="text" name="source" value="{{ source }}" placeholder="/path/to/source.csv" required></label>
+    <label>Derived output <span class="tiny muted">optional; defaults under ml_lab_results/data/derived</span><input class="wide-input" type="text" name="output" value="{{ request.form.get('output','') }}" placeholder="/path/to/derived.csv"></label>
+    <label>Recipe name<input class="wide-input" type="text" name="recipe_name" value="{{ request.form.get('recipe_name','Data Lab transformation') }}"></label>
+    <label>Preview rows<input class="small-input" type="number" min="1" max="500" name="preview_rows" value="{{ request.form.get('preview_rows','50') }}"></label>
+  </div>
+  <label>Description<textarea class="compact-textarea" name="recipe_description" placeholder="Why this derived dataset is being created">{{ request.form.get('recipe_description','') }}</textarea></label>
+  <label class="check"><input type="checkbox" name="allow_malformed_rows" value="1" {% if request.form.get('allow_malformed_rows') == '1' %}checked{% endif %}> Explicitly allow malformed rows to be skipped</label>
+</section>
+
+<section class="panel transform-section">
+  <h2>2. Columns & types</h2>
+  <p class="muted compact">Comma-separated column lists. Blank controls mean “leave unchanged.” Operations run top-to-bottom in the recipe shown after preview.</p>
+  <div class="field-grid two-col">
+    <label>Select only these columns<input class="wide-input" type="text" name="select_columns" value="{{ request.form.get('select_columns','') }}" placeholder="id, feature_a, feature_b"></label>
+    <label>Drop columns<input class="wide-input" type="text" name="drop_columns" value="{{ request.form.get('drop_columns','') }}" placeholder="Unnamed: 0, obsolete"></label>
+    <label>Quality-based removal<span class="check inline-check"><input type="checkbox" name="drop_all_missing" value="1" {% if request.form.get('drop_all_missing') == '1' %}checked{% endif %}> all-missing columns</span><span class="check inline-check"><input type="checkbox" name="drop_constant" value="1" {% if request.form.get('drop_constant') == '1' %}checked{% endif %}> constant columns</span></label>
+    <label>Protect from quality removal<input class="wide-input" name="protected_quality_columns" value="{{ request.form.get('protected_quality_columns','') }}" placeholder="id, label"></label>
+    <label>Rename columns <span class="tiny muted">one old=new per line</span><textarea class="small-textarea" name="rename_columns" placeholder="old_name=new_name">{{ request.form.get('rename_columns','') }}</textarea></label>
+    <label>Type overrides <span class="tiny muted">string, integer, float, boolean, datetime, category</span><textarea class="small-textarea" name="type_overrides" placeholder="trial=integer&#10;score=float">{{ request.form.get('type_overrides','') }}</textarea></label>
+  </div>
+  <label>On type conversion failure
+    <select class="table-select" name="coerce_errors">
+      {% for value,label in [('coerce','Set failed values missing'),('raise','Stop with error'),('ignore','Keep original column')] %}<option value="{{ value }}" {% if request.form.get('coerce_errors','coerce') == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </label>
+</section>
+
+<section class="panel transform-section">
+  <h2>3. Missing values & strings</h2>
+  <div class="field-grid two-col">
+    <label>Sentinel values → missing<input class="wide-input" name="sentinel_values" value="{{ request.form.get('sentinel_values','') }}" placeholder="NA, N/A, -999"></label>
+    <label>Sentinel columns <span class="tiny muted">blank = all columns</span><input class="wide-input" name="sentinel_columns" value="{{ request.form.get('sentinel_columns','') }}" placeholder="score, status"></label>
+    <label>Fill missing constants <span class="tiny muted">one column=value per line</span><textarea class="small-textarea" name="fill_missing" placeholder="status=unknown&#10;count=0">{{ request.form.get('fill_missing','') }}</textarea></label>
+    <label>Drop rows missing in columns<input class="wide-input" name="drop_missing_columns" value="{{ request.form.get('drop_missing_columns','') }}" placeholder="id, label"><select class="table-select inline-select" name="drop_missing_how"><option value="any" {% if request.form.get('drop_missing_how','any') == 'any' %}selected{% endif %}>if any are missing</option><option value="all" {% if request.form.get('drop_missing_how') == 'all' %}selected{% endif %}>only if all are missing</option></select></label>
+    <label>Clean string columns<input class="wide-input" name="clean_columns" value="{{ request.form.get('clean_columns','') }}" placeholder="name, path, category"></label>
+    <label>String case<select class="table-select" name="clean_case"><option value="preserve">Preserve</option><option value="lower" {% if request.form.get('clean_case') == 'lower' %}selected{% endif %}>lowercase</option><option value="upper" {% if request.form.get('clean_case') == 'upper' %}selected{% endif %}>UPPERCASE</option></select><span class="check inline-check"><input type="checkbox" name="collapse_whitespace" value="1" {% if request.form.get('collapse_whitespace') == '1' %}checked{% endif %}> collapse whitespace</span></label>
+  </div>
+</section>
+
+<section class="panel transform-section">
+  <h2>4. Rows, derived fields & encoding</h2>
+  <div class="field-grid two-col">
+    <label class="check transform-check"><input type="checkbox" name="drop_duplicates" value="1" {% if request.form.get('drop_duplicates') == '1' %}checked{% endif %}> Drop duplicate rows</label>
+    <label>Duplicate key columns <span class="tiny muted">blank = whole row</span><input class="wide-input" name="duplicate_columns" value="{{ request.form.get('duplicate_columns','') }}"><select class="table-select inline-select" name="duplicate_keep"><option value="first">keep first</option><option value="last" {% if request.form.get('duplicate_keep') == 'last' %}selected{% endif %}>keep last</option><option value="false" {% if request.form.get('duplicate_keep') == 'false' %}selected{% endif %}>drop all duplicates</option></select></label>
+    <label>Filter column<input class="wide-input" name="filter_column" value="{{ request.form.get('filter_column','') }}" placeholder="score"></label>
+    <label>Filter condition<select class="table-select" name="filter_operator">{% for value,label in [('eq','='),('ne','≠'),('gt','>'),('ge','≥'),('lt','<'),('le','≤'),('contains','contains'),('not_contains','does not contain'),('is_missing','is missing'),('not_missing','is not missing')] %}<option value="{{ value }}" {% if request.form.get('filter_operator','eq') == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><input class="medium-input" name="filter_value" value="{{ request.form.get('filter_value','') }}" placeholder="value"></label>
+    <label>Regex derive source<input class="wide-input" name="derive_source" value="{{ request.form.get('derive_source','') }}" placeholder="experiment_label"></label>
+    <label>Regex derived column<input class="wide-input" name="derive_target" value="{{ request.form.get('derive_target','') }}" placeholder="augmentation_ratio"></label>
+    <label>Regex pattern<input class="wide-input" name="derive_pattern" value="{{ request.form.get('derive_pattern','') }}" placeholder="aug_(\d+)"></label>
+    <label>Capture group<input class="small-input" type="number" min="0" name="derive_group" value="{{ request.form.get('derive_group','0') }}"></label>
+    <label>One-hot encode columns<input class="wide-input" name="encode_columns" value="{{ request.form.get('encode_columns','') }}" placeholder="category, family"><span class="check inline-check"><input type="checkbox" name="encode_drop_first" value="1" {% if request.form.get('encode_drop_first') == '1' %}checked{% endif %}> drop first level</span></label>
+  </div>
+</section>
+
+<section class="panel transform-section">
+  <h2>5. Scaling & outliers</h2>
+  <div class="field-grid two-col">
+    <label>Scale columns<input class="wide-input" name="scale_columns" value="{{ request.form.get('scale_columns','') }}"><select class="table-select inline-select" name="scale_method"><option value="standard">standard</option><option value="minmax" {% if request.form.get('scale_method') == 'minmax' %}selected{% endif %}>min-max</option><option value="robust" {% if request.form.get('scale_method') == 'robust' %}selected{% endif %}>robust</option></select></label>
+    <label>Outlier columns<input class="wide-input" name="outlier_columns" value="{{ request.form.get('outlier_columns','') }}"><select class="table-select inline-select" name="outlier_method"><option value="clip_iqr">clip to IQR fences</option><option value="drop_iqr" {% if request.form.get('outlier_method') == 'drop_iqr' %}selected{% endif %}>drop outlier rows</option></select><input class="small-input" type="number" step="0.1" min="0.1" name="outlier_iqr_multiplier" value="{{ request.form.get('outlier_iqr_multiplier','1.5') }}"></label>
+  </div>
+  <p class="tiny muted">Outlier handling is opt-in. Leaving the outlier column field blank leaves observed values untouched.</p>
+</section>
+
+<section class="panel transform-apply-panel">
+  <h2>6. Preview or apply</h2>
+  <label class="check"><input type="checkbox" name="overwrite" value="1" {% if request.form.get('overwrite') == '1' %}checked{% endif %}> Explicitly allow replacement of an existing <em>derived</em> output</label>
+  <div class="button-row"><button class="button secondary" type="submit" name="mode" value="preview">Preview transformation</button><button class="button" type="submit" name="mode" value="apply">Apply to derived dataset</button></div>
+</section>
+</form>
+
+{% if error %}<div class="alert data-alert">{{ error }}</div>{% endif %}
+
+{% if result %}
+{% set summary = result.summary if result.summary is defined else {'rows_before': result.source.rows, 'rows_after': result.derived.rows, 'columns_before': result.source.columns, 'columns_after': result.derived.columns, 'operation_count': result.operations|length, 'coercion_failures': result.operations|sum(attribute='coercion_failures')} %}
+<section class="summary-grid">
+  <div class="metric"><strong>{{ summary.rows_before }} → {{ summary.rows_after }}</strong><span>Rows</span></div>
+  <div class="metric"><strong>{{ summary.columns_before }} → {{ summary.columns_after }}</strong><span>Columns</span></div>
+  <div class="metric"><strong>{{ summary.operation_count }}</strong><span>Operations</span></div>
+  <div class="metric"><strong>{{ summary.coercion_failures }}</strong><span>Coercion failures</span></div>
+</section>
+{% if applied %}<div class="status-card transform-success"><strong>Derived dataset written</strong><code>{{ result.derived.path }}</code><span>Manifest: {{ result.manifest_path }}</span><span>Recipe: {{ result.recipe_path }}</span></div>{% endif %}
+<section class="panel inventory-panel">
+  <div class="section-head"><div><h2>Operation diagnostics</h2><p class="muted compact">Every step reports row/column deltas, missingness, changed cells when comparable, and coercion failures.</p></div></div>
+  <div class="table-wrap"><table><thead><tr><th>#</th><th>Operation</th><th>Rows</th><th>Columns</th><th>Changed cells</th><th>Missing</th><th>Coercion failures</th></tr></thead><tbody>{% for op in result.operations %}<tr class="{% if op.coercion_failures %}row-warning{% else %}row-ok{% endif %}"><td>{{ op.index + 1 }}</td><td><code>{{ op.type }}</code></td><td>{{ op.rows_before }} → {{ op.rows_after }}</td><td>{{ op.columns_before }} → {{ op.columns_after }}</td><td>{{ op.changed_cells if op.changed_cells is not none else 'shape changed' }}</td><td>{{ op.missing_before }} → {{ op.missing_after }}</td><td>{{ op.coercion_failures }}</td></tr>{% endfor %}</tbody></table></div>
+</section>
+<section class="panel inventory-panel">
+  <h2>Result preview</h2><p class="muted compact">Showing {{ result.preview.shown_row_count }} of {{ result.preview.row_count }} resulting rows.</p>
+  <div class="table-wrap"><table><thead><tr>{% for column in result.preview.columns %}<th>{{ column }}</th>{% endfor %}</tr></thead><tbody>{% for row in result.preview.rows %}<tr>{% for value in row %}<td class="{% if value is none %}cell-missing{% endif %}">{{ '—' if value is none else value }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+</section>
+{% if recipe_json %}<details class="panel json-details"><summary><strong>Transformation recipe</strong></summary><pre>{{ recipe_json }}</pre></details>{% endif %}
+<details class="panel json-details"><summary><strong>Machine-readable result</strong></summary><pre>{{ result_json }}</pre></details>
+{% endif %}
+{% endblock %}

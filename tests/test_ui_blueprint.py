@@ -159,3 +159,19 @@ def test_data_transform_workspace_previews_and_applies_typed_recipe(tmp_path):
     assert applied.status_code == 200
     assert b"Derived dataset written" in applied.data
     assert output.is_file()
+
+
+def test_data_compare_workspace(tmp_path):
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+    left = tmp_path / "left.csv"
+    right = tmp_path / "right.csv"
+    left.write_text("id,x\n1,10\n2,20\n", encoding="utf-8")
+    right.write_text("id,x\n1,10\n2,21\n", encoding="utf-8")
+    response = client.post(
+        "/data/compare",
+        data={"paths": f"{left}\n{right}", "recursive": "1", "max_pairs": "200"},
+    )
+    assert response.status_code == 200
+    assert b"Dataset comparison" in response.data
+    assert b"same_schema_distinct_data" in response.data or b"likely_version_or_derivative" in response.data

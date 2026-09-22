@@ -323,3 +323,7 @@ Stable clustering keeps model selection, repeat stability, and algorithm agreeme
 ## Optimization wing
 
 `ml_lab.optimization` is a stable task-neutral search layer. `ParameterSpec`, `SearchSpace`, `CandidateEvaluator`, `CandidateEvaluation`, `OptimizationResult`, and the optimizer registry do not depend on RBMs or other ML_Lab task families. The initial Firefly algorithm is adapted from the current provided HSQA_DBN implementation while leaving HSQA_DBN unchanged. ML_Lab corrects the source seed-ordering defect so a Firefly seed controls the initial population as well as movement randomness.
+
+## ML-3 dataset comparison boundary
+
+Dataset discovery is implemented in `ml_lab.data.comparison` and is callable from Python, the application task `data.compare`, CLI, and the optional Data Lab UI. Comparisons use file fingerprints, ordered/unordered schema comparisons, multiset row overlap, likely identifier overlap, and conservative filename/schema heuristics. Inferred labels such as train/test or version/derivative are descriptive hypotheses only. ML-4 remains responsible for formal lineage and provenance.

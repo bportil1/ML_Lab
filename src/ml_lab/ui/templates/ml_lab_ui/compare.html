@@ -1,0 +1,60 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Compare datasets · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ data_url }}">← Data Lab</a>
+<section class="workspace-head">
+  <div>
+    <p class="eyebrow">Data · ML-3</p>
+    <h1>Dataset comparison & discovery</h1>
+    <p class="lede">Compare CSV/TSV collections for schema overlap, row overlap, subset relationships, shared identifiers, likely train/test splits, duplicates, and version/derivative relationships.</p>
+  </div>
+  <span class="badge ready">ready</span>
+</section>
+<div class="tip">Relationship labels are evidence-based heuristics, not provenance claims. ML-4 will formalize known lineage separately.</div>
+<section class="panel data-input-panel">
+  <form method="post">
+    <label for="paths"><strong>Files or directories</strong></label>
+    <p class="muted compact">Enter one local path per line. Every supported pair is compared up to the configured pair limit.</p>
+    <textarea class="paths-input" id="paths" name="paths" spellcheck="false" placeholder="/path/to/data&#10;/path/to/other.csv">{{ paths_text }}</textarea>
+    <div class="form-row">
+      <label class="check"><input type="checkbox" name="recursive" value="1" {% if recursive %}checked{% endif %}> Recursive</label>
+      <label class="check"><input type="checkbox" name="include_hidden" value="1" {% if include_hidden %}checked{% endif %}> Include hidden files</label>
+      <label>Maximum pairs <input class="medium-input" type="number" min="0" name="max_pairs" value="{{ max_pairs }}"></label>
+    </div>
+    <p class="tiny muted">Set maximum pairs to 0 to compare every discovered pair.</p>
+    <button class="button" type="submit">Compare datasets</button>
+  </form>
+</section>
+{% if error %}<div class="alert data-alert">{{ error }}</div>{% endif %}
+{% if result %}
+{% set summary = result.summary %}
+<section class="summary-grid">
+  <div class="metric"><strong>{{ summary.dataset_count }}</strong><span>Datasets</span></div>
+  <div class="metric"><strong>{{ summary.compared_pair_count }}</strong><span>Pairs compared</span></div>
+  <div class="metric"><strong>{{ summary.possible_pair_count }}</strong><span>Possible pairs</span></div>
+  <div class="metric"><strong>{{ 'yes' if summary.truncated else 'no' }}</strong><span>Truncated</span></div>
+</section>
+<section class="panel inventory-panel">
+  <div class="section-head"><div><h2>Relationships</h2><p class="muted compact">Search, filter, and sort inferred dataset relationships.</p></div></div>
+  <div class="table-wrap">
+    <table class="interactive-table" data-page-size="50">
+      <thead><tr><th>Left</th><th>Right</th><th>Relationship</th><th>Schema overlap</th><th>Row overlap</th><th>Identifier</th><th>Signals</th></tr></thead>
+      <tbody>
+      {% for item in result.comparisons %}
+        <tr>
+          <td><strong>{{ item.left.name }}</strong><div class="tiny muted">{{ item.left.rows }} rows</div></td>
+          <td><strong>{{ item.right.name }}</strong><div class="tiny muted">{{ item.right.rows }} rows</div></td>
+          <td><span class="badge ready">{{ item.relationship.label }}</span></td>
+          <td>{{ '%.1f'|format(item.schema_comparison.column_jaccard * 100) }}%</td>
+          <td>L {{ '%.1f'|format(item.row_comparison.left_overlap_fraction * 100) }}% · R {{ '%.1f'|format(item.row_comparison.right_overlap_fraction * 100) }}%</td>
+          <td>{{ item.identifier_comparison.column or '—' }}</td>
+          <td>{{ item.relationship.signals|join('; ') if item.relationship.signals else '—' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<details class="panel json-details"><summary><strong>Machine-readable comparison</strong></summary><pre>{{ result_json }}</pre></details>
+{% endif %}
+{% endblock %}

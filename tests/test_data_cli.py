@@ -50,3 +50,16 @@ def test_data_transform_cli_preview_and_apply(tmp_path: Path, capsys):
     assert status == 0
     assert "Derived dataset written to" in captured
     assert output.is_file()
+
+
+def test_data_compare_cli(tmp_path, capsys):
+    first = tmp_path / "one.csv"
+    second = tmp_path / "two.csv"
+    output = tmp_path / "comparison.json"
+    first.write_text("id,x\n1,10\n2,20\n", encoding="utf-8")
+    second.write_text("id,x\n1,10\n2,21\n", encoding="utf-8")
+    assert main(["data", "compare", str(first), str(second), "--output", str(output)]) == 0
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["schema"] == "ml-lab.dataset-comparison-collection@1"
+    assert payload["summary"]["compared_pair_count"] == 1
+    assert "pairs=1/1" in capsys.readouterr().out

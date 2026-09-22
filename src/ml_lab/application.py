@@ -209,6 +209,22 @@ def _data_profile(payload: dict[str, Any]) -> dict[str, Any]:
     return profile.to_record()
 
 
+
+def _data_compare(payload: dict[str, Any]) -> dict[str, Any]:
+    paths = payload.get("paths")
+    if isinstance(paths, (str, bytes)):
+        paths = [paths]
+    if not isinstance(paths, (list, tuple)) or not paths:
+        raise PayloadError("data.compare payload must contain a non-empty paths list")
+    max_pairs_raw = payload.get("max_pairs", 200)
+    max_pairs = None if max_pairs_raw in (None, 0, "0") else int(max_pairs_raw)
+    return data.compare_paths(
+        [str(path) for path in paths],
+        recursive=bool(payload.get("recursive", True)),
+        include_hidden=bool(payload.get("include_hidden", False)),
+        max_pairs=max_pairs,
+    )
+
 def _data_table(payload: dict[str, Any]) -> dict[str, Any]:
     path = payload.get("path")
     if not isinstance(path, (str, bytes)) or not str(path):
@@ -266,6 +282,7 @@ def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     runners = {
         "data.inspect": _data_inspect,
         "data.profile": _data_profile,
+        "data.compare": _data_compare,
         "data.table": _data_table,
         "data.transform.preview": _data_transform_preview,
         "data.transform.apply": _data_transform_apply,
@@ -281,7 +298,7 @@ def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     except KeyError as exc:
         raise PayloadError(f"unsupported ML Lab task: {task}") from exc
     output = runner(payload)
-    if task in {"data.inspect", "data.profile", "data.table", "data.transform.preview", "data.transform.apply", "representation", "gan", "rbm"}:
+    if task in {"data.inspect", "data.profile", "data.compare", "data.table", "data.transform.preview", "data.transform.apply", "representation", "gan", "rbm"}:
         return {"task": task, "result": output}
     if task == "clustering":
         return {"task": task, **output}

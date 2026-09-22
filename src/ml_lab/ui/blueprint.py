@@ -295,6 +295,44 @@ def create_ui_blueprint(
         )
 
 
+    @blueprint.route("/data/compare", methods=["GET", "POST"])
+    def data_compare():
+        paths_text = request.form.get("paths", "")
+        recursive = request.form.get("recursive", "1") == "1"
+        include_hidden = request.form.get("include_hidden", "") == "1"
+        max_pairs = _form_int("max_pairs", 200)
+        result = None
+        error = None
+        if request.method == "POST":
+            paths = [line.strip() for line in paths_text.splitlines() if line.strip()]
+            if not paths:
+                error = "Enter at least one file or directory path."
+            else:
+                try:
+                    result = execute_task(
+                        "data.compare",
+                        {
+                            "paths": paths,
+                            "recursive": recursive,
+                            "include_hidden": include_hidden,
+                            "max_pairs": max_pairs,
+                        },
+                    )["result"]
+                except (PayloadError, OSError, UnicodeError, TypeError, ValueError, KeyError) as exc:
+                    error = f"{type(exc).__name__}: {exc}"
+        return render_template(
+            "ml_lab_ui/compare.html",
+            version=__version__,
+            paths_text=paths_text,
+            recursive=recursive,
+            include_hidden=include_hidden,
+            max_pairs=max_pairs,
+            result=result,
+            result_json=(_pretty(result) if result is not None else None),
+            error=error,
+            data_url=url_for(request.blueprint + ".data_lab"),
+        )
+
     @blueprint.route("/data/transform", methods=["GET", "POST"])
     def data_transform():
         source = request.form.get("source", "").strip()

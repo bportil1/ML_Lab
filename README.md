@@ -692,3 +692,7 @@ result = optimization.optimize(
 ```
 
 The generic layer supports continuous, log-continuous, integer, and categorical parameters; fixed parameters; weighted multi-term minimize/maximize fitness; candidate metadata/history; serial or process candidate execution; and HSQA-style Firefly trace artifacts.
+
+### ML-3 dataset comparison and discovery
+
+Data Lab can compare discovered CSV/TSV datasets with `ml-lab data compare`. The comparison artifact records schema overlap, row overlap, subset/superset evidence, shared identifier candidates, exact/content duplicates, likely train/test splits, and likely version/derivative relationships. Relationship labels are heuristic discovery signals; they do not replace explicit provenance.

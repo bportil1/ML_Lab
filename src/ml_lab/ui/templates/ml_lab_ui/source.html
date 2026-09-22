@@ -1,0 +1,20 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}{{ source.relative_path }} · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ data_url }}">← Data Lab</a>
+<section class="workspace-head">
+  <div><p class="eyebrow">Source data · read only</p><h1>{{ source.relative_path }}</h1><p class="lede">Browse the complete source table. Page size changes rendering only; every valid row remains accessible.</p></div>
+  <span class="badge {{ 'planned' if source.parse_status == 'partial' else 'ready' }}">{{ source.parse_status }}</span>
+</section>
+<div class="button-row action-strip"><a class="button secondary" href="{{ raw_url }}" target="_blank" rel="noopener">Open raw file</a><a class="button" href="{{ transform_url }}">Transform this source</a></div>
+<section class="summary-grid">
+  <div class="metric"><strong>{{ source.row_count }}</strong><span>Source rows</span></div><div class="metric"><strong>{{ source.column_count }}</strong><span>Columns</span></div><div class="metric"><strong>{{ source.malformed_row_count }}</strong><span>Malformed rows</span></div><div class="metric"><strong>{{ source.encoding }}</strong><span>Encoding</span></div>
+</section>
+<section class="panel source-table-panel" id="source-viewer" data-rows-url="{{ rows_url }}">
+  <div class="server-table-toolbar"><label>Search <input id="source-search" class="table-search" type="search" placeholder="Search all columns"></label><label>Rows/page <select id="source-page-size" class="table-select"><option>25</option><option selected>50</option><option>100</option><option>250</option><option>500</option><option value="all">All</option></select></label><button class="button mini secondary" id="source-clear" type="button">Clear filters</button><span class="muted" id="source-range">Loading…</span></div>
+  <div id="source-status" class="tiny muted">Loading source rows…</div>
+  <div class="table-wrap"><table class="source-table"><thead id="source-head"></thead><tbody id="source-body"></tbody></table></div>
+  <div class="server-pagination"><button class="button mini secondary" id="source-prev" type="button">Previous</button><span id="source-page-label" class="muted"></span><button class="button mini secondary" id="source-next" type="button">Next</button></div>
+</section>
+{% endblock %}
+{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_source_table.js') }}"></script>{% endblock %}

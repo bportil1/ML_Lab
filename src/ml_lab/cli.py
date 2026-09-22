@@ -50,6 +50,13 @@ def _parser() -> argparse.ArgumentParser:
     data_profile.add_argument("--random-state", type=int, default=42)
     data_profile.add_argument("--output", default="ml_lab_results/data/profile.json", help="Profile JSON destination")
 
+    data_compare = data_sub.add_parser("compare", help="Compare discovered CSV/TSV datasets and infer likely relationships")
+    data_compare.add_argument("paths", nargs="+", help="File(s) or directories to compare")
+    data_compare.add_argument("--recursive", action=argparse.BooleanOptionalAction, default=True)
+    data_compare.add_argument("--include-hidden", action="store_true", help="Include hidden files/directories")
+    data_compare.add_argument("--max-pairs", type=int, default=200, help="Maximum pairwise comparisons; 0 compares every pair")
+    data_compare.add_argument("--output", default="ml_lab_results/data/comparison.json", help="Comparison JSON destination")
+
     data_transform = data_sub.add_parser("transform", help="Preview or apply an explicit non-destructive transformation recipe")
     data_transform.add_argument("source", help="CSV/TSV source file")
     data_transform.add_argument("--recipe", required=True, help="Transformation recipe JSON file")
@@ -268,6 +275,23 @@ def main(argv: list[str] | None = None) -> int:
             )
             for warning in profile.warnings:
                 print(f"warning: {warning}")
+            return 0
+
+        if args.data_command == "compare":
+            result = data.compare_paths(
+                args.paths,
+                recursive=args.recursive,
+                include_hidden=args.include_hidden,
+                max_pairs=None if args.max_pairs == 0 else args.max_pairs,
+            )
+            output = data.save_comparison(result, args.output)
+            summary = result["summary"]
+            print(f"Comparison written to: {output}")
+            print(
+                f"datasets={summary['dataset_count']} "
+                f"pairs={summary['compared_pair_count']}/{summary['possible_pair_count']} "
+                f"truncated={summary['truncated']}"
+            )
             return 0
 
         if args.data_command == "transform":

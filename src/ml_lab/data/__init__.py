@@ -5,6 +5,7 @@ transformation recipes. Raw source files remain immutable by default.
 """
 
 from .artifacts import load_persisted_profile, load_profile_run, persist_profile_run, recent_profile_runs
+from .comparison import compare_files, compare_paths, save_comparison
 from .intake import inspect_file, inspect_paths
 from .profiling import profile_file, profile_paths
 from .reporting import save_inventory, save_profile
@@ -23,6 +24,8 @@ from .types import (
 
 __all__ = [
     "ColumnProfile",
+    "compare_files",
+    "compare_paths",
     "DataFileRecord",
     "DataInventory",
     "DataProfile",
@@ -39,6 +42,7 @@ __all__ = [
     "persist_profile_run",
     "read_table_page",
     "recent_profile_runs",
+    "save_comparison",
     "save_inventory",
     "save_profile",
     "apply_transformation",

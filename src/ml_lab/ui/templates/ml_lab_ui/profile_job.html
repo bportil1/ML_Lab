@@ -1,0 +1,25 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Profile run · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ data_url }}">← Data Lab</a>
+<section class="workspace-head">
+  <div><p class="eyebrow">Data · profile run</p><h1>Profile data</h1><p class="lede">The run state below updates while profiling is active. Closing this page does not change the underlying in-process run.</p></div>
+  <span id="job-badge" class="badge {{ 'ready' if job.status == 'completed' else ('dependency_missing' if job.status == 'failed' else 'planned') }}">{{ job.status }}</span>
+</section>
+<section class="panel run-status" id="profile-job" {% if status_url %}data-status-url="{{ status_url }}"{% endif %}>
+  <div class="run-state-line"><span id="run-dot" class="run-dot {{ job.status }}"></span><div><strong id="job-stage">{{ job.stage }}</strong><div class="muted" id="job-path">{{ job.current_path or '' }}</div></div></div>
+  <div class="summary-grid compact-grid">
+    <div class="metric"><strong id="job-progress">{{ job.current or 0 }} / {{ job.total or 0 }}</strong><span>Datasets</span></div>
+    <div class="metric"><strong id="job-elapsed">{% if job.elapsed_seconds is not none %}{{ '%.1f'|format(job.elapsed_seconds) }}s{% else %}—{% endif %}</strong><span>Elapsed</span></div>
+    <div class="metric"><strong id="job-id">{{ job.job_id or '—' }}</strong><span>Run ID</span></div>
+  </div>
+  <div id="job-error" class="alert {% if not job.error %}hidden{% endif %}">{{ job.error or '' }}</div>
+  <div id="job-warnings">{% for warning in job.warnings or [] %}<div class="tiny muted">• {{ warning }}</div>{% endfor %}</div>
+  <div class="button-row" id="job-results">
+    {% if job.artifact_manifest %}
+      {% for ref in job.artifact_manifest.profiles %}<a class="button" href="{{ url_for(request.blueprint + '.profile_view', run_id=job.job_id, profile_index=loop.index0) }}">Open profile · {{ ref.relative_path }}</a>{% endfor %}
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}{% if status_url %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_profile_job.js') }}"></script>{% endif %}{% endblock %}
