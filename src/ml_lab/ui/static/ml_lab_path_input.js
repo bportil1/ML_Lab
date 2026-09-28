@@ -34,6 +34,7 @@
     const endpoint = input.dataset.pathSuggestionsUrl;
     const kind = input.dataset.pathKind || "either";
     const extensions = input.dataset.pathExtensions || "";
+    const multiline = input.dataset.pathMultiline === "true";
     let activeIndex = -1;
     let suggestions = [];
     let requestSerial = 0;
@@ -46,8 +47,23 @@
       input.setAttribute("aria-expanded", "false");
     };
 
+    const currentSegment = () => {
+      if (!multiline) return { query: input.value.trim(), start: 0, end: input.value.length };
+      const value = input.value;
+      const cursor = typeof input.selectionStart === "number" ? input.selectionStart : value.length;
+      const start = value.lastIndexOf("\n", Math.max(0, cursor - 1)) + 1;
+      const nextBreak = value.indexOf("\n", cursor);
+      const end = nextBreak === -1 ? value.length : nextBreak;
+      return { query: value.slice(start, end).trim(), start, end };
+    };
+
     const choose = (item) => {
-      input.value = item.path;
+      if (multiline) {
+        const segment = currentSegment();
+        input.setRangeText(item.path, segment.start, segment.end, "end");
+      } else {
+        input.value = item.path;
+      }
       remember(item.path);
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -102,7 +118,7 @@
     };
 
     const refresh = async () => {
-      const query = input.value.trim();
+      const query = currentSegment().query;
       const serial = ++requestSerial;
       const recent = recentMatches(query);
       if (!endpoint) {
@@ -162,7 +178,13 @@
   document.querySelectorAll("[data-path-autocomplete]").forEach(initPathInput);
   document.querySelectorAll("form").forEach((form) => {
     form.addEventListener("submit", () => {
-      form.querySelectorAll("[data-path-autocomplete]").forEach((input) => remember(input.value));
+      form.querySelectorAll("[data-path-autocomplete]").forEach((input) => {
+        if (input.dataset.pathMultiline === "true") {
+          input.value.split(/\r?\n/).map((value) => value.trim()).filter(Boolean).forEach(remember);
+        } else {
+          remember(input.value);
+        }
+      });
     });
   });
 })();

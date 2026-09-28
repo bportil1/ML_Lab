@@ -16,7 +16,10 @@
   <form method="post">
     <label for="provenance-source"><strong>Dataset path</strong></label>
     <p class="muted compact">Choose a CSV/TSV source or ML Lab-derived dataset.</p>
-    <input class="wide-input" id="provenance-source" type="text" name="source" value="{{ source }}" placeholder="/path/to/dataset.csv" required>
+    <div class="path-input-shell" data-path-input>
+      <input class="wide-input" id="provenance-source" type="text" name="source" value="{{ source }}" placeholder="/path/to/dataset.csv" required autocomplete="off" data-path-autocomplete data-path-kind="file" data-path-extensions="csv,tsv" data-path-suggestions-url="{{ url_for(request.blueprint + '.path_suggestions') }}">
+      <div class="path-suggestion-menu" data-path-suggestion-menu hidden></div>
+    </div>
     <div class="button-row"><button class="button" type="submit">Trace lineage</button></div>
   </form>
 </section>

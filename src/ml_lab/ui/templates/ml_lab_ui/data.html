@@ -18,7 +18,10 @@
   <form method="post" action="{{ url_for(request.blueprint + '.data_lab') }}">
     <label for="paths"><strong>Files or directories</strong></label>
     <p class="muted compact">Enter one local path per line. Directories are inspected recursively by default.</p>
-    <textarea class="paths-input" id="paths" name="paths" spellcheck="false" placeholder="/path/to/datasets&#10;/path/to/file.csv">{{ paths_text }}</textarea>
+    <div class="path-input-shell" data-path-input>
+      <textarea class="paths-input" id="paths" name="paths" spellcheck="false" autocomplete="off" placeholder="/path/to/datasets&#10;/path/to/file.csv" data-path-autocomplete data-path-multiline="true" data-path-kind="either" data-path-extensions="csv,tsv" data-path-suggestions-url="{{ url_for(request.blueprint + '.path_suggestions') }}">{{ paths_text }}</textarea>
+      <div class="path-suggestion-menu" data-path-suggestion-menu hidden></div>
+    </div>
     <div class="form-row">
       <label class="check"><input type="checkbox" name="recursive" value="1" {% if recursive %}checked{% endif %}> Recursive</label>
       <label class="check"><input type="checkbox" name="include_hidden" value="1" {% if include_hidden %}checked{% endif %}> Include hidden files</label>

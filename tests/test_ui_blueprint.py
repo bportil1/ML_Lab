@@ -92,6 +92,28 @@ def test_data_lab_mounts_and_inspects_host_local_path(tmp_path):
     assert b"ml-lab.data-inventory@1" in response.data
 
 
+
+def test_path_autocomplete_is_available_across_data_workspaces():
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+
+    data_page = client.get("/data")
+    assert data_page.status_code == 200
+    assert b'data-path-autocomplete' in data_page.data
+    assert b'data-path-multiline="true"' in data_page.data
+    assert b'ml_lab_path_input.js' in data_page.data
+
+    compare_page = client.get("/data/compare")
+    assert compare_page.status_code == 200
+    assert b'data-path-autocomplete' in compare_page.data
+    assert b'data-path-multiline="true"' in compare_page.data
+
+    provenance_page = client.get("/data/provenance")
+    assert provenance_page.status_code == 200
+    assert b'id="provenance-source"' in provenance_page.data
+    assert b'data-path-autocomplete' in provenance_page.data
+    assert b'data-path-kind="file"' in provenance_page.data
+
 def test_data_lab_profiles_with_visible_job_state_and_persisted_profile(tmp_path):
     import time
 

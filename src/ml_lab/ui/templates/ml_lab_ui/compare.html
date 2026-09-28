@@ -15,7 +15,10 @@
   <form method="post">
     <label for="paths"><strong>Files or directories</strong></label>
     <p class="muted compact">Enter one local path per line. Every supported pair is compared up to the configured pair limit.</p>
-    <textarea class="paths-input" id="paths" name="paths" spellcheck="false" placeholder="/path/to/data&#10;/path/to/other.csv">{{ paths_text }}</textarea>
+    <div class="path-input-shell" data-path-input>
+      <textarea class="paths-input" id="paths" name="paths" spellcheck="false" autocomplete="off" placeholder="/path/to/data&#10;/path/to/other.csv" data-path-autocomplete data-path-multiline="true" data-path-kind="either" data-path-extensions="csv,tsv" data-path-suggestions-url="{{ url_for(request.blueprint + '.path_suggestions') }}">{{ paths_text }}</textarea>
+      <div class="path-suggestion-menu" data-path-suggestion-menu hidden></div>
+    </div>
     <div class="form-row">
       <label class="check"><input type="checkbox" name="recursive" value="1" {% if recursive %}checked{% endif %}> Recursive</label>
       <label class="check"><input type="checkbox" name="include_hidden" value="1" {% if include_hidden %}checked{% endif %}> Include hidden files</label>
