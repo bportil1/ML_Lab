@@ -30,6 +30,17 @@
   {% if column_catalog_error %}<div class="alert compact-alert">Column browser: {{ column_catalog_error }}</div>{% endif %}
 </section>
 
+<details class="panel transform-recipe-panel" open data-transform-recipe-panel>
+  <summary><strong>Transformation Recipe</strong><span class="tiny muted">live ordered pipeline</span></summary>
+  <input type="hidden" name="recipe_order" value="{{ request.form.get('recipe_order','') }}" data-recipe-order>
+  <input type="hidden" name="recipe_disabled" value="{{ request.form.get('recipe_disabled','') }}" data-recipe-disabled>
+  <div class="recipe-panel-body">
+    <p class="muted compact">Configured operations appear here immediately. Reorder them to change execution order; Disable keeps the configuration but omits it from Preview/Apply; Delete clears that operation's controls.</p>
+    <div class="recipe-empty" data-recipe-empty>No transformations configured yet.</div>
+    <ol class="recipe-step-list" data-recipe-list></ol>
+  </div>
+</details>
+
 <section class="panel transform-section">
   <h2>2. Columns & types</h2>
   <p class="muted compact">Comma-separated column lists. Blank controls mean “leave unchanged.” Operations run top-to-bottom in the recipe shown after preview.</p>
@@ -189,4 +200,5 @@
 {% block scripts %}
 {{ super() }}
 <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_transform_columns.js') }}"></script>
+<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_transform_recipe.js') }}"></script>
 {% endblock %}

@@ -286,3 +286,35 @@ def test_data_provenance_workspace_traces_applied_transform(tmp_path):
     assert b"Hash-valid chain" in page.data
     assert b"authoritative" in page.data
     assert b"ml-lab.data-lineage@1" in page.data
+
+
+def test_data_transform_recipe_panel_renders_live_pipeline_controls():
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+    response = client.get("/data/transform")
+    assert response.status_code == 200
+    assert b"Transformation Recipe" in response.data
+    assert b'data-recipe-order' in response.data
+    assert b'data-recipe-disabled' in response.data
+    assert b"ml_lab_transform_recipe.js" in response.data
+
+
+def test_transform_form_recipe_order_and_disabled_groups_are_authoritative():
+    from ml_lab.ui.blueprint import _recipe_from_transform_form
+
+    app = Flask(__name__)
+    form = {
+        "recipe_name": "Ordered UI recipe",
+        "clean_columns": "name",
+        "filter_column": "name",
+        "filter_operator": "eq",
+        "filter_value": "A",
+        "scale_columns": "score",
+        "scale_method": "minmax",
+        "recipe_order": "filter_rows,clean_strings,scale",
+        "recipe_disabled": "scale",
+    }
+    with app.test_request_context("/data/transform", method="POST", data=form):
+        recipe = _recipe_from_transform_form()
+
+    assert [operation["type"] for operation in recipe["operations"]] == ["filter_rows", "clean_strings"]

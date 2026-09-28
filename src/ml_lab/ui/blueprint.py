@@ -110,8 +110,37 @@ def _transform_column_catalog(source: str) -> list[dict[str, Any]]:
     return catalog
 
 
+_TRANSFORM_GROUP_ORDER = [
+    "select_columns",
+    "drop_columns",
+    "drop_quality_columns",
+    "rename_columns",
+    "coerce_types",
+    "sentinel_to_missing",
+    "fill_missing",
+    "drop_missing_rows",
+    "clean_strings",
+    "drop_duplicates",
+    "filter_rows",
+    "derive",
+    "encode_categorical",
+    "scale",
+    "outliers",
+]
+
+
+def _transform_group_order_from_form() -> list[str]:
+    requested = _split_names(request.form.get("recipe_order", ""))
+    ordered: list[str] = []
+    for key in requested:
+        if key in _TRANSFORM_GROUP_ORDER and key not in ordered:
+            ordered.append(key)
+    ordered.extend(key for key in _TRANSFORM_GROUP_ORDER if key not in ordered)
+    return ordered
+
+
 def _recipe_from_transform_form() -> dict[str, Any]:
-    operations: list[dict[str, Any]] = []
+    groups: dict[str, list[dict[str, Any]]] = {key: [] for key in _TRANSFORM_GROUP_ORDER}
     selected = _split_names(request.form.get("select_columns", ""))
     dropped = _split_names(request.form.get("drop_columns", ""))
     renames = _mapping_lines(request.form.get("rename_columns", ""), label="Rename")
@@ -127,31 +156,31 @@ def _recipe_from_transform_form() -> dict[str, Any]:
     outlier_columns = _split_names(request.form.get("outlier_columns", ""))
 
     if selected:
-        operations.append({"type": "select_columns", "columns": selected})
+        groups["select_columns"].append({"type": "select_columns", "columns": selected})
     if dropped:
-        operations.append({"type": "drop_columns", "columns": dropped})
+        groups["drop_columns"].append({"type": "drop_columns", "columns": dropped})
     if request.form.get("drop_all_missing", "") == "1" or request.form.get("drop_constant", "") == "1":
-        operations.append({
+        groups["drop_quality_columns"].append({
             "type": "drop_quality_columns",
             "all_missing": request.form.get("drop_all_missing", "") == "1",
             "constant": request.form.get("drop_constant", "") == "1",
             "protected_columns": _split_names(request.form.get("protected_quality_columns", "")),
         })
     if renames:
-        operations.append({"type": "rename_columns", "mapping": {key: str(value) for key, value in renames.items()}})
+        groups["rename_columns"].append({"type": "rename_columns", "mapping": {key: str(value) for key, value in renames.items()}})
     if type_overrides:
-        operations.append({"type": "coerce_types", "mapping": type_overrides, "errors": request.form.get("coerce_errors", "coerce")})
+        groups["coerce_types"].append({"type": "coerce_types", "mapping": type_overrides, "errors": request.form.get("coerce_errors", "coerce")})
     if sentinels:
         operation: dict[str, Any] = {"type": "sentinel_to_missing", "values": sentinels}
         if sentinel_columns:
             operation["columns"] = sentinel_columns
-        operations.append(operation)
+        groups["sentinel_to_missing"].append(operation)
     for column, value in fills.items():
-        operations.append({"type": "fill_missing", "columns": [column], "method": "constant", "value": value})
+        groups["fill_missing"].append({"type": "fill_missing", "columns": [column], "method": "constant", "value": value})
     if drop_missing_columns:
-        operations.append({"type": "drop_missing_rows", "columns": drop_missing_columns, "how": request.form.get("drop_missing_how", "any")})
+        groups["drop_missing_rows"].append({"type": "drop_missing_rows", "columns": drop_missing_columns, "how": request.form.get("drop_missing_how", "any")})
     if clean_columns:
-        operations.append({
+        groups["clean_strings"].append({
             "type": "clean_strings",
             "columns": clean_columns,
             "strip": True,
@@ -162,7 +191,7 @@ def _recipe_from_transform_form() -> dict[str, Any]:
         operation = {"type": "drop_duplicates", "keep": request.form.get("duplicate_keep", "first")}
         if duplicate_columns:
             operation["columns"] = duplicate_columns
-        operations.append(operation)
+        groups["drop_duplicates"].append(operation)
 
     filter_column = request.form.get("filter_column", "").strip()
     if filter_column:
@@ -170,7 +199,7 @@ def _recipe_from_transform_form() -> dict[str, Any]:
         operation = {"type": "filter_rows", "column": filter_column, "operator": operator}
         if operator not in {"is_missing", "not_missing"}:
             operation["value"] = _scalar(request.form.get("filter_value", ""))
-        operations.append(operation)
+        groups["filter_rows"].append(operation)
 
     derive_source = request.form.get("derive_source", "").strip()
     derive_target = request.form.get("derive_target", "").strip()
@@ -178,7 +207,7 @@ def _recipe_from_transform_form() -> dict[str, Any]:
     if derive_source or derive_target or derive_pattern:
         if not (derive_source and derive_target and derive_pattern):
             raise ValueError("Regex derivation requires source column, target column, and pattern.")
-        operations.append({
+        groups["derive"].append({
             "type": "derive",
             "method": "regex_extract",
             "source": derive_source,
@@ -187,16 +216,23 @@ def _recipe_from_transform_form() -> dict[str, Any]:
             "group": _form_int("derive_group", 0),
         })
     if encode_columns:
-        operations.append({"type": "encode_categorical", "columns": encode_columns, "method": "one_hot", "drop_first": request.form.get("encode_drop_first", "") == "1"})
+        groups["encode_categorical"].append({"type": "encode_categorical", "columns": encode_columns, "method": "one_hot", "drop_first": request.form.get("encode_drop_first", "") == "1"})
     if scale_columns:
-        operations.append({"type": "scale", "columns": scale_columns, "method": request.form.get("scale_method", "standard")})
+        groups["scale"].append({"type": "scale", "columns": scale_columns, "method": request.form.get("scale_method", "standard")})
     if outlier_columns:
-        operations.append({
+        groups["outliers"].append({
             "type": "outliers",
             "columns": outlier_columns,
             "method": request.form.get("outlier_method", "clip_iqr"),
             "iqr_multiplier": float(request.form.get("outlier_iqr_multiplier", "1.5")),
         })
+
+    disabled = set(_split_names(request.form.get("recipe_disabled", "")))
+    operations: list[dict[str, Any]] = []
+    for group_key in _transform_group_order_from_form():
+        if group_key in disabled:
+            continue
+        operations.extend(groups[group_key])
 
     return {
         "schema": "ml-lab.transformation-recipe@1",
