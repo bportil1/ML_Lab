@@ -86,6 +86,30 @@ def _mapping_lines(raw: str, *, label: str) -> dict[str, Any]:
     return result
 
 
+def _transform_column_catalog(source: str) -> list[dict[str, Any]]:
+    """Build lightweight UI metadata for column selection without changing data."""
+    profile = data.profile_file(
+        source,
+        max_rows=5_000,
+        relationship_rows=0,
+        max_relationship_columns=2,
+        max_relationship_pairs=0,
+    )
+    catalog: list[dict[str, Any]] = []
+    for column in profile.columns:
+        catalog.append({
+            "name": column.name,
+            "inferred_type": column.inferred_type,
+            "missing_count": column.missing_count,
+            "missing_rate": column.missing_rate,
+            "unique_count": column.unique_count,
+            "cardinality_ratio": column.cardinality_ratio,
+            "constant": column.constant,
+            "high_cardinality": column.unique_count >= 20 and column.cardinality_ratio >= 0.8,
+        })
+    return catalog
+
+
 def _recipe_from_transform_form() -> dict[str, Any]:
     operations: list[dict[str, Any]] = []
     selected = _split_names(request.form.get("select_columns", ""))
@@ -372,33 +396,42 @@ def create_ui_blueprint(
         recipe = None
         result = None
         error = None
+        column_catalog = None
+        column_catalog_error = None
         applied = False
+        mode = request.form.get("mode", "preview")
         if request.method == "POST":
             try:
                 if not source:
                     raise ValueError("Choose a CSV/TSV source path.")
-                recipe = _recipe_from_transform_form()
-                mode = request.form.get("mode", "preview")
-                payload = {
-                    "path": source,
-                    "recipe": recipe,
-                    "preview_rows": _form_int("preview_rows", 50),
-                }
-                if mode == "apply":
-                    requested_output = request.form.get("output", "").strip()
-                    if requested_output:
-                        payload["output"] = requested_output
+                if mode != "columns":
+                    recipe = _recipe_from_transform_form()
+                    payload = {
+                        "path": source,
+                        "recipe": recipe,
+                        "preview_rows": _form_int("preview_rows", 50),
+                    }
+                    if mode == "apply":
+                        requested_output = request.form.get("output", "").strip()
+                        if requested_output:
+                            payload["output"] = requested_output
+                        else:
+                            source_path = Path(source).expanduser().resolve()
+                            output_root = Path(derived_output_root).expanduser().resolve()
+                            payload["output"] = str(output_root / f"{source_path.stem}-derived{source_path.suffix.lower()}")
+                        payload["overwrite"] = request.form.get("overwrite", "") == "1"
+                        result = execute_task("data.transform.apply", payload)["result"]
+                        applied = True
                     else:
-                        source_path = Path(source).expanduser().resolve()
-                        output_root = Path(derived_output_root).expanduser().resolve()
-                        payload["output"] = str(output_root / f"{source_path.stem}-derived{source_path.suffix.lower()}")
-                    payload["overwrite"] = request.form.get("overwrite", "") == "1"
-                    result = execute_task("data.transform.apply", payload)["result"]
-                    applied = True
-                else:
-                    result = execute_task("data.transform.preview", payload)["result"]
+                        result = execute_task("data.transform.preview", payload)["result"]
             except (PayloadError, OSError, UnicodeError, ValueError, TypeError, KeyError, FileExistsError, json.JSONDecodeError) as exc:
                 error = f"{type(exc).__name__}: {exc}"
+
+        if source and (request.method == "POST" or source_token):
+            try:
+                column_catalog = _transform_column_catalog(source)
+            except (OSError, UnicodeError, ValueError, TypeError, KeyError) as exc:
+                column_catalog_error = f"{type(exc).__name__}: {exc}"
         return render_template(
             "ml_lab_ui/transform.html",
             version=__version__,
@@ -409,6 +442,8 @@ def create_ui_blueprint(
             result_json=(_pretty(result) if result is not None else None),
             error=error,
             applied=applied,
+            column_catalog=column_catalog,
+            column_catalog_error=column_catalog_error,
             provenance_url=(provenance_url(result["derived"]["path"]) if applied and result else None),
             data_url=url_for(request.blueprint + ".data_lab"),
         )

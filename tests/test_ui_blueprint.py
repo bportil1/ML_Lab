@@ -173,6 +173,43 @@ def test_data_transform_workspace_previews_and_applies_typed_recipe(tmp_path):
     assert output.is_file()
 
 
+def test_data_transform_column_browser_loads_source_metadata_without_transforming(tmp_path):
+    source = tmp_path / "wide.csv"
+    source.write_text(
+        "id,score,status,constant\n"
+        "1,1.5,A,x\n"
+        "2,,B,x\n"
+        "3,3.5,A,x\n",
+        encoding="utf-8",
+    )
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+
+    response = client.post(
+        "/data/transform",
+        data={"source": str(source), "preview_rows": "50", "mode": "columns"},
+    )
+
+    assert response.status_code == 200
+    assert b"Choose columns" in response.data
+    assert b"4 columns available to the selector" in response.data
+    assert b'data-column-target="scale_columns"' in response.data
+    assert b'data-column-target="filter_column"' in response.data
+    assert b'data-column-single="true"' in response.data
+    assert b'data-type="integer"' in response.data
+    assert b'data-type="float"' in response.data
+    assert b'data-missing="1"' in response.data
+    assert b'data-constant="1"' in response.data
+    assert b'data-column-pattern' in response.data
+    assert b'data-select-pattern' in response.data
+    assert b'data-exclude-pattern' in response.data
+    assert b'data-deselect-filtered' in response.data
+    assert b'data-invert-columns' in response.data
+    assert b'data-save-group' in response.data
+    assert b"cardinality" in response.data
+    assert b"Operation diagnostics" not in response.data
+
+
 def test_data_compare_workspace(tmp_path):
     app = create_app(config={"TESTING": True})
     client = app.test_client()
