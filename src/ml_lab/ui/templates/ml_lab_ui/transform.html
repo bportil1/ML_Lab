@@ -28,6 +28,7 @@
     {% if column_catalog %}<span class="tiny muted">{{ column_catalog|length }} columns available to the selector.</span>{% else %}<span class="tiny muted">Load the source headers to enable Browse columns controls.</span>{% endif %}
   </div>
   {% if column_catalog_error %}<div class="alert compact-alert">Column browser: {{ column_catalog_error }}</div>{% endif %}
+  {% if source_table_error %}<div class="alert compact-alert">Dataset workspace: {{ source_table_error }}</div>{% endif %}
 </section>
 
 <details class="panel transform-recipe-panel" open data-transform-recipe-panel>
@@ -40,6 +41,91 @@
     <ol class="recipe-step-list" data-recipe-list></ol>
   </div>
 </details>
+
+{% if source_table %}
+<section class="panel transform-sheet-panel" data-transform-sheet>
+  <div class="section-head transform-sheet-head">
+    <div>
+      <h2>Dataset workspace</h2>
+      <p class="muted compact">Select headers directly, then configure transformations from the header menu. Actions update the same recipe controls below; the source table is never edited in place.</p>
+    </div>
+    <div class="transform-sheet-selection">
+      <span class="tiny muted" data-sheet-selection-count>0 columns selected</span>
+      <button class="button mini secondary" type="button" data-sheet-clear-selection disabled>Clear selection</button>
+      <button class="button mini" type="button" data-sheet-open-actions disabled>Transform selected</button>
+    </div>
+  </div>
+  {% if source_table_error %}<div class="alert compact-alert">Dataset workspace: {{ source_table_error }}</div>{% endif %}
+  <div class="transform-sheet-scroll">
+    <table class="transform-sheet-table">
+      <thead><tr>
+        {% for column in source_table.columns %}
+        <th data-sheet-column="{{ column }}">
+          <div class="sheet-column-head">
+            <button type="button" class="sheet-column-select" data-sheet-column-select="{{ column }}" title="Select {{ column }}">{{ column }}</button>
+            <button type="button" class="sheet-column-menu" data-sheet-column-menu="{{ column }}" title="Transform {{ column }}" aria-label="Transform {{ column }}">⋮</button>
+          </div>
+          <div class="sheet-column-badges" data-sheet-column-badges="{{ column }}"></div>
+        </th>
+        {% endfor %}
+      </tr></thead>
+      <tbody>
+        {% for row in source_table.rows %}
+        <tr>{% for value in row %}<td>{{ '—' if value == '' else value }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="tiny muted">Showing source rows {{ source_table.first_row }}–{{ source_table.last_row }} of {{ source_table.matched_row_count }}. Horizontal scrolling is preserved for wide datasets.</p>
+</section>
+
+<dialog class="transform-column-action-dialog" data-transform-column-actions>
+  <div class="transform-column-action-shell">
+    <header class="transform-column-action-head">
+      <div><p class="eyebrow">Header transformation</p><h2 data-sheet-action-title>Selected columns</h2><p class="tiny muted" data-sheet-action-meta></p></div>
+      <button class="button mini secondary" type="button" data-sheet-close-actions>Close</button>
+    </header>
+    <div class="transform-column-action-body">
+      <div class="sheet-selected-columns" data-sheet-selected-columns></div>
+
+      <details open class="sheet-action-group"><summary><strong>Scale</strong></summary><div class="sheet-action-controls">
+        <select class="table-select" data-sheet-scale-method><option value="standard">standard</option><option value="minmax">min-max</option><option value="robust">robust</option></select>
+        <button class="button mini" type="button" data-sheet-apply-action="scale">Add / update scale step</button>
+      </div></details>
+
+      <details class="sheet-action-group"><summary><strong>Change type</strong></summary><div class="sheet-action-controls">
+        <select class="table-select" data-sheet-type><option value="string">string</option><option value="integer">integer</option><option value="float">float</option><option value="boolean">boolean</option><option value="datetime">datetime</option><option value="category">category</option></select>
+        <button class="button mini" type="button" data-sheet-apply-action="type">Add / update type override</button>
+      </div></details>
+
+      <details class="sheet-action-group"><summary><strong>Missing values & strings</strong></summary><div class="sheet-action-controls wrap">
+        <button class="button mini secondary" type="button" data-sheet-apply-action="drop-missing">Drop rows missing selected</button>
+        <select class="table-select" data-sheet-clean-case><option value="preserve">preserve case</option><option value="lower">lowercase</option><option value="upper">UPPERCASE</option></select>
+        <label class="check inline-check"><input type="checkbox" data-sheet-collapse-whitespace> collapse whitespace</label>
+        <button class="button mini secondary" type="button" data-sheet-apply-action="clean">Clean selected strings</button>
+      </div></details>
+
+      <details class="sheet-action-group"><summary><strong>Encode & outliers</strong></summary><div class="sheet-action-controls wrap">
+        <button class="button mini secondary" type="button" data-sheet-apply-action="encode">One-hot encode selected</button>
+        <select class="table-select" data-sheet-outlier-method><option value="clip_iqr">clip to IQR fences</option><option value="drop_iqr">drop outlier rows</option></select>
+        <input class="small-input" type="number" min="0.1" step="0.1" value="1.5" data-sheet-outlier-multiplier>
+        <button class="button mini secondary" type="button" data-sheet-apply-action="outliers">Configure outliers</button>
+      </div></details>
+
+      <details class="sheet-action-group" data-sheet-single-actions><summary><strong>Single-column actions</strong></summary><div class="sheet-action-controls sheet-single-controls">
+        <label>Rename to<input class="medium-input" data-sheet-rename-target placeholder="new_column_name"></label>
+        <button class="button mini secondary" type="button" data-sheet-apply-action="rename">Add / update rename</button>
+        <label>Filter<select class="table-select" data-sheet-filter-operator>{% for value,label in [('eq','='),('ne','≠'),('gt','>'),('ge','≥'),('lt','<'),('le','≤'),('contains','contains'),('not_contains','does not contain'),('is_missing','is missing'),('not_missing','is not missing')] %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+        <input class="medium-input" data-sheet-filter-value placeholder="filter value">
+        <button class="button mini secondary" type="button" data-sheet-apply-action="filter">Configure filter</button>
+      </div></details>
+
+      <div class="sheet-danger-row"><button class="button mini secondary" type="button" data-sheet-apply-action="drop">Drop selected columns</button></div>
+      <div class="tiny muted" data-sheet-action-status></div>
+    </div>
+  </div>
+</dialog>
+{% endif %}
 
 <section class="panel transform-section">
   <h2>2. Columns & types</h2>
@@ -201,4 +287,5 @@
 {{ super() }}
 <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_transform_columns.js') }}"></script>
 <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_transform_recipe.js') }}"></script>
+<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_transform_sheet.js') }}"></script>
 {% endblock %}

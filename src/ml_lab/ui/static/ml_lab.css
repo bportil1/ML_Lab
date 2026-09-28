@@ -270,3 +270,42 @@ th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spa
   .recipe-step-actions { justify-content: flex-start; }
   .recipe-step-heading .tiny { max-width: 78vw; }
 }
+
+/* Controlled transformation: spreadsheet-style source workspace */
+.transform-sheet-panel { display: grid; gap: 12px; }
+.transform-sheet-head { align-items: flex-start; }
+.transform-sheet-selection { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.transform-sheet-scroll { overflow: auto; max-height: 520px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.transform-sheet-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; }
+.transform-sheet-table th { position: sticky; top: 0; z-index: 2; min-width: 130px; max-width: 260px; padding: 0; background: var(--surface-2); border-bottom: 1px solid var(--line); vertical-align: top; }
+.transform-sheet-table th.is-selected { box-shadow: inset 0 0 0 2px var(--accent); }
+.transform-sheet-table th.has-transformations { background: color-mix(in srgb, var(--accent), var(--surface-2) 93%); }
+.transform-sheet-table td { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-column-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; }
+.sheet-column-select, .sheet-column-menu { border: 0; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+.sheet-column-select { padding: 10px 8px 7px 10px; text-align: left; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-column-menu { width: 30px; padding: 7px 4px; color: var(--muted); font-size: 18px; }
+.sheet-column-select:hover, .sheet-column-select:focus-visible, .sheet-column-menu:hover, .sheet-column-menu:focus-visible { background: color-mix(in srgb, var(--accent), transparent 90%); outline: none; }
+.sheet-column-badges { display: flex; gap: 4px; flex-wrap: wrap; min-height: 20px; padding: 0 8px 7px 10px; }
+.sheet-transform-badge { display: inline-flex; align-items: center; border: 1px solid color-mix(in srgb, var(--accent), var(--line) 45%); border-radius: 999px; padding: 1px 5px; font-size: 9px; line-height: 1.5; letter-spacing: .04em; color: var(--text); background: color-mix(in srgb, var(--accent), transparent 91%); }
+.transform-column-action-dialog { width: min(760px, calc(100vw - 32px)); max-height: min(820px, calc(100vh - 32px)); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); box-shadow: 0 24px 70px rgba(0, 0, 0, .35); }
+.transform-column-action-dialog::backdrop { background: rgba(0, 0, 0, .48); }
+.transform-column-action-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: min(820px, calc(100vh - 32px)); }
+.transform-column-action-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.transform-column-action-head h2 { margin: 0; }
+.transform-column-action-body { overflow: auto; display: grid; gap: 10px; padding: 14px 18px 18px; }
+.sheet-selected-columns { display: flex; flex-wrap: wrap; gap: 5px; }
+.sheet-selected-chip { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px 7px; font-size: 11px; background: var(--surface-2); }
+.sheet-action-group { border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); }
+.sheet-action-group > summary { cursor: pointer; padding: 10px 12px; }
+.sheet-action-controls { display: flex; align-items: end; gap: 8px; padding: 0 12px 12px; }
+.sheet-action-controls.wrap { flex-wrap: wrap; }
+.sheet-action-controls label { display: grid; gap: 4px; }
+.sheet-single-controls { flex-wrap: wrap; }
+.sheet-danger-row { display: flex; justify-content: flex-end; padding-top: 3px; }
+@media (max-width: 760px) {
+  .transform-sheet-head { display: grid; gap: 10px; }
+  .transform-sheet-selection { justify-content: flex-start; }
+  .sheet-action-controls { align-items: stretch; flex-direction: column; }
+  .sheet-action-controls.wrap, .sheet-single-controls { flex-direction: column; align-items: stretch; }
+}

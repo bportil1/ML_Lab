@@ -210,6 +210,37 @@ def test_data_transform_column_browser_loads_source_metadata_without_transformin
     assert b"Operation diagnostics" not in response.data
 
 
+def test_data_transform_spreadsheet_workspace_uses_source_headers_and_recipe_actions(tmp_path):
+    source = tmp_path / "sheet.csv"
+    source.write_text(
+        "id,score,status\n"
+        "1,1.5,A\n"
+        "2,2.5,B\n",
+        encoding="utf-8",
+    )
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+
+    response = client.post(
+        "/data/transform",
+        data={"source": str(source), "preview_rows": "25", "mode": "columns"},
+    )
+
+    assert response.status_code == 200
+    assert b"Dataset workspace" in response.data
+    assert b'data-transform-sheet' in response.data
+    assert b'data-sheet-column="score"' in response.data
+    assert b'data-sheet-column-menu="status"' in response.data
+    assert b'data-sheet-apply-action="scale"' in response.data
+    assert b'data-sheet-apply-action="type"' in response.data
+    assert b'data-sheet-apply-action="rename"' in response.data
+    assert b'data-sheet-apply-action="filter"' in response.data
+    assert b'data-sheet-apply-action="drop"' in response.data
+    assert b"ml_lab_transform_sheet.js" in response.data
+    assert b">1.5<" in response.data
+    assert b"Operation diagnostics" not in response.data
+
+
 def test_data_compare_workspace(tmp_path):
     app = create_app(config={"TESTING": True})
     client = app.test_client()

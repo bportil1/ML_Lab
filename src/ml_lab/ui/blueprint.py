@@ -434,6 +434,8 @@ def create_ui_blueprint(
         error = None
         column_catalog = None
         column_catalog_error = None
+        source_table = None
+        source_table_error = None
         applied = False
         mode = request.form.get("mode", "preview")
         if request.method == "POST":
@@ -468,6 +470,17 @@ def create_ui_blueprint(
                 column_catalog = _transform_column_catalog(source)
             except (OSError, UnicodeError, ValueError, TypeError, KeyError) as exc:
                 column_catalog_error = f"{type(exc).__name__}: {exc}"
+            try:
+                source_table = execute_task(
+                    "data.table",
+                    {
+                        "path": source,
+                        "page": 1,
+                        "page_size": min(max(_form_int("preview_rows", 50), 1), 100),
+                    },
+                )["result"]
+            except (PayloadError, OSError, UnicodeError, ValueError, TypeError, KeyError) as exc:
+                source_table_error = f"{type(exc).__name__}: {exc}"
         return render_template(
             "ml_lab_ui/transform.html",
             version=__version__,
@@ -480,6 +493,8 @@ def create_ui_blueprint(
             applied=applied,
             column_catalog=column_catalog,
             column_catalog_error=column_catalog_error,
+            source_table=source_table,
+            source_table_error=source_table_error,
             provenance_url=(provenance_url(result["derived"]["path"]) if applied and result else None),
             data_url=url_for(request.blueprint + ".data_lab"),
         )
