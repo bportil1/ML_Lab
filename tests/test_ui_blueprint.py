@@ -237,6 +237,8 @@ def test_data_transform_spreadsheet_workspace_uses_source_headers_and_recipe_act
     assert b'data-sheet-apply-action="filter"' in response.data
     assert b'data-sheet-apply-action="drop"' in response.data
     assert b"ml_lab_transform_sheet.js" in response.data
+    assert b'data-sheet-recipe-context' in response.data
+    assert b'data-sheet-recipe-links' in response.data
     assert b">1.5<" in response.data
     assert b"Operation diagnostics" not in response.data
 

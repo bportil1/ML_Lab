@@ -309,3 +309,11 @@ th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spa
   .sheet-action-controls { align-items: stretch; flex-direction: column; }
   .sheet-action-controls.wrap, .sheet-single-controls { flex-direction: column; align-items: stretch; }
 }
+
+/* Sprint 5: table ↔ recipe synchronization */
+.recipe-step.is-sheet-related { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft, rgba(77, 126, 255, .18)); }
+.recipe-step.is-focused { outline: 2px solid var(--accent); outline-offset: 2px; }
+.transform-sheet-table th.is-recipe-focused { background: var(--surface); box-shadow: inset 0 -3px 0 var(--accent); }
+.sheet-recipe-context { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); }
+.sheet-recipe-links { display: flex; gap: 6px; flex-wrap: wrap; }
+.sheet-recipe-link { cursor: pointer; }

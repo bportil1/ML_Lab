@@ -56,6 +56,11 @@
     </div>
   </div>
   {% if source_table_error %}<div class="alert compact-alert">Dataset workspace: {{ source_table_error }}</div>{% endif %}
+  <div class="sheet-recipe-context" data-sheet-recipe-context hidden>
+    <strong>Affected recipe steps</strong>
+    <div class="sheet-recipe-links" data-sheet-recipe-links></div>
+    <span class="tiny muted" data-sheet-recipe-empty>No configured recipe step affects the current selection.</span>
+  </div>
   <div class="transform-sheet-scroll">
     <table class="transform-sheet-table">
       <thead><tr>
