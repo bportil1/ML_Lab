@@ -153,6 +153,60 @@ def _changed_cells(before: pd.DataFrame, after: pd.DataFrame) -> int | None:
         return None
 
 
+def _changed_rows(before: pd.DataFrame, after: pd.DataFrame) -> int | None:
+    common = [column for column in before.columns if column in after.columns]
+    if len(before) != len(after) or not common:
+        return None
+    left = before.loc[:, common].reset_index(drop=True)
+    right = after.loc[:, common].reset_index(drop=True)
+    try:
+        same = left.eq(right) | (left.isna() & right.isna())
+        return int((~same).any(axis=1).sum())
+    except Exception:
+        return None
+
+
+def _change_preview(before: pd.DataFrame, after: pd.DataFrame, limit: int) -> dict[str, Any]:
+    before_columns = [str(column) for column in before.columns]
+    after_columns = [str(column) for column in after.columns]
+    comparable = len(before) == len(after) and before_columns == after_columns
+    payload: dict[str, Any] = {
+        "comparable": comparable,
+        "rows_before": int(len(before)),
+        "rows_after": int(len(after)),
+        "columns_before": before_columns,
+        "columns_after": after_columns,
+        "columns_added": [name for name in after_columns if name not in before_columns],
+        "columns_dropped": [name for name in before_columns if name not in after_columns],
+        "rows": [],
+        "changed_row_count": None,
+    }
+    if not comparable:
+        payload["reason"] = "Final source/result shapes or column order differ, so cell-level row alignment would be misleading."
+        return payload
+    try:
+        left = before.reset_index(drop=True)
+        right = after.reset_index(drop=True)
+        same = left.eq(right) | (left.isna() & right.isna())
+        changed_mask = (~same).any(axis=1)
+        changed_indices = list(changed_mask[changed_mask].index)
+        payload["changed_row_count"] = len(changed_indices)
+        for row_index in changed_indices[: max(0, limit)]:
+            changes = []
+            for column in before_columns:
+                if not bool(same.loc[row_index, column]):
+                    changes.append({
+                        "column": column,
+                        "before": _jsonable(left.loc[row_index, column]),
+                        "after": _jsonable(right.loc[row_index, column]),
+                    })
+            payload["rows"].append({"row": int(row_index) + 1, "changes": changes})
+    except Exception as exc:
+        payload["comparable"] = False
+        payload["reason"] = f"Cell-level comparison unavailable: {type(exc).__name__}."
+    return payload
+
+
 def _boolean_series(series: pd.Series, *, errors: str) -> tuple[pd.Series, int]:
     mapping = {
         "true": True, "t": True, "yes": True, "y": True, "1": True,
@@ -510,6 +564,7 @@ def _apply_operation(frame: pd.DataFrame, op: Mapping[str, Any]) -> tuple[pd.Dat
         "columns_added": added,
         "columns_dropped": dropped,
         "changed_cells": _changed_cells(before, frame),
+        "affected_rows": _changed_rows(before, frame),
         "coercion_failures": int(failures),
         "missing_before": int(before.isna().to_numpy().sum()),
         "missing_after": int(frame.isna().to_numpy().sum()),
@@ -560,7 +615,9 @@ def preview_transformation(
             "coercion_failures": int(sum(item["coercion_failures"] for item in diagnostics)),
         },
         "operations": diagnostics,
+        "source_preview": _records(frame, preview_rows),
         "preview": _records(result, preview_rows),
+        "changes": _change_preview(frame, result, preview_rows),
         "warnings": warnings,
     }
 
@@ -631,6 +688,14 @@ def apply_transformation(
         "derived": provenance["derived"],
         "recipe_path": str(recipe_path),
         "recipe": normalized,
+        "summary": {
+            "rows_before": int(len(frame)),
+            "rows_after": int(len(result)),
+            "columns_before": int(len(frame.columns)),
+            "columns_after": int(len(result.columns)),
+            "operation_count": len(diagnostics),
+            "coercion_failures": int(sum(item["coercion_failures"] for item in diagnostics)),
+        },
         "operations": diagnostics,
         "warnings": provenance["warnings"],
         "provenance": {
@@ -639,7 +704,9 @@ def apply_transformation(
             "path": provenance["provenance_path"],
             "parent": provenance["parent"],
         },
+        "source_preview": _records(frame, preview_rows),
         "preview": _records(result, preview_rows),
+        "changes": _change_preview(frame, result, preview_rows),
     }
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True, default=_jsonable) + "\n", encoding="utf-8")
     manifest["manifest_path"] = str(manifest_path)

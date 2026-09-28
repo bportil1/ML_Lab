@@ -33,8 +33,25 @@ def test_preview_transformation_is_non_destructive_and_reports_diagnostics(tmp_p
     assert preview["summary"]["rows_after"] == 2
     assert preview["summary"]["coercion_failures"] == 2
     assert "augmentation" in preview["preview"]["columns"]
+    assert preview["source_preview"]["columns"] == ["id", "trial", "score", "status", "label"]
+    assert preview["changes"]["comparable"] is False
+    assert preview["operations"][0]["affected_rows"] == 1
     assert source.read_text(encoding="utf-8") == original
 
+
+
+def test_preview_reports_cell_level_changes_when_shape_is_stable(tmp_path: Path):
+    source = tmp_path / "stable.csv"
+    source.write_text("name,value\n A ,1\nB,2\n", encoding="utf-8")
+    recipe = {"operations": [{"type": "clean_strings", "columns": ["name"], "strip": True}]}
+
+    preview = data.preview_transformation(source, recipe, preview_rows=10)
+
+    assert preview["changes"]["comparable"] is True
+    assert preview["changes"]["changed_row_count"] == 1
+    assert preview["changes"]["rows"][0]["row"] == 1
+    assert preview["changes"]["rows"][0]["changes"][0] == {"column": "name", "before": " A ", "after": "A"}
+    assert preview["operations"][0]["affected_rows"] == 1
 
 def test_apply_transformation_writes_derived_recipe_and_manifest_without_touching_source(tmp_path: Path):
     source = tmp_path / "source.csv"

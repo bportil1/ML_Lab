@@ -164,6 +164,11 @@ def test_data_transform_workspace_previews_and_applies_typed_recipe(tmp_path):
     assert preview.status_code == 200
     assert b"Operation diagnostics" in preview.data
     assert b"coerce_types" in preview.data
+    assert b"Transformation preview" in preview.data
+    assert b"Changes only" in preview.data
+    assert b"Affected rows" in preview.data
+    assert b"Preview validated against the current submitted recipe" in preview.data
+    assert b"ml_lab_transform_preview.js" in preview.data
     assert not output.exists()
 
     form["mode"] = "apply"

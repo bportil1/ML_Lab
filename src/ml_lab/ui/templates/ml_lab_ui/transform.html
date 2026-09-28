@@ -186,10 +186,17 @@
   <p class="tiny muted">Outlier handling is opt-in. Leaving the outlier column field blank leaves observed values untouched.</p>
 </section>
 
-<section class="panel transform-apply-panel">
+<section class="panel transform-apply-panel" data-transform-validation data-preview-valid="{{ 1 if result and not applied else 0 }}">
   <h2>6. Preview or apply</h2>
+  <div class="transform-validation-state" data-validation-state>
+    {% if result and not applied %}
+    <strong>Preview validated against the current submitted recipe.</strong><span class="tiny muted">Changing any recipe control will require another preview before the Apply button is re-enabled.</span>
+    {% else %}
+    <strong>Preview required before Apply.</strong><span class="tiny muted">Run Preview transformation to validate column references, recipe order, coercions, and structural effects before writing a derived dataset.</span>
+    {% endif %}
+  </div>
   <label class="check"><input type="checkbox" name="overwrite" value="1" {% if request.form.get('overwrite') == '1' %}checked{% endif %}> Explicitly allow replacement of an existing <em>derived</em> output</label>
-  <div class="button-row"><button class="button secondary" type="submit" name="mode" value="preview">Preview transformation</button><button class="button" type="submit" name="mode" value="apply">Apply to derived dataset</button></div>
+  <div class="button-row"><button class="button secondary" type="submit" name="mode" value="preview">Preview transformation</button><button class="button" type="submit" name="mode" value="apply" data-transform-apply {% if not result or applied %}disabled{% endif %}>Apply to derived dataset</button></div>
 </section>
 </form>
 
@@ -276,13 +283,41 @@
   <div class="metric"><strong>{{ summary.coercion_failures }}</strong><span>Coercion failures</span></div>
 </section>
 {% if applied %}<div class="status-card transform-success"><strong>Derived dataset written</strong><code>{{ result.derived.path }}</code><span>Manifest: {{ result.manifest_path }}</span><span>Recipe: {{ result.recipe_path }}</span><span>Provenance: {{ result.provenance.path }}</span>{% if provenance_url %}<a class="button mini secondary" href="{{ provenance_url }}">Open lineage</a>{% endif %}</div>{% endif %}
-<section class="panel inventory-panel">
-  <div class="section-head"><div><h2>Operation diagnostics</h2><p class="muted compact">Every step reports row/column deltas, missingness, changed cells when comparable, and coercion failures.</p></div></div>
-  <div class="table-wrap"><table><thead><tr><th>#</th><th>Operation</th><th>Rows</th><th>Columns</th><th>Changed cells</th><th>Missing</th><th>Coercion failures</th></tr></thead><tbody>{% for op in result.operations %}<tr class="{% if op.coercion_failures %}row-warning{% else %}row-ok{% endif %}"><td>{{ op.index + 1 }}</td><td><code>{{ op.type }}</code></td><td>{{ op.rows_before }} → {{ op.rows_after }}</td><td>{{ op.columns_before }} → {{ op.columns_after }}</td><td>{{ op.changed_cells if op.changed_cells is not none else 'shape changed' }}</td><td>{{ op.missing_before }} → {{ op.missing_after }}</td><td>{{ op.coercion_failures }}</td></tr>{% endfor %}</tbody></table></div>
+{% if result.warnings %}
+<section class="panel transform-preview-warnings">
+  <h2>Preview warnings</h2>
+  <ul>{% for warning in result.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
 </section>
+{% endif %}
 <section class="panel inventory-panel">
-  <h2>Result preview</h2><p class="muted compact">Showing {{ result.preview.shown_row_count }} of {{ result.preview.row_count }} resulting rows.</p>
-  <div class="table-wrap"><table><thead><tr>{% for column in result.preview.columns %}<th>{{ column }}</th>{% endfor %}</tr></thead><tbody>{% for row in result.preview.rows %}<tr>{% for value in row %}<td class="{% if value is none %}cell-missing{% endif %}">{{ '—' if value is none else value }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+  <div class="section-head"><div><h2>Operation diagnostics</h2><p class="muted compact">Every step reports row/column deltas, affected rows when safely comparable, missingness, changed cells, and coercion failures.</p></div></div>
+  <div class="table-wrap"><table><thead><tr><th>#</th><th>Operation</th><th>Rows</th><th>Columns</th><th>Affected rows</th><th>Changed cells</th><th>Missing</th><th>Coercion failures</th></tr></thead><tbody>{% for op in result.operations %}<tr class="{% if op.coercion_failures or op.warnings %}row-warning{% else %}row-ok{% endif %}"><td>{{ op.index + 1 }}</td><td><code>{{ op.type }}</code>{% if op.warnings %}<div class="tiny muted">{{ op.warnings|join('; ') }}</div>{% endif %}</td><td>{{ op.rows_before }} → {{ op.rows_after }}</td><td>{{ op.columns_before }} → {{ op.columns_after }}</td><td>{{ op.affected_rows if op.affected_rows is not none else ('structural' if op.rows_before != op.rows_after else '—') }}</td><td>{{ op.changed_cells if op.changed_cells is not none else 'structural' }}</td><td>{{ op.missing_before }} → {{ op.missing_after }}</td><td>{{ op.coercion_failures }}</td></tr>{% endfor %}</tbody></table></div>
+</section>
+<section class="panel inventory-panel transform-preview-panel" data-transform-preview-panel>
+  <div class="section-head"><div><h2>Transformation preview</h2><p class="muted compact">Switch between the untouched source sample, transformed result, and changes-only inspection.</p></div></div>
+  <div class="transform-preview-tabs" role="tablist" aria-label="Transformation preview views">
+    <button class="button mini secondary is-active" type="button" data-preview-tab="original">Original</button>
+    <button class="button mini secondary" type="button" data-preview-tab="preview">Preview</button>
+    <button class="button mini secondary" type="button" data-preview-tab="changes">Changes only</button>
+  </div>
+  <div data-preview-view="original">
+    <p class="tiny muted">Showing {{ result.source_preview.shown_row_count }} of {{ result.source_preview.row_count }} source rows.</p>
+    <div class="transform-preview-scroll"><table><thead><tr>{% for column in result.source_preview.columns %}<th>{{ column }}</th>{% endfor %}</tr></thead><tbody>{% for row in result.source_preview.rows %}<tr>{% for value in row %}<td class="{% if value is none %}cell-missing{% endif %}">{{ '—' if value is none else value }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+  </div>
+  <div data-preview-view="preview" hidden>
+    <p class="tiny muted">Showing {{ result.preview.shown_row_count }} of {{ result.preview.row_count }} resulting rows.</p>
+    <div class="transform-preview-scroll"><table><thead><tr>{% for column in result.preview.columns %}<th>{{ column }}</th>{% endfor %}</tr></thead><tbody>{% for row in result.preview.rows %}<tr>{% for value in row %}<td class="{% if value is none %}cell-missing{% endif %}">{{ '—' if value is none else value }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+  </div>
+  <div data-preview-view="changes" hidden>
+    {% if result.changes.comparable %}
+      <p class="tiny muted">{{ result.changes.changed_row_count }} row(s) differ between source and result; showing up to {{ result.changes.rows|length }} changed rows.</p>
+      {% if result.changes.rows %}
+      <div class="change-row-list">{% for row in result.changes.rows %}<article class="change-row-card"><strong>Row {{ row.row }}</strong><div class="change-cell-list">{% for change in row.changes %}<div class="change-cell"><code>{{ change.column }}</code><span class="change-before">{{ '—' if change.before is none else change.before }}</span><span aria-hidden="true">→</span><span class="change-after">{{ '—' if change.after is none else change.after }}</span></div>{% endfor %}</div></article>{% endfor %}</div>
+      {% else %}<p class="muted compact">No cell-level changes were detected.</p>{% endif %}
+    {% else %}
+      <div class="transform-structural-change"><strong>Structural transformation</strong><p class="muted compact">{{ result.changes.reason }}</p><div class="summary-grid compact-summary"><div class="metric"><strong>{{ result.changes.rows_before }} → {{ result.changes.rows_after }}</strong><span>Rows</span></div><div class="metric"><strong>{{ result.changes.columns_before|length }} → {{ result.changes.columns_after|length }}</strong><span>Columns</span></div></div>{% if result.changes.columns_added %}<p class="tiny"><strong>Added:</strong> {{ result.changes.columns_added|join(', ') }}</p>{% endif %}{% if result.changes.columns_dropped %}<p class="tiny"><strong>Dropped:</strong> {{ result.changes.columns_dropped|join(', ') }}</p>{% endif %}</div>
+    {% endif %}
+  </div>
 </section>
 {% if recipe_json %}<details class="panel json-details"><summary><strong>Transformation recipe</strong></summary><pre>{{ recipe_json }}</pre></details>{% endif %}
 <details class="panel json-details"><summary><strong>Machine-readable result</strong></summary><pre>{{ result_json }}</pre></details>
@@ -293,4 +328,5 @@
 <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_transform_columns.js') }}"></script>
 <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_transform_recipe.js') }}"></script>
 <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_transform_sheet.js') }}"></script>
+<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_transform_preview.js') }}"></script>
 {% endblock %}
