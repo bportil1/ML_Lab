@@ -356,3 +356,62 @@ def test_transform_form_recipe_order_and_disabled_groups_are_authoritative():
         recipe = _recipe_from_transform_form()
 
     assert [operation["type"] for operation in recipe["operations"]] == ["filter_rows", "clean_strings"]
+
+
+def test_transform_path_autocomplete_is_local_root_scoped_and_filters_extensions(tmp_path):
+    source_dir = tmp_path / "datasets"
+    source_dir.mkdir()
+    csv_path = source_dir / "sample.csv"
+    csv_path.write_text("x\n1\n", encoding="utf-8")
+    tsv_path = source_dir / "sample.tsv"
+    tsv_path.write_text("x\n1\n", encoding="utf-8")
+    (source_dir / "sample.txt").write_text("ignore", encoding="utf-8")
+    nested = source_dir / "nested"
+    nested.mkdir()
+
+    host = Flask(__name__)
+    host.config["TESTING"] = True
+    host.register_blueprint(
+        create_ui_blueprint(name="paths_ml_lab", path_autocomplete_roots=[tmp_path]),
+        url_prefix="/ml",
+    )
+    client = host.test_client()
+
+    response = client.get(
+        "/ml/api/path-suggestions",
+        query_string={"q": str(source_dir / "sam"), "kind": "file", "extensions": "csv,tsv"},
+    )
+    assert response.status_code == 200
+    payload = response.get_json()
+    paths = {item["path"] for item in payload["suggestions"]}
+    assert str(csv_path) in paths
+    assert str(tsv_path) in paths
+    assert str(source_dir / "sample.txt") not in paths
+
+    directories = client.get(
+        "/ml/api/path-suggestions",
+        query_string={"q": str(source_dir) + "/", "kind": "directory"},
+    ).get_json()["suggestions"]
+    assert {item["path"] for item in directories} == {str(nested)}
+
+    outside = client.get(
+        "/ml/api/path-suggestions",
+        query_string={"q": str(tmp_path.parent) + "/", "kind": "either"},
+    )
+    assert outside.status_code == 200
+    assert outside.get_json()["suggestions"] == []
+
+
+def test_transform_page_uses_reusable_path_autocomplete_component(tmp_path):
+    app = create_app(
+        config={
+            "TESTING": True,
+            "ML_LAB_PATH_AUTOCOMPLETE_ROOTS": [str(tmp_path)],
+        }
+    )
+    response = app.test_client().get("/data/transform")
+    assert response.status_code == 200
+    assert b'data-path-autocomplete' in response.data
+    assert b'data-path-extensions="csv,tsv"' in response.data
+    assert b'ml_lab_path_input.js' in response.data
+    assert b'/api/path-suggestions' in response.data

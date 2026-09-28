@@ -6,7 +6,7 @@ import hmac
 import json
 import secrets
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 try:
     from flask import Blueprint, abort, jsonify, redirect, render_template, request, send_file, url_for
@@ -248,6 +248,7 @@ def create_ui_blueprint(
     enable_experimental: bool = False,
     profile_output_root: str | Path = "ml_lab_results/data/profile_runs",
     derived_output_root: str | Path = "ml_lab_results/data/derived",
+    path_autocomplete_roots: Iterable[str | Path] | None = None,
 ) -> Blueprint:
     """Create ML Lab's mountable first-party UI Blueprint.
 
@@ -264,6 +265,33 @@ def create_ui_blueprint(
     )
     jobs = ProfileJobManager(output_root=profile_output_root)
     token_secret = secrets.token_bytes(32)
+
+    raw_path_roots = list(path_autocomplete_roots) if path_autocomplete_roots is not None else [Path.cwd(), Path.home()]
+    path_roots: list[Path] = []
+    for raw_root in raw_path_roots:
+        try:
+            resolved_root = Path(raw_root).expanduser().resolve()
+        except (OSError, RuntimeError):
+            continue
+        if resolved_root not in path_roots:
+            path_roots.append(resolved_root)
+
+    def _inside_path_root(path: Path) -> bool:
+        for root in path_roots:
+            try:
+                path.relative_to(root)
+                return True
+            except ValueError:
+                continue
+        return False
+
+    def _path_suggestion_record(path: Path) -> dict[str, Any]:
+        is_dir = path.is_dir()
+        return {
+            "path": str(path),
+            "name": path.name or str(path),
+            "kind": "directory" if is_dir else "file",
+        }
 
     def sign_path(path: str) -> str:
         payload = base64.urlsafe_b64encode(str(Path(path).expanduser().resolve()).encode("utf-8")).decode("ascii").rstrip("=")
@@ -422,6 +450,77 @@ def create_ui_blueprint(
             error=error,
             data_url=url_for(request.blueprint + ".data_lab"),
         )
+
+    @blueprint.get("/api/path-suggestions")
+    def path_suggestions():
+        query = request.args.get("q", "").strip()
+        kind = request.args.get("kind", "either").strip().lower()
+        if kind not in {"file", "directory", "either"}:
+            return jsonify({"error": "kind must be file, directory, or either"}), 400
+
+        extensions = {
+            item if item.startswith(".") else f".{item}"
+            for item in _split_names(request.args.get("extensions", ""))
+        }
+        extensions = {item.casefold() for item in extensions if item != "."}
+        limit = min(max(request.args.get("limit", type=int) or 30, 1), 100)
+
+        if not path_roots:
+            return jsonify({"suggestions": [], "roots": []})
+
+        expanded = Path(query).expanduser() if query else None
+        if expanded is not None and expanded.is_absolute():
+            candidate = expanded
+        elif query:
+            candidate = path_roots[0] / expanded
+        else:
+            candidate = path_roots[0]
+
+        if query.endswith(("/", "\\")):
+            directory = candidate
+            prefix = ""
+        else:
+            directory = candidate.parent if query else candidate
+            prefix = candidate.name if query else ""
+
+        try:
+            directory = directory.resolve()
+        except (OSError, RuntimeError):
+            return jsonify({"suggestions": [], "roots": [str(root) for root in path_roots]})
+
+        if not _inside_path_root(directory) or not directory.is_dir():
+            return jsonify({"suggestions": [], "roots": [str(root) for root in path_roots]})
+
+        suggestions: list[dict[str, Any]] = []
+        prefix_folded = prefix.casefold()
+        try:
+            entries = sorted(directory.iterdir(), key=lambda item: (not item.is_dir(), item.name.casefold()))
+        except OSError:
+            entries = []
+        for entry in entries:
+            if prefix_folded and not entry.name.casefold().startswith(prefix_folded):
+                continue
+            try:
+                resolved_entry = entry.resolve()
+                if not _inside_path_root(resolved_entry):
+                    continue
+                is_dir = resolved_entry.is_dir()
+                is_file = resolved_entry.is_file()
+            except (OSError, RuntimeError):
+                continue
+            if is_dir:
+                suggestions.append(_path_suggestion_record(resolved_entry))
+            elif is_file and kind != "directory":
+                if extensions and resolved_entry.suffix.casefold() not in extensions:
+                    continue
+                suggestions.append(_path_suggestion_record(resolved_entry))
+            if len(suggestions) >= limit:
+                break
+
+        if kind == "directory":
+            suggestions = [item for item in suggestions if item["kind"] == "directory"]
+
+        return jsonify({"suggestions": suggestions, "roots": [str(root) for root in path_roots]})
 
     @blueprint.route("/data/transform", methods=["GET", "POST"])
     def data_transform():

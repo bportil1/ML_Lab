@@ -335,3 +335,14 @@ th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spa
 .transform-structural-change { display: grid; gap: 8px; }
 .compact-summary { margin: 0; }
 @media (max-width: 760px) { .change-cell { grid-template-columns: 1fr; } }
+
+/* Reusable local path autocomplete. */
+.path-input-shell { position: relative; width: 100%; }
+.path-input-shell > input { width: 100%; }
+.path-suggestion-menu { position: absolute; z-index: 40; left: 0; right: 0; top: calc(100% + 4px); max-height: 280px; overflow: auto; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); box-shadow: 0 14px 38px rgba(0, 0, 0, .24); }
+.path-suggestion-menu[hidden] { display: none; }
+.path-suggestion-item { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 9px; align-items: center; padding: 8px 10px; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--line), transparent 45%); background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.path-suggestion-item:last-child { border-bottom: 0; }
+.path-suggestion-item:hover, .path-suggestion-item.is-active { background: var(--surface-2); }
+.path-suggestion-kind { min-width: 38px; color: var(--muted); font-size: 10px; font-weight: 750; letter-spacing: .06em; }
+.path-suggestion-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }

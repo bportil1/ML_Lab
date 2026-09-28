@@ -16,8 +16,18 @@
 <section class="panel transform-source-panel">
   <h2>1. Source & output</h2>
   <div class="field-grid">
-    <label>Source CSV/TSV<input class="wide-input" type="text" name="source" value="{{ source }}" placeholder="/path/to/source.csv" required></label>
-    <label>Derived output <span class="tiny muted">optional; defaults under ml_lab_results/data/derived</span><input class="wide-input" type="text" name="output" value="{{ request.form.get('output','') }}" placeholder="/path/to/derived.csv"></label>
+    <label>Source CSV/TSV
+      <div class="path-input-shell" data-path-input>
+        <input class="wide-input" type="text" name="source" value="{{ source }}" placeholder="/path/to/source.csv" required autocomplete="off" data-path-autocomplete data-path-kind="file" data-path-extensions="csv,tsv" data-path-suggestions-url="{{ url_for(request.blueprint + '.path_suggestions') }}">
+        <div class="path-suggestion-menu" data-path-suggestion-menu hidden></div>
+      </div>
+    </label>
+    <label>Derived output <span class="tiny muted">optional; defaults under ml_lab_results/data/derived</span>
+      <div class="path-input-shell" data-path-input>
+        <input class="wide-input" type="text" name="output" value="{{ request.form.get('output','') }}" placeholder="/path/to/derived.csv" autocomplete="off" data-path-autocomplete data-path-kind="either" data-path-extensions="csv,tsv" data-path-suggestions-url="{{ url_for(request.blueprint + '.path_suggestions') }}">
+        <div class="path-suggestion-menu" data-path-suggestion-menu hidden></div>
+      </div>
+    </label>
     <label>Recipe name<input class="wide-input" type="text" name="recipe_name" value="{{ request.form.get('recipe_name','Data Lab transformation') }}"></label>
     <label>Preview rows<input class="small-input" type="number" min="1" max="500" name="preview_rows" value="{{ request.form.get('preview_rows','50') }}"></label>
   </div>
@@ -329,4 +339,5 @@
 <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_transform_recipe.js') }}"></script>
 <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_transform_sheet.js') }}"></script>
 <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_transform_preview.js') }}"></script>
+<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_path_input.js') }}"></script>
 {% endblock %}
