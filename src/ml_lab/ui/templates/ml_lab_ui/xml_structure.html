@@ -1,0 +1,293 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}{{ source_name }} · XML Structure · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ data_url }}">← Data Lab</a>
+<section class="workspace-head xml-workspace-head">
+  <div>
+    <p class="eyebrow">XML structural analysis · read only</p>
+    <h1>{{ source_name }}</h1>
+    <p class="lede">Explore the XML hierarchy before choosing a record root. This view preserves structure and does not flatten or transform the source.</p>
+    <p class="tiny xml-source-path"><code>{{ source_path }}</code></p>
+  </div>
+  <span class="badge ready">structure loaded</span>
+</section>
+
+{% if error %}
+<div class="alert data-alert">{{ error }}</div>
+{% elif structure %}
+{% set analysis = structure.analysis %}
+<section class="summary-grid xml-summary-grid">
+  <div class="metric"><strong>{{ structure.element_count }}</strong><span>Elements</span></div>
+  <div class="metric"><strong>{{ analysis.unique_element_path_count }}</strong><span>Unique paths</span></div>
+  <div class="metric"><strong>{{ structure.observed_max_depth }}</strong><span>Max depth</span></div>
+  <div class="metric"><strong>{{ analysis.repeated_path_count }}</strong><span>Repeated paths</span></div>
+  <div class="metric"><strong>{{ analysis.optional_path_count }}</strong><span>Optional paths</span></div>
+  <div class="metric"><strong>{{ structure.record_candidates|length }}</strong><span>Record candidates</span></div>
+</section>
+
+<section class="panel inventory-panel xml-history-panel" data-xml-extraction-history>
+  <div class="section-head xml-section-head">
+    <div>
+      <p class="eyebrow">Recorded XML extractions · re-entry</p>
+      <h2>Extraction history</h2>
+      <p class="muted compact">Reopen a prior extraction recipe, change its record root or fields, and create additional sibling datasets from the same XML source. Provenance sidecars remain authoritative; this list is a convenience index.</p>
+    </div>
+    <button class="button mini secondary" type="button" data-xml-history-refresh>Refresh</button>
+  </div>
+  <div class="tiny muted" data-xml-history-status>Loading recorded extractions…</div>
+  <div class="table-wrap xml-history-wrap" data-xml-history-table-wrap hidden>
+    <table class="interactive-table xml-history-table">
+      <thead><tr><th>Created</th><th>Dataset</th><th>Record root</th><th>Fields</th><th>Rows × columns</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody data-xml-history-rows></tbody>
+    </table>
+  </div>
+  <div class="xml-history-compare" data-xml-history-compare hidden>
+    <h3>Compare extraction recipes</h3>
+    <div class="xml-history-compare-controls">
+      <label>Left <select data-xml-history-left></select></label>
+      <label>Right <select data-xml-history-right></select></label>
+      <button class="button mini secondary" type="button" data-xml-history-compare-button>Compare</button>
+    </div>
+    <div class="tiny muted" data-xml-history-compare-status></div>
+    <details class="json-details" data-xml-history-compare-result hidden><summary><strong>Recipe comparison</strong></summary><pre data-xml-history-compare-json></pre></details>
+  </div>
+</section>
+
+<section class="xml-explorer" data-xml-explorer data-record-fields-url="{{ record_fields_url }}" data-collection-plan-url="{{ collection_plan_url }}" data-preview-url="{{ preview_url }}" data-materialize-url="{{ materialize_url }}" data-extraction-history-url="{{ extraction_history_url }}" data-extraction-reentry-url="{{ extraction_reentry_url }}" data-extraction-compare-url="{{ extraction_compare_url }}" data-source-fingerprint="{{ structure.source_fingerprint }}">
+  <section class="panel xml-tree-panel">
+    <div class="section-head xml-section-head">
+      <div>
+        <h2>Structure</h2>
+        <p class="muted compact">Expand branches and select a path to inspect its structural evidence.</p>
+      </div>
+      <span class="badge">{{ structure.root.local_name }}</span>
+    </div>
+    <div class="xml-tree-toolbar">
+      <label>Find path <input class="table-search" type="search" placeholder="tag or /path" data-xml-tree-search></label>
+      <button class="button mini secondary" type="button" data-xml-expand-all>Expand all</button>
+      <button class="button mini secondary" type="button" data-xml-collapse-all>Collapse all</button>
+      <label class="check xml-candidate-filter"><input type="checkbox" data-xml-candidates-only> Candidate branches</label>
+    </div>
+    <div class="tiny muted xml-tree-status" data-xml-tree-status></div>
+    <div class="xml-tree" data-xml-tree role="tree" aria-label="XML element hierarchy"></div>
+  </section>
+
+  <aside class="panel xml-inspector-panel" data-xml-inspector>
+    <div class="section-head">
+      <div>
+        <h2>Node inspector</h2>
+        <p class="muted compact">Select an element path in the tree.</p>
+      </div>
+    </div>
+    <div class="xml-inspector-empty" data-xml-inspector-empty>
+      <p class="muted">No path selected.</p>
+    </div>
+    <div class="xml-inspector-content" data-xml-inspector-content hidden>
+      <div class="xml-inspector-title">
+        <div>
+          <div class="eyebrow">Selected element</div>
+          <h3 data-xml-inspector-name></h3>
+        </div>
+        <span class="badge" data-xml-inspector-candidate hidden>record candidate</span>
+      </div>
+      <dl class="xml-definition-list">
+        <div><dt>Path</dt><dd><code data-xml-inspector-path></code></dd></div>
+        <div><dt>Canonical path</dt><dd><code data-xml-inspector-canonical></code></dd></div>
+        <div><dt>Namespace</dt><dd data-xml-inspector-namespace>—</dd></div>
+        <div><dt>Depth</dt><dd data-xml-inspector-depth></dd></div>
+        <div><dt>Occurrences</dt><dd data-xml-inspector-occurrences></dd></div>
+      </dl>
+
+      <h3 class="xml-inspector-subhead">Cardinality</h3>
+      <div class="xml-cardinality-grid">
+        <div><strong data-xml-card-min>—</strong><span>min / parent</span></div>
+        <div><strong data-xml-card-mean>—</strong><span>mean / parent</span></div>
+        <div><strong data-xml-card-max>—</strong><span>max / parent</span></div>
+      </div>
+      <div class="xml-flag-row" data-xml-flags></div>
+
+      <h3 class="xml-inspector-subhead">Text evidence</h3>
+      <dl class="xml-definition-list compact-definitions">
+        <div><dt>Text present</dt><dd data-xml-text-rate></dd></div>
+        <div><dt>Sampled distinctness</dt><dd data-xml-text-distinct></dd></div>
+        <div><dt>Likely identifier</dt><dd data-xml-text-id></dd></div>
+      </dl>
+
+      <h3 class="xml-inspector-subhead">Attributes</h3>
+      <div class="table-wrap xml-attributes-wrap">
+        <table class="xml-attributes-table">
+          <thead><tr><th>Name</th><th>Presence</th><th>Distinct sample</th><th>Evidence</th></tr></thead>
+          <tbody data-xml-attributes></tbody>
+        </table>
+      </div>
+      <div class="tiny muted" data-xml-no-attributes hidden>No attributes observed on this path.</div>
+
+      <h3 class="xml-inspector-subhead">Record-root evidence</h3>
+      <div class="xml-candidate-score"><strong data-xml-candidate-score>0</strong><span>candidate score</span></div>
+      <ul class="xml-reason-list" data-xml-candidate-reasons></ul>
+      <div class="xml-record-root-actions">
+        <button class="button mini" type="button" data-xml-use-record-root>Use as record root</button>
+      </div>
+    </div>
+  </aside>
+</section>
+
+<section class="panel inventory-panel xml-field-selector" data-xml-field-selector hidden>
+  <div class="section-head xml-section-head">
+    <div>
+      <p class="eyebrow">Extraction configuration · selection only</p>
+      <h2>Record root &amp; fields</h2>
+      <p class="muted compact">Choose which scalar fields belong to a record. No XML values are flattened or exported in this sprint.</p>
+    </div>
+    <button class="button mini secondary" type="button" data-xml-clear-record-root>Clear root</button>
+  </div>
+  <dl class="xml-definition-list xml-selection-summary">
+    <div><dt>Record root</dt><dd><code data-xml-record-root-path></code></dd></div>
+    <div><dt>Occurrences</dt><dd data-xml-record-root-occurrences></dd></div>
+    <div><dt>Candidate score</dt><dd data-xml-record-root-score></dd></div>
+    <div><dt>Selected fields</dt><dd data-xml-selected-field-count>0</dd></div>
+  </dl>
+  <div class="xml-field-toolbar">
+    <label>Find field <input class="table-search" type="search" placeholder="relative path or attribute" data-xml-field-search></label>
+    <button class="button mini secondary" type="button" data-xml-select-identifiers>Select likely IDs</button>
+    <button class="button mini secondary" type="button" data-xml-select-all-fields>Select all</button>
+    <button class="button mini secondary" type="button" data-xml-clear-fields>Clear fields</button>
+  </div>
+  <div class="tiny muted" data-xml-field-status></div>
+  <div class="table-wrap xml-field-table-wrap">
+    <table class="xml-field-table">
+      <thead><tr><th>Select</th><th>Relative field</th><th>Kind</th><th>Source element</th><th>Shape</th><th>Evidence</th></tr></thead>
+      <tbody data-xml-field-rows></tbody>
+    </table>
+  </div>
+  <details class="json-details xml-selection-json"><summary><strong>Current extraction selection</strong></summary><pre data-xml-selection-json></pre></details>
+</section>
+
+<section class="panel inventory-panel xml-rule-panel" data-xml-rule-panel hidden>
+  <div class="section-head xml-section-head">
+    <div>
+      <p class="eyebrow">One-to-many rules · configuration only</p>
+      <h2>Repeated branch rules</h2>
+      <p class="muted compact">Every repeated branch touched by selected fields needs an explicit strategy before extraction preview. This sprint stores and validates rules only; it does not materialize rows.</p>
+    </div>
+    <span class="badge" data-xml-rule-ready>not ready</span>
+  </div>
+  <div class="xml-rule-summary">
+    <span><strong data-xml-rule-branch-count>0</strong> repeated branches</span>
+    <span><strong data-xml-rule-unresolved-count>0</strong> unresolved</span>
+    <span><strong data-xml-rule-invalid-count>0</strong> invalid</span>
+  </div>
+  <div class="tiny muted" data-xml-rule-status></div>
+  <div class="xml-rule-list" data-xml-rule-list></div>
+  <div class="xml-rule-warnings" data-xml-rule-warnings hidden></div>
+  <details class="json-details xml-selection-json"><summary><strong>Current repeated-branch plan</strong></summary><pre data-xml-rule-json></pre></details>
+</section>
+
+<section class="panel inventory-panel xml-preview-panel" data-xml-preview-panel hidden>
+  <div class="section-head xml-section-head">
+    <div>
+      <p class="eyebrow">Guided tabularization · preview only</p>
+      <h2>Extraction preview</h2>
+      <p class="muted compact">Read a bounded sample from the XML source and inspect exactly how the current root, fields, and repeated-branch rules become table columns. Preview does not register or export a dataset.</p>
+    </div>
+    <span class="badge" data-xml-preview-state>not built</span>
+  </div>
+  <div class="xml-preview-controls">
+    <label>Preview records <input type="number" min="1" max="200" value="25" data-xml-preview-max-rows></label>
+    <button class="button" type="button" data-xml-build-preview>Build table preview</button>
+    <button class="button secondary" type="button" data-xml-confirm-preview disabled>Confirm extraction configuration</button>
+  </div>
+  <div class="tiny muted" data-xml-preview-status>Configure a record root, select fields, and resolve repeated-branch rules first.</div>
+  <div class="xml-preview-warnings" data-xml-preview-warnings hidden></div>
+  <div class="xml-preview-result" data-xml-preview-result hidden>
+    <div class="xml-preview-summary">
+      <span><strong data-xml-preview-row-count>0</strong> preview rows</span>
+      <span><strong data-xml-preview-column-count>0</strong> output columns</span>
+      <span data-xml-preview-truncation></span>
+    </div>
+    <div class="table-wrap xml-preview-table-wrap"><table class="xml-preview-table" data-xml-preview-table></table></div>
+
+    <h3 class="xml-preview-subhead">Field → column mapping</h3>
+    <p class="tiny muted">Select a source path to jump back to that XML node in the structural explorer.</p>
+    <div class="table-wrap xml-preview-mapping-wrap">
+      <table class="xml-preview-mapping-table">
+        <thead><tr><th>Output column</th><th>Strategy</th><th>Source field(s)</th><th>Source node</th></tr></thead>
+        <tbody data-xml-preview-mapping></tbody>
+      </table>
+    </div>
+
+    <div data-xml-child-previews></div>
+    <details class="json-details xml-selection-json"><summary><strong>Preview contract</strong></summary><pre data-xml-preview-json></pre></details>
+  </div>
+
+  <div class="xml-materialize-panel" data-xml-materialize-panel hidden>
+    <h3 class="xml-preview-subhead">Create ML_Lab dataset</h3>
+    <p class="tiny muted">After confirming this exact extraction configuration, write the full main table as a normal CSV/TSV dataset. The XML structure artifact is preserved beside it; separate-table branches are written as linked supplemental tables.</p>
+    <div class="xml-materialize-controls">
+      <label>Dataset output
+        <div class="path-input-shell" data-path-input>
+          <input class="wide-input" type="text" value="{{ default_materialize_output }}" data-xml-materialize-output autocomplete="off" data-path-autocomplete data-path-kind="either" data-path-extensions="csv,tsv" data-path-suggestions-url="{{ url_for(request.blueprint + '.path_suggestions') }}">
+          <div class="path-suggestion-menu" data-path-suggestion-menu hidden></div>
+        </div>
+      </label>
+      <label class="check"><input type="checkbox" data-xml-materialize-overwrite> Explicitly overwrite existing XML extraction artifacts</label>
+      <button class="button" type="button" data-xml-materialize disabled>Create dataset</button>
+    </div>
+    <div class="tiny muted" data-xml-materialize-status>Confirm the current extraction preview before creating a dataset.</div>
+    <div class="xml-materialize-result" data-xml-materialize-result hidden>
+      <dl class="xml-definition-list compact-definitions">
+        <div><dt>Dataset</dt><dd><code data-xml-materialize-path></code></dd></div>
+        <div><dt>Rows</dt><dd data-xml-materialize-rows></dd></div>
+        <div><dt>Columns</dt><dd data-xml-materialize-columns></dd></div>
+        <div><dt>Structure artifact</dt><dd><code data-xml-materialize-structure></code></dd></div>
+      </dl>
+      <div class="button-row"><a class="button mini" data-xml-materialize-transform href="#">Open in Transform</a></div>
+      <details class="json-details xml-selection-json"><summary><strong>Materialization result</strong></summary><pre data-xml-materialize-json></pre></details>
+    </div>
+  </div>
+</section>
+
+<section class="panel inventory-panel xml-candidates-panel">
+  <div class="section-head"><div><h2>Candidate record roots</h2><p class="muted compact">Recommendations only. You choose the record root explicitly.</p></div></div>
+  {% if structure.record_candidates %}
+  <div class="table-wrap">
+    <table class="interactive-table" data-page-size="25">
+      <thead><tr><th>Path</th><th>Score</th><th>Occurrences</th><th>Depth</th><th>Evidence</th><th>Action</th></tr></thead>
+      <tbody>
+      {% for candidate in structure.record_candidates %}
+        <tr>
+          <td><code>{{ candidate.path }}</code></td>
+          <td>{{ '%.2f'|format(candidate.score) }}</td>
+          <td>{{ candidate.occurrence_count }}</td>
+          <td>{{ candidate.depth }}</td>
+          <td>{{ candidate.reasons|join(', ') }}</td>
+          <td class="xml-candidate-actions"><button class="button mini secondary" type="button" data-xml-select-path="{{ candidate.canonical_path }}">Inspect</button><button class="button mini" type="button" data-xml-choose-record-root="{{ candidate.canonical_path }}">Choose root</button></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty xml-small-empty">No repeated structured paths met the current candidate threshold.</div>
+  {% endif %}
+</section>
+
+<section class="panel inventory-panel xml-namespace-panel">
+  <div class="section-head"><div><h2>Namespaces</h2><p class="muted compact">Namespace declarations observed while streaming the document.</p></div></div>
+  {% if structure.namespaces %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Prefix</th><th>URI</th></tr></thead>
+      <tbody>{% for namespace in structure.namespaces %}<tr><td><code>{{ namespace.prefix if namespace.prefix else '(default)' }}</code></td><td><code>{{ namespace.uri }}</code></td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">No namespace declarations were observed.</p>
+  {% endif %}
+</section>
+
+<details class="panel json-details"><summary><strong>Machine-readable XML structure</strong></summary><pre>{{ structure_json }}</pre></details>
+<script id="xml-structure-data" type="application/json">{{ structure|tojson }}</script>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_xml_structure.js') }}"></script>{% endblock %}
