@@ -24,12 +24,12 @@
     head.innerHTML = "";
     const labels = document.createElement("tr");
     const filters = document.createElement("tr");
-    filters.className = "column-filter-row";
+    filters.className = "table-column-filter-row";
     columns.forEach(column => {
       const th = document.createElement("th"); th.className = "sortable-head"; th.textContent = column;
       th.addEventListener("click", () => { if (state.sort === column) state.direction = state.direction === "asc" ? "desc" : "asc"; else { state.sort = column; state.direction = "asc"; } state.page = 1; load(); });
       labels.append(th);
-      const filterTh = document.createElement("th"); const input = document.createElement("input"); input.className = "column-filter"; input.placeholder = "Filter"; input.value = state.filters[column] || "";
+      const filterTh = document.createElement("th"); const input = document.createElement("input"); input.className = "table-column-filter"; input.placeholder = "Filter"; input.value = state.filters[column] || "";
       input.addEventListener("input", () => { state.filters[column] = input.value; state.page = 1; schedule(); });
       filterTh.append(input); filters.append(filterTh);
     });

@@ -226,6 +226,7 @@ h3 {
 .wide-input,
 .table-search,
 .table-select,
+.table-column-filter,
 .column-filter,
 textarea.paths-input,
 textarea.small-textarea,
@@ -241,6 +242,7 @@ textarea.compact-textarea {
 .wide-input:focus,
 .table-search:focus,
 .table-select:focus,
+.table-column-filter:focus,
 .column-filter:focus,
 textarea:focus {
   outline: 2px solid rgb(36 126 176 / .22);
@@ -325,7 +327,7 @@ tbody tr:hover {
   background: #dceef8;
 }
 
-.column-filter-row th {
+.table-column-filter-row th {
   background: var(--pah-navy-800);
 }
 

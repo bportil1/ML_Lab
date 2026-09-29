@@ -21,12 +21,12 @@
     table.closest(".table-wrap")?.before(toolbar);
 
     const filterRow = document.createElement("tr");
-    filterRow.className = "column-filter-row";
+    filterRow.className = "table-column-filter-row";
     Array.from(header.cells).forEach((_, index) => {
       const th = document.createElement("th");
       if (index < header.cells.length - 1 || header.cells[index].innerText.trim().toLowerCase() !== "actions") {
         const input = document.createElement("input");
-        input.className = "column-filter";
+        input.className = "table-column-filter";
         input.placeholder = "Filter";
         input.addEventListener("input", () => { state.filters[index] = input.value.toLocaleLowerCase(); state.page = 1; render(); });
         th.append(input);

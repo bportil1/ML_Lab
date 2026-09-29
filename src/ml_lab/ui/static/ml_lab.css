@@ -107,11 +107,11 @@ th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spa
 .row-ok { background: color-mix(in srgb, var(--good), transparent 97%); }
 .interactive-table-toolbar, .server-table-toolbar, .interactive-pagination, .server-pagination { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
 .interactive-table-toolbar label, .server-table-toolbar label { display: inline-flex; gap: 7px; align-items: center; color: var(--muted); }
-.table-search, .table-select, .column-filter { border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); color: var(--text); padding: 7px 8px; }
+.table-search, .table-select, .table-column-filter { border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); color: var(--text); padding: 7px 8px; }
 .table-search { min-width: 220px; }
 .table-select { min-width: 78px; }
-.column-filter { width: 100%; min-width: 76px; padding: 5px 6px; font-size: 11px; }
-.column-filter-row th { padding-top: 4px; padding-bottom: 8px; border-top: 0; }
+.table-column-filter { width: 100%; min-width: 76px; padding: 5px 6px; font-size: 11px; }
+.table-column-filter-row th { padding-top: 4px; padding-bottom: 8px; border-top: 0; }
 .sortable-head { cursor: pointer; user-select: none; }
 .sortable-head:hover { color: var(--text); background: color-mix(in srgb, var(--accent), transparent 92%); }
 .interactive-pagination, .server-pagination { justify-content: flex-end; }
