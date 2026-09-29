@@ -844,3 +844,9 @@ The materialized main table is deliberately compatible with the existing Data La
 ## 0.28.0 — XML provenance and reproducibility
 
 Confirmed XML materializations now write the same authoritative `.provenance.json` sidecar convention used by ordinary Data Lab transformations. The event records the exact source XML SHA-256/fingerprint, namespace map, record root, selected fields, ordered one-to-many rules, preview signature, structure artifact hash, derived byte/logical hashes, supplemental tables, and software version. `regenerate_xml_extraction(...)` rebuilds a recorded extraction from that recipe and refuses to proceed when the original XML bytes no longer match. XML-derived datasets are visible in the normal lineage view with the raw XML document represented as the authoritative root rather than being misclassified as a table.
+
+## 0.29.0 — XML re-entry and multi-extraction
+
+XML sources now keep a discoverable extraction family inside the configured derived-results root. The history index is a convenience layer only: every entry is reconstructed from and revalidated against authoritative XML tabularization provenance sidecars. Existing 0.28.0 XML outputs under the derived root are discovered automatically, so they can be reopened without rematerializing them.
+
+The XML structure workspace can reopen a recorded record-root/field/rule recipe, edit it, choose another record root, and materialize additional sibling tables from the same XML source. Recorded recipes can also be compared for record-root changes, selected-field additions/removals, and repeated-branch rule changes. Sibling derived tables remain independent children of the raw XML source; one extraction is never treated as the parent of another merely because they share a source.

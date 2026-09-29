@@ -450,3 +450,11 @@ th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spa
 .xml-preview-warnings { display: grid; gap: 5px; margin-top: 10px; padding: 9px 10px; border: 1px solid var(--warn, #d59b1a); border-radius: 8px; }
 .xml-child-preview { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); }
 .xml-child-preview h3 { margin: 0; }
+
+.xml-history-panel { margin: 18px 0; }
+.xml-history-wrap { max-height: 360px; overflow: auto; }
+.xml-history-table td code { white-space: nowrap; }
+.xml-history-compare { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.xml-history-compare-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.xml-history-compare-controls label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; min-width: 240px; }
+.xml-history-compare-controls select { min-width: 240px; }

@@ -704,6 +704,8 @@ def test_xml_confirmed_preview_materializes_dataset_from_explorer(tmp_path):
     assert page.status_code == 200
     assert b"Create ML_Lab dataset" in page.data
     assert b'data-xml-materialize' in page.data
+    assert b"Extraction history" in page.data
+    assert b'data-xml-extraction-history' in page.data
     assert str(derived_root / "materialize-tabular.csv").encode("utf-8") in page.data
 
     fields_url = html.unescape(re.search(rb'data-record-fields-url="([^"]+)"', page.data).group(1).decode("utf-8"))
@@ -743,6 +745,18 @@ def test_xml_confirmed_preview_materializes_dataset_from_explorer(tmp_path):
     assert payload["transform_url"].startswith("/data/transform?source_token=")
     assert output.is_file()
     assert Path(payload["structure_artifact_path"]).is_file()
+
+    history_url = html.unescape(re.search(rb'data-extraction-history-url="([^"]+)"', page.data).group(1).decode("utf-8"))
+    reentry_url = html.unescape(re.search(rb'data-extraction-reentry-url="([^"]+)"', page.data).group(1).decode("utf-8"))
+    history_response = client.get(history_url)
+    assert history_response.status_code == 200
+    history = history_response.get_json()
+    assert history["schema"] == "ml-lab.xml-extraction-history@1"
+    assert history["entry_count"] == 1
+    event_id = history["entries"][0]["event_id"]
+    reopened = client.post(reentry_url, json={"event_id": event_id})
+    assert reopened.status_code == 200
+    assert reopened.get_json()["selection"]["record_root_canonical_path"] == "/catalog/project"
 
     stale = client.post(
         materialize_url,

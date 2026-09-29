@@ -438,6 +438,9 @@ def create_ui_blueprint(
             collection_plan_url=url_for(request.blueprint + ".xml_collection_plan", token=token),
             preview_url=url_for(request.blueprint + ".xml_tabular_preview", token=token),
             materialize_url=url_for(request.blueprint + ".xml_tabular_materialize", token=token),
+            extraction_history_url=url_for(request.blueprint + ".xml_extraction_history", token=token),
+            extraction_reentry_url=url_for(request.blueprint + ".xml_extraction_reentry", token=token),
+            extraction_compare_url=url_for(request.blueprint + ".xml_extraction_compare", token=token),
             default_materialize_output=str(Path(derived_output_root).expanduser().resolve() / f"{path.stem}-tabular.csv"),
         )
 
@@ -555,6 +558,7 @@ def create_ui_blueprint(
                 confirmed_preview_signature=confirmed_signature,
                 output=output,
                 overwrite=overwrite,
+                history_root=derived_output_root,
             )
         except (OSError, UnicodeError, ValueError, TypeError, FileExistsError) as exc:
             return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 400
@@ -562,6 +566,76 @@ def create_ui_blueprint(
         response["transform_url"] = transform_url(result.dataset_path)
         response["data_url"] = url_for(request.blueprint + ".data_lab")
         return jsonify(response)
+
+
+    @blueprint.get("/data/xml/<token>/extractions")
+    def xml_extraction_history(token: str):
+        path = verify_path(token)
+        if path.suffix.casefold() != ".xml":
+            abort(400)
+        try:
+            record = data.inspect_file(path)
+            if record.format != "xml" or record.parse_status == "failed" or record.xml_structure is None:
+                raise ValueError(record.error or "XML structure could not be loaded.")
+            history = data.refresh_xml_extraction_history(
+                record.xml_structure,
+                history_root=derived_output_root,
+            )
+        except (OSError, UnicodeError, ValueError, TypeError) as exc:
+            return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 400
+        return jsonify(history)
+
+
+    @blueprint.post("/data/xml/<token>/extractions/reenter")
+    def xml_extraction_reentry(token: str):
+        path = verify_path(token)
+        if path.suffix.casefold() != ".xml":
+            abort(400)
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "ValueError: JSON object body is required"}), 400
+        event_id = str(payload.get("event_id") or "").strip()
+        if not event_id:
+            return jsonify({"error": "ValueError: event_id is required"}), 400
+        try:
+            record = data.inspect_file(path)
+            if record.format != "xml" or record.parse_status == "failed" or record.xml_structure is None:
+                raise ValueError(record.error or "XML structure could not be loaded.")
+            state = data.load_xml_extraction_state(
+                record.xml_structure,
+                event_id,
+                history_root=derived_output_root,
+            )
+        except (OSError, UnicodeError, ValueError, TypeError, KeyError) as exc:
+            return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 400
+        return jsonify(state)
+
+
+    @blueprint.post("/data/xml/<token>/extractions/compare")
+    def xml_extraction_compare(token: str):
+        path = verify_path(token)
+        if path.suffix.casefold() != ".xml":
+            abort(400)
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "ValueError: JSON object body is required"}), 400
+        left_event_id = str(payload.get("left_event_id") or "").strip()
+        right_event_id = str(payload.get("right_event_id") or "").strip()
+        if not left_event_id or not right_event_id:
+            return jsonify({"error": "ValueError: left_event_id and right_event_id are required"}), 400
+        try:
+            record = data.inspect_file(path)
+            if record.format != "xml" or record.parse_status == "failed" or record.xml_structure is None:
+                raise ValueError(record.error or "XML structure could not be loaded.")
+            comparison = data.compare_xml_extraction_recipes(
+                record.xml_structure,
+                left_event_id,
+                right_event_id,
+                history_root=derived_output_root,
+            )
+        except (OSError, UnicodeError, ValueError, TypeError, KeyError) as exc:
+            return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 400
+        return jsonify(comparison)
 
 
     @blueprint.route("/data/compare", methods=["GET", "POST"])

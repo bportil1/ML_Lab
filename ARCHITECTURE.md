@@ -448,3 +448,9 @@ The XML extraction manifest is an integration artifact, not an authoritative lin
 ## XML provenance boundary (0.28.0)
 
 XML extraction is now an authoritative ML Lab lineage event. The derived tabular dataset receives a standard `.provenance.json` sidecar whose source is a typed XML root descriptor and whose recipe snapshot fully captures the deterministic extraction configuration. The general lineage tracer understands this typed root without requiring XML to satisfy the delimited-table contract. Regeneration re-analyzes the source, verifies its exact SHA-256/fingerprint, reconstructs the preview signature, and only then materializes the recorded recipe.
+
+## XML extraction families and re-entry (0.29.0)
+
+XML multi-extraction is modeled as a family of authoritative transformation events that share the exact XML source SHA-256 and structural fingerprint. Each materialized table retains its own `ml-lab.transformation-event@1` sidecar and points directly to the XML root. Sibling extractions do not form artificial parent/child chains.
+
+`ml-lab.xml-extraction-history@1` is a non-authoritative convenience index stored under the configured derived-results root. It is refreshed from XML provenance sidecars and may be rebuilt at any time. Re-entry loads the recipe snapshot only after validating that the recorded event belongs to the current XML artifact. Recipe comparison reports root, field, and repeated-branch-rule differences without changing lineage.

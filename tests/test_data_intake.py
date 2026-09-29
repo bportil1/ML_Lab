@@ -809,3 +809,88 @@ def test_xml_provenance_regenerates_recorded_extraction_and_rejects_changed_sour
     with pytest.raises(ValueError, match="source hash"):
         data.regenerate_xml_extraction(original.provenance_path, output=tmp_path / "should-not-exist.csv")
     assert not (tmp_path / "should-not-exist.csv").exists()
+
+
+def test_xml_extraction_history_supports_reentry_multi_extraction_and_recipe_comparison(tmp_path: Path):
+    source = tmp_path / "mixed.xml"
+    source.write_text(
+        '<root>'
+        '<person id="p1"><name>Ada</name><age>37</age></person>'
+        '<person id="p2"><name>Lin</name><age>41</age></person>'
+        '<item sku="s1"><label>Widget</label></item>'
+        '<item sku="s2"><label>Gadget</label></item>'
+        '</root>',
+        encoding="utf-8",
+    )
+    artifact = data.analyze_xml_structure(source)
+    history_root = tmp_path / "derived"
+    history_root.mkdir()
+
+    people_selection = data.build_xml_record_selection(artifact, "/root/person")
+    people_fields = {field.relative_path: field.field_id for field in people_selection.fields}
+    people_selected = [people_fields["@id"], people_fields["name"]]
+    people_preview = data.preview_xml_tabularization(
+        source, artifact, "/root/person", people_selected,
+    )
+    # Simulate a Sprint-8 extraction that predates the explicit history catalog.
+    people = data.materialize_xml_tabularization(
+        source,
+        artifact,
+        "/root/person",
+        people_selected,
+        confirmed_preview_signature=people_preview.preview_signature,
+        output=history_root / "people.csv",
+    )
+
+    item_selection = data.build_xml_record_selection(artifact, "/root/item")
+    item_fields = {field.relative_path: field.field_id for field in item_selection.fields}
+    item_selected = [item_fields["@sku"], item_fields["label"]]
+    item_preview = data.preview_xml_tabularization(
+        source, artifact, "/root/item", item_selected,
+    )
+    items = data.materialize_xml_tabularization(
+        source,
+        artifact,
+        "/root/item",
+        item_selected,
+        confirmed_preview_signature=item_preview.preview_signature,
+        output=tmp_path / "items.csv",
+        history_root=history_root,
+    )
+
+    history = data.refresh_xml_extraction_history(artifact, history_root=history_root)
+    assert history["schema"] == "ml-lab.xml-extraction-history@1"
+    assert history["entry_count"] == 2
+    assert {entry["dataset"]["path"] for entry in history["entries"]} == {
+        str(Path(people.dataset_path).resolve()),
+        str(Path(items.dataset_path).resolve()),
+    }
+    family_ids = {
+        data.load_provenance_event(entry["provenance_path"])["extraction_family"]["family_id"]
+        for entry in history["entries"]
+    }
+    assert family_ids == {history["family_id"]}
+
+    by_root = {entry["record_root_canonical_path"]: entry for entry in history["entries"]}
+    people_event = by_root["/root/person"]["event_id"]
+    item_event = by_root["/root/item"]["event_id"]
+    state = data.load_xml_extraction_state(artifact, people_event, history_root=history_root)
+    assert state["schema"] == "ml-lab.xml-extraction-reentry@1"
+    assert state["selection"]["record_root_canonical_path"] == "/root/person"
+    assert state["selection"]["selected_field_ids"] == people_selected
+
+    comparison = data.compare_xml_extraction_recipes(
+        artifact, people_event, item_event, history_root=history_root,
+    )
+    assert comparison["schema"] == "ml-lab.xml-extraction-recipe-comparison@1"
+    assert comparison["record_root"]["changed"] is True
+    assert comparison["same_recipe"] is False
+    assert set(comparison["fields"]["removed"]) == set(people_selected)
+    assert set(comparison["fields"]["added"]) == set(item_selected)
+
+    people_lineage = data.trace_lineage(people.dataset_path)
+    item_lineage = data.trace_lineage(items.dataset_path)
+    assert people_lineage["event_count"] == item_lineage["event_count"] == 1
+    assert people_lineage["root"]["path"] == item_lineage["root"]["path"] == str(source.resolve())
+    assert data.load_provenance_event(people.provenance_path)["parent"] is None
+    assert data.load_provenance_event(items.provenance_path)["parent"] is None
