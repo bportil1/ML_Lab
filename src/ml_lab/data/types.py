@@ -379,6 +379,42 @@ class XmlTabularPreview:
 
 
 @dataclass(frozen=True)
+class XmlMaterializationResult:
+    source_path: str
+    source_fingerprint: str
+    preview_signature: str
+    dataset_path: str
+    structure_artifact_path: str
+    manifest_path: str
+    row_count: int
+    column_count: int
+    columns: tuple[str, ...] = ()
+    child_table_paths: tuple[str, ...] = ()
+    warnings: tuple[str, ...] = ()
+    schema: str = "ml-lab.xml-materialization@1"
+
+    def to_record(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "source": {
+                "path": self.source_path,
+                "fingerprint": self.source_fingerprint,
+            },
+            "preview_signature": self.preview_signature,
+            "dataset": {
+                "path": self.dataset_path,
+                "rows": self.row_count,
+                "columns": self.column_count,
+                "column_names": list(self.columns),
+            },
+            "structure_artifact_path": self.structure_artifact_path,
+            "manifest_path": self.manifest_path,
+            "child_table_paths": list(self.child_table_paths),
+            "warnings": list(self.warnings),
+        }
+
+
+@dataclass(frozen=True)
 class XmlStructureArtifact:
     source_path: str
     source_sha256: str

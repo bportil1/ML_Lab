@@ -623,3 +623,138 @@ def test_xml_tabular_preview_requires_ready_rules_and_rejects_stale_source(tmp_p
             selected,
             rules=[{"branch_canonical_path": "/root/row/item", "strategy": "first"}],
         )
+
+
+def test_xml_confirmed_extraction_materializes_normal_dataset_and_structure_artifact(tmp_path: Path):
+    source = tmp_path / "projects.xml"
+    source.write_text(
+        '<catalog>'
+        '<project id="p1"><name>A</name><metric key="x">1</metric><metric key="y">2</metric></project>'
+        '<project id="p2"><name>B</name><metric key="x">3</metric></project>'
+        '</catalog>',
+        encoding="utf-8",
+    )
+    artifact = data.analyze_xml_structure(source)
+    selection = data.build_xml_record_selection(artifact, "/catalog/project")
+    field_by_relative = {field.relative_path: field for field in selection.fields}
+    selected = [
+        field_by_relative["@id"].field_id,
+        field_by_relative["name"].field_id,
+        field_by_relative["metric/@key"].field_id,
+        field_by_relative["metric"].field_id,
+    ]
+    rules = [{
+        "branch_canonical_path": "/catalog/project/metric",
+        "strategy": "pivot",
+        "options": {
+            "pivot_key_field_id": field_by_relative["metric/@key"].field_id,
+            "pivot_value_field_id": field_by_relative["metric"].field_id,
+        },
+    }]
+    preview = data.preview_xml_tabularization(
+        source,
+        artifact,
+        "/catalog/project",
+        selected,
+        rules=rules,
+        max_rows=2,
+    )
+
+    output = tmp_path / "derived" / "projects.csv"
+    result = data.materialize_xml_tabularization(
+        source,
+        artifact,
+        "/catalog/project",
+        selected,
+        rules=rules,
+        confirmed_preview_signature=preview.preview_signature,
+        output=output,
+    )
+
+    assert result.dataset_path == str(output.resolve())
+    assert result.row_count == 2
+    assert result.column_count == 4
+    assert result.columns == ("@id", "name", "metric[x]", "metric[y]")
+    assert output.is_file()
+    record = data.inspect_file(output)
+    assert record.format == "delimited_text"
+    assert record.tabular_ready is True
+    assert record.parse_status == "parsed"
+    assert record.row_count == 2
+    assert record.columns == result.columns
+    profile = data.profile_file(output, max_rows=0, relationship_rows=0)
+    assert profile.profiled_row_count == 2
+    assert tuple(item.name for item in profile.columns) == result.columns
+
+    structure_path = Path(result.structure_artifact_path)
+    structure_payload = json.loads(structure_path.read_text(encoding="utf-8"))
+    assert structure_payload["schema"] == "ml-lab.xml-structure@2"
+    assert structure_payload["source_fingerprint"] == artifact.source_fingerprint
+
+    manifest = json.loads(Path(result.manifest_path).read_text(encoding="utf-8"))
+    assert manifest["schema"] == "ml-lab.xml-materialization@1"
+    assert manifest["source"]["fingerprint"] == artifact.source_fingerprint
+    assert manifest["extraction"]["preview_signature"] == preview.preview_signature
+    assert manifest["dataset"]["path"] == str(output.resolve())
+    assert manifest["provenance"]["status"] == "not_recorded"
+
+
+def test_xml_materialization_writes_separate_table_as_supplemental_dataset(tmp_path: Path):
+    source = tmp_path / "orders.xml"
+    source.write_text(
+        '<orders>'
+        '<order id="o1"><item sku="a">2</item><item sku="b">3</item></order>'
+        '<order id="o2"><item sku="c">1</item></order>'
+        '</orders>',
+        encoding="utf-8",
+    )
+    artifact = data.analyze_xml_structure(source)
+    selection = data.build_xml_record_selection(artifact, "/orders/order")
+    fields = {field.relative_path: field for field in selection.fields}
+    selected = [fields["@id"].field_id, fields["item/@sku"].field_id, fields["item"].field_id]
+    rules = [{
+        "branch_canonical_path": "/orders/order/item",
+        "strategy": "separate_table",
+        "options": {"separate_table_name": "items"},
+    }]
+    preview = data.preview_xml_tabularization(source, artifact, "/orders/order", selected, rules=rules)
+    result = data.materialize_xml_tabularization(
+        source,
+        artifact,
+        "/orders/order",
+        selected,
+        rules=rules,
+        confirmed_preview_signature=preview.preview_signature,
+        output=tmp_path / "orders.csv",
+    )
+
+    assert result.row_count == 2
+    assert result.columns == ("@id",)
+    assert len(result.child_table_paths) == 1
+    child = Path(result.child_table_paths[0])
+    assert child.name == "orders__items.csv"
+    child_record = data.inspect_file(child)
+    assert child_record.row_count == 3
+    assert child_record.columns == ("__parent_record", "@sku", "item")
+
+
+def test_xml_materialization_rejects_unconfirmed_or_stale_preview_signature_without_writing(tmp_path: Path):
+    source = tmp_path / "simple.xml"
+    source.write_text('<root><row id="1"><value>A</value></row></root>', encoding="utf-8")
+    artifact = data.analyze_xml_structure(source)
+    selection = data.build_xml_record_selection(artifact, "/root/row")
+    selected = [field.field_id for field in selection.fields]
+    output = tmp_path / "out.csv"
+
+    with pytest.raises(data.XmlMaterializationError, match="confirmed preview"):
+        data.materialize_xml_tabularization(
+            source,
+            artifact,
+            "/root/row",
+            selected,
+            confirmed_preview_signature="sha256:not-the-current-configuration",
+            output=output,
+        )
+
+    assert not output.exists()
+    assert source.read_text(encoding="utf-8") == '<root><row id="1"><value>A</value></row></root>'

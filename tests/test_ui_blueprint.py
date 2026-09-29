@@ -681,3 +681,78 @@ def test_xml_tabular_preview_endpoint_and_guided_preview_controls(tmp_path):
     )
     assert invalid.status_code == 400
     assert "rules are not ready" in invalid.get_json()["error"]
+
+
+def test_xml_confirmed_preview_materializes_dataset_from_explorer(tmp_path):
+    import html
+    import re
+
+    source = tmp_path / "materialize.xml"
+    source.write_text(
+        "<catalog><project id='a'><name>A</name></project><project id='b'><name>B</name></project></catalog>",
+        encoding="utf-8",
+    )
+    derived_root = tmp_path / "derived"
+    app = create_app(config={"TESTING": True, "ML_LAB_DERIVED_OUTPUT_ROOT": str(derived_root)})
+    client = app.test_client()
+
+    inventory = client.post("/data", data={"paths": str(source), "recursive": "1", "preview_rows": "20"})
+    match = re.search(rb'href="([^"]*/data/xml/[^"]+)"[^>]*>Explore XML</a>', inventory.data)
+    assert match is not None
+    explorer_url = html.unescape(match.group(1).decode("utf-8"))
+    page = client.get(explorer_url)
+    assert page.status_code == 200
+    assert b"Create ML_Lab dataset" in page.data
+    assert b'data-xml-materialize' in page.data
+    assert str(derived_root / "materialize-tabular.csv").encode("utf-8") in page.data
+
+    fields_url = html.unescape(re.search(rb'data-record-fields-url="([^"]+)"', page.data).group(1).decode("utf-8"))
+    preview_url = html.unescape(re.search(rb'data-preview-url="([^"]+)"', page.data).group(1).decode("utf-8"))
+    materialize_url = html.unescape(re.search(rb'data-materialize-url="([^"]+)"', page.data).group(1).decode("utf-8"))
+    fields = client.get(fields_url, query_string={"root": "/catalog/project"}).get_json()["fields"]
+    selected = [field["field_id"] for field in fields if field["relative_path"] in {"@id", "name"}]
+
+    preview = client.post(
+        preview_url,
+        json={
+            "record_root_canonical_path": "/catalog/project",
+            "selected_field_ids": selected,
+            "rules": [],
+            "max_rows": 10,
+        },
+    )
+    assert preview.status_code == 200
+    signature = preview.get_json()["preview_signature"]
+    output = tmp_path / "result.csv"
+    created = client.post(
+        materialize_url,
+        json={
+            "record_root_canonical_path": "/catalog/project",
+            "selected_field_ids": selected,
+            "rules": [],
+            "confirmed_preview_signature": signature,
+            "output": str(output),
+            "overwrite": False,
+        },
+    )
+    assert created.status_code == 200
+    payload = created.get_json()
+    assert payload["schema"] == "ml-lab.xml-materialization@1"
+    assert payload["dataset"]["path"] == str(output.resolve())
+    assert payload["dataset"]["rows"] == 2
+    assert payload["transform_url"].startswith("/data/transform?source_token=")
+    assert output.is_file()
+    assert Path(payload["structure_artifact_path"]).is_file()
+
+    stale = client.post(
+        materialize_url,
+        json={
+            "record_root_canonical_path": "/catalog/project",
+            "selected_field_ids": selected,
+            "rules": [],
+            "confirmed_preview_signature": "sha256:stale",
+            "output": str(tmp_path / "stale.csv"),
+        },
+    )
+    assert stale.status_code == 400
+    assert "confirmed preview no longer matches" in stale.get_json()["error"]

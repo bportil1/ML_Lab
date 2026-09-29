@@ -13,6 +13,7 @@ from .xml_ingest import XmlSafetyError, analyze_xml_structure, inspect_xml_struc
 from .xml_selection import XmlSelectionError, build_xml_record_selection
 from .xml_rules import XmlCollectionRuleError, build_xml_collection_plan, xml_collection_strategy_catalog
 from .xml_preview import XmlPreviewError, preview_xml_tabularization
+from .xml_materialize import XmlMaterializationError, materialize_xml_tabularization
 from .profiling import profile_file, profile_paths
 from .provenance import (
     describe_dataset,
@@ -45,6 +46,7 @@ from .types import (
     XmlPreviewColumn,
     XmlPreviewTable,
     XmlTabularPreview,
+    XmlMaterializationResult,
     XmlStructureArtifact,
     RelationshipProfile,
 )
@@ -72,11 +74,13 @@ __all__ = [
     "XmlPreviewColumn",
     "XmlPreviewTable",
     "XmlTabularPreview",
+    "XmlMaterializationResult",
     "XmlStructureArtifact",
     "XmlSafetyError",
     "XmlSelectionError",
     "XmlCollectionRuleError",
     "XmlPreviewError",
+    "XmlMaterializationError",
     "RelationshipProfile",
     "inspect_file",
     "analyze_xml_structure",
@@ -86,6 +90,7 @@ __all__ = [
     "build_xml_collection_plan",
     "xml_collection_strategy_catalog",
     "preview_xml_tabularization",
+    "materialize_xml_tabularization",
     "load_persisted_profile",
     "load_provenance_event",
     "logical_table_sha256",

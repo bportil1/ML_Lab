@@ -833,3 +833,9 @@ table, field-to-column mapping, child-table views, source-node jump links, warni
 explicit **Confirm extraction configuration** action. Confirmation remains browser-local and does
 not create a dataset; Sprint 7 owns registration of the confirmed extraction as an ordinary
 ML Lab tabular dataset.
+
+## 0.27.0 — XML dataset materialization
+
+Confirmed XML extraction configurations can now be written as ordinary ML_Lab CSV/TSV datasets. Materialization revalidates the XML source fingerprint and the exact confirmed preview signature, expands the complete configured record set, writes the main table atomically, and preserves the analyzed XML structure as a separate JSON artifact. `separate_table` rules produce linked supplemental CSV/TSV files while the main table remains the primary ML_Lab dataset.
+
+The materialized main table is deliberately compatible with the existing Data Lab stack: inventory, statistical profiling, table browsing, comparison, controlled transformation, and downstream ML inputs see it as a normal delimited dataset. An XML extraction manifest records the source fingerprint, record-root selection, field selection, repeated-branch plan, output dataset description, structural artifact, and child-table outputs. Formal authoritative XML lineage/provenance is intentionally not represented as a CSV-to-CSV transformation event; that is handled by the dedicated XML provenance layer in the next XML sprint.
