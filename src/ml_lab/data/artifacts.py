@@ -19,7 +19,7 @@ def _slug(value: str, *, fallback: str = "profile") -> str:
 def persist_profile_run(
     collection: DataProfileCollection,
     *,
-    output_root: str | Path = "ml_lab_results/data/profile_runs",
+    output_root: str | Path = "analysis/data/profile_runs",
     run_id: str,
 ) -> dict[str, Any]:
     """Persist one UI/application profiling run and each profile separately."""
@@ -59,7 +59,7 @@ def persist_profile_run(
 
 def load_profile_run(
     *,
-    output_root: str | Path = "ml_lab_results/data/profile_runs",
+    output_root: str | Path = "analysis/data/profile_runs",
     run_id: str,
 ) -> dict[str, Any]:
     root = Path(output_root).expanduser().resolve() / _slug(run_id, fallback="run")
@@ -73,7 +73,7 @@ def load_profile_run(
 
 def recent_profile_runs(
     *,
-    output_root: str | Path = "ml_lab_results/data/profile_runs",
+    output_root: str | Path = "analysis/data/profile_runs",
     limit: int = 20,
 ) -> list[dict[str, Any]]:
     root = Path(output_root).expanduser().resolve()

@@ -35,7 +35,7 @@ def _parser() -> argparse.ArgumentParser:
     data_inspect.add_argument("--recursive", action=argparse.BooleanOptionalAction, default=True)
     data_inspect.add_argument("--include-hidden", action="store_true", help="Include hidden files/directories")
     data_inspect.add_argument("--preview-rows", type=int, default=20, help="Rows sampled for structural detection")
-    data_inspect.add_argument("--output", default="ml_lab_results/data/inventory.json", help="Inventory JSON destination")
+    data_inspect.add_argument("--output", default="analysis/data/inventory.json", help="Inventory JSON destination")
 
     data_profile = data_sub.add_parser("profile", help="Profile CSV/TSV structure, quality, distributions, and relationships")
     data_profile.add_argument("paths", nargs="+", help="File(s) or directories to profile")
@@ -48,21 +48,21 @@ def _parser() -> argparse.ArgumentParser:
     data_profile.add_argument("--max-relationship-pairs", type=int, default=200, help="Maximum relationship records retained; 0 keeps all computed pairs")
     data_profile.add_argument("--outlier-iqr-multiplier", type=float, default=1.5, help="IQR fence multiplier for univariate outlier flags")
     data_profile.add_argument("--random-state", type=int, default=42)
-    data_profile.add_argument("--output", default="ml_lab_results/data/profile.json", help="Profile JSON destination")
+    data_profile.add_argument("--output", default="analysis/data/profile.json", help="Profile JSON destination")
 
     data_compare = data_sub.add_parser("compare", help="Compare discovered CSV/TSV datasets and infer likely relationships")
     data_compare.add_argument("paths", nargs="+", help="File(s) or directories to compare")
     data_compare.add_argument("--recursive", action=argparse.BooleanOptionalAction, default=True)
     data_compare.add_argument("--include-hidden", action="store_true", help="Include hidden files/directories")
     data_compare.add_argument("--max-pairs", type=int, default=200, help="Maximum pairwise comparisons; 0 compares every pair")
-    data_compare.add_argument("--output", default="ml_lab_results/data/comparison.json", help="Comparison JSON destination")
+    data_compare.add_argument("--output", default="analysis/data/comparison.json", help="Comparison JSON destination")
 
     data_transform = data_sub.add_parser("transform", help="Preview or apply an explicit non-destructive transformation recipe")
     data_transform.add_argument("source", help="CSV/TSV source file")
     data_transform.add_argument("--recipe", required=True, help="Transformation recipe JSON file")
     data_transform.add_argument("--preview", action="store_true", help="Preview the transformation without writing a derived dataset")
     data_transform.add_argument("--preview-rows", type=int, default=50, help="Rows included in preview output")
-    data_transform.add_argument("--output", default=None, help="Derived CSV/TSV path; defaults under ml_lab_results/data/derived")
+    data_transform.add_argument("--output", default=None, help="Derived CSV/TSV path; defaults under analysis/data/derived")
     data_transform.add_argument("--overwrite", action="store_true", help="Explicitly replace an existing derived output; raw sources are never overwritten")
 
     data_lineage = data_sub.add_parser("lineage", help="Trace authoritative ML Lab provenance for a CSV/TSV dataset")
@@ -102,7 +102,7 @@ def _parser() -> argparse.ArgumentParser:
     rbm_train.add_argument("--patience", type=int, default=25)
     rbm_train.add_argument("--random-state", type=int, default=42)
     rbm_train.add_argument("--device", choices=["auto", "cpu", "cuda", "mps"], default="auto")
-    rbm_train.add_argument("--output", default="ml_lab_results/rbm")
+    rbm_train.add_argument("--output", default="analysis/rbm")
 
     classify = sub.add_parser("classify", help="Run classification model selection")
     classify.add_argument("csv", nargs="+", help="CSV file(s) containing features and a label column")
@@ -114,7 +114,7 @@ def _parser() -> argparse.ArgumentParser:
     classify.add_argument("--scaling", choices=["auto", "none", "standard", "minmax", "robust"], default="auto")
     classify.add_argument("--n-jobs", type=int, default=-1)
     classify.add_argument("--random-state", type=int, default=42)
-    classify.add_argument("--output", default="ml_lab_results/classification")
+    classify.add_argument("--output", default="analysis/classification")
 
     regress = sub.add_parser("regress", help="Run regression model selection")
     regress.add_argument("csv", nargs="+", help="CSV file(s) containing features and target column(s)")
@@ -126,7 +126,7 @@ def _parser() -> argparse.ArgumentParser:
     regress.add_argument("--scaling", choices=["auto", "none", "standard", "minmax", "robust"], default="auto")
     regress.add_argument("--n-jobs", type=int, default=-1)
     regress.add_argument("--random-state", type=int, default=42)
-    regress.add_argument("--output", default="ml_lab_results/regression")
+    regress.add_argument("--output", default="analysis/regression")
 
     cluster = sub.add_parser("cluster", help="Run clustering candidate search/evaluation")
     cluster.add_argument("csv", nargs="+", help="CSV file(s) containing feature columns")
@@ -138,7 +138,7 @@ def _parser() -> argparse.ArgumentParser:
     cluster.add_argument("--include-noise-in-stability", action="store_true", help="Treat -1 noise labels as ordinary labels when computing repeat and cross-algorithm agreement")
     cluster.add_argument("--scaling", choices=["auto", "none", "standard", "minmax", "robust"], default="auto")
     cluster.add_argument("--random-state", type=int, default=42)
-    cluster.add_argument("--output", default="ml_lab_results/clustering")
+    cluster.add_argument("--output", default="analysis/clustering")
 
     represent = sub.add_parser("represent", help="Create a lower-dimensional representation or reconstruction")
     represent.add_argument("csv", nargs="+", help="CSV file(s) containing numeric features")
@@ -167,7 +167,7 @@ def _parser() -> argparse.ArgumentParser:
     represent.add_argument("--transformer-activation", choices=["relu", "gelu"], default="gelu")
     represent.add_argument("--max-tokens", type=int, default=1024)
     represent.add_argument("--output-activation", choices=["none", "sigmoid", "tanh"], default="none")
-    represent.add_argument("--output", default="ml_lab_results/representation")
+    represent.add_argument("--output", default="analysis/representation")
 
     gan = sub.add_parser("gan", help="Train a generic GAN and generate synthetic numeric samples")
     gan.add_argument("csv", nargs="+", help="CSV file(s) containing numeric features")
@@ -197,7 +197,7 @@ def _parser() -> argparse.ArgumentParser:
     gan.add_argument("--random-state", type=int, default=42)
     gan.add_argument("--device", choices=["auto", "cpu", "cuda", "mps"], default="auto")
     gan.add_argument("--checkpoint-path", default=None)
-    gan.add_argument("--output", default="ml_lab_results/gan")
+    gan.add_argument("--output", default="analysis/gan")
 
     experimental = sub.add_parser("experimental", help="Inspect or run isolated experimental modules")
     experimental_sub = experimental.add_subparsers(dest="experimental_command", required=True)

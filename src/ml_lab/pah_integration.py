@@ -63,12 +63,21 @@ def _roots(context: Any) -> tuple[Path | None, Path]:
     project_raw = _context_value(context, "project_root")
     results_raw = _context_value(context, "results_root")
     project = Path(project_raw).expanduser().resolve() if project_raw else None
-    if results_raw:
-        results = Path(results_raw).expanduser().resolve()
-    elif project is not None:
-        results = project / "ml_lab_results"
+    requested_results = Path(results_raw).expanduser().resolve() if results_raw else None
+
+    if project is not None:
+        legacy_default = (project / "ml_lab_results").resolve()
+        # PAH historically supplied <project>/ml_lab_results. Keep truly custom
+        # host roots, but move the old/default layout under the selected
+        # project's top-level analysis directory.
+        if requested_results is None or requested_results == legacy_default:
+            results = (project / "analysis").resolve()
+        else:
+            results = requested_results
+    elif requested_results is not None:
+        results = requested_results
     else:
-        results = Path("ml_lab_results").resolve()
+        results = Path("analysis").resolve()
     return project, results
 
 

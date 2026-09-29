@@ -623,7 +623,7 @@ def preview_transformation(
 
 
 def _default_output(source: Path) -> Path:
-    return Path("ml_lab_results/data/derived") / f"{source.stem}-derived{source.suffix.lower()}"
+    return Path("analysis/data/derived") / f"{source.stem}-derived{source.suffix.lower()}"
 
 
 def apply_transformation(

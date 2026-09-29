@@ -13,8 +13,8 @@ def create_ui_blueprint(
     name: str = "ml_lab_ui",
     *,
     enable_experimental: bool = False,
-    profile_output_root: str = "ml_lab_results/data/profile_runs",
-    derived_output_root: str = "ml_lab_results/data/derived",
+    profile_output_root: str = "analysis/data/profile_runs",
+    derived_output_root: str = "analysis/data/derived",
     path_autocomplete_roots=None,
 ):
     from .blueprint import create_ui_blueprint as _create_ui_blueprint

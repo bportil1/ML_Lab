@@ -153,7 +153,7 @@ A2.1 is a presentation/artifact sprint, not a change to A2 statistical meaning. 
 UI-triggered runs persist locally as:
 
 ```text
-ml_lab_results/data/profile_runs/<run-id>/
+analysis/data/profile_runs/<run-id>/
 ├── manifest.json
 ├── profile_collection.json
 └── profiles/
@@ -392,8 +392,8 @@ packages; the PAH adapter must not duplicate those operations.
 
 The adapter uses the explicit host context when supplied:
 
-- `project_root` identifies the active PAH workspace,
-- `results_root` scopes artifact discovery and profile persistence,
+- `project_root` identifies the active PAH workspace and anchors the default `<project>/analysis` result tree,
+- `results_root` may override that location when it is explicitly custom; the legacy `<project>/ml_lab_results` value is remapped to `<project>/analysis`,
 - `ports["ml_lab"]` selects the local UI port,
 - `host` controls the local bind address.
 

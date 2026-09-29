@@ -33,7 +33,7 @@ CLI inventory:
 
 ```bash
 ml-lab data inspect ./datasets \
-  --output ml_lab_results/data/inventory.json
+  --output analysis/data/inventory.json
 ```
 
 CLI statistical profile:
@@ -43,7 +43,7 @@ ml-lab data profile ./datasets \
   --max-rows 100000 \
   --relationship-rows 5000 \
   --max-relationship-columns 25 \
-  --output ml_lab_results/data/profile.json
+  --output analysis/data/profile.json
 ```
 
 Set `--max-rows 0` to profile all valid rows. Large inputs use a deterministic reservoir sample when the row limit is exceeded, and the resulting artifact explicitly records that sampling occurred. Relationship analysis is separately bounded so unknown wide datasets do not accidentally trigger an unbounded O(p²) analysis.
@@ -61,7 +61,7 @@ print(profiles.to_record()["summary"])
 
 Application/REST hosts use the same contracts through `execute_task("data.inspect", {"paths": [...]})`, `execute_task("data.profile", {"paths": [...]})`, and `execute_task("data.table", {"path": ...})`. The optional UI exposes the same operations in one typed Data Lab workspace.
 
-Data Lab A2.1 adds UI run visibility and artifact browsing without changing the statistical semantics. UI-triggered profiles immediately move to a Starting/Running/Completed/Failed status view and are persisted under `ml_lab_results/data/profile_runs/`. Completed runs can be reopened from Data Lab, individual profile artifacts have a structured viewer plus raw JSON, and every supported source can be opened as a read-only interactive table. Source-table pagination controls presentation only: the default is 50 rows/page, users can choose 25/50/100/250/500/All, and the complete valid source remains searchable, filterable, sortable, and pageable.
+Data Lab A2.1 adds UI run visibility and artifact browsing without changing the statistical semantics. UI-triggered profiles immediately move to a Starting/Running/Completed/Failed status view and are persisted under `analysis/data/profile_runs/`. Completed runs can be reopened from Data Lab, individual profile artifacts have a structured viewer plus raw JSON, and every supported source can be opened as a read-only interactive table. Source-table pagination controls presentation only: the default is 50 rows/page, users can choose 25/50/100/250/500/All, and the complete valid source remains searchable, filterable, sortable, and pageable.
 
 A2 relationship metrics are intentionally descriptive, not causal. Pearson/Spearman are reported only for numeric pairs. Mutual information is computed after quantile discretization (with NMI also reported) so the artifact states exactly what kind of dependence estimate was produced. Constant and identifier-like columns are excluded from pairwise relationship analysis by default.
 
@@ -781,8 +781,10 @@ through host-specific imports in the scientific core:
 - `pah.modules:ml_lab` exposes ML Lab's capability manifest.
 - `pah.runtimes:ml_lab` exposes a local runtime adapter that launches the same
   first-party UI used by `ml-lab ui`.
-- the runtime adapter discovers known ML Lab result schemas under the host-provided
-  `results_root` and returns dependency-free artifact mappings for PAH's registry.
+- the runtime adapter discovers known ML Lab result schemas under the resolved analysis root
+  and returns dependency-free artifact mappings for PAH's registry. For an active PAH project,
+  the historical `<project>/ml_lab_results` default is remapped to `<project>/analysis`; an
+  explicitly custom host results root is still honored.
 
 PAH therefore orchestrates ML Lab without reimplementing Data Lab forms or model
 logic. ML Lab does not import the PAH package and remains usable without PAH.

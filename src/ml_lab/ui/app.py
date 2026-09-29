@@ -15,8 +15,8 @@ def create_app(*, enable_experimental: bool = False, config: dict[str, Any] | No
     app = Flask("ml_lab.ui")
     app.config.update({
         "JSON_SORT_KEYS": False,
-        "ML_LAB_PROFILE_OUTPUT_ROOT": "ml_lab_results/data/profile_runs",
-        "ML_LAB_DERIVED_OUTPUT_ROOT": "ml_lab_results/data/derived",
+        "ML_LAB_PROFILE_OUTPUT_ROOT": "analysis/data/profile_runs",
+        "ML_LAB_DERIVED_OUTPUT_ROOT": "analysis/data/derived",
         "ML_LAB_PATH_AUTOCOMPLETE_ROOTS": None,
     })
     if config:

@@ -246,8 +246,8 @@ def create_ui_blueprint(
     name: str = "ml_lab_ui",
     *,
     enable_experimental: bool = False,
-    profile_output_root: str | Path = "ml_lab_results/data/profile_runs",
-    derived_output_root: str | Path = "ml_lab_results/data/derived",
+    profile_output_root: str | Path = "analysis/data/profile_runs",
+    derived_output_root: str | Path = "analysis/data/derived",
     path_autocomplete_roots: Iterable[str | Path] | None = None,
 ) -> Blueprint:
     """Create ML Lab's mountable first-party UI Blueprint.

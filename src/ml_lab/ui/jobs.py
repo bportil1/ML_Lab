@@ -23,7 +23,7 @@ class ProfileJobManager:
     show visible starting/running/completed/failed state while work is active.
     """
 
-    def __init__(self, *, output_root: str | Path = "ml_lab_results/data/profile_runs") -> None:
+    def __init__(self, *, output_root: str | Path = "analysis/data/profile_runs") -> None:
         self.output_root = Path(output_root).expanduser()
         self._jobs: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()

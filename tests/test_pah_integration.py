@@ -26,7 +26,7 @@ def test_manifest_exposes_ml_lab_capabilities_without_pah_dependency():
 
 
 def test_artifact_discovery_only_registers_known_ml_lab_schema(tmp_path: Path):
-    results = tmp_path / "ml_lab_results"
+    results = tmp_path / "analysis"
     results.mkdir()
     derived = results / "derived.csv"
     derived.write_text("x\n1\n", encoding="utf-8")
@@ -55,7 +55,7 @@ def test_runtime_adapter_launches_ml_lab_owned_ui(tmp_path: Path):
     port = _free_port()
     context = {
         "project_root": tmp_path,
-        "results_root": tmp_path / "ml_lab_results",
+        "results_root": tmp_path / "ml_lab_results",  # legacy PAH default is remapped to project/analysis
         "host": "127.0.0.1",
         "ports": {"ml_lab": port},
     }
@@ -64,6 +64,7 @@ def test_runtime_adapter_launches_ml_lab_owned_ui(tmp_path: Path):
         status = adapter.status(context=context)
         assert status["available"] is True
         assert status["running"] is False
+        assert status["metadata"]["results_root"] == str((tmp_path / "analysis").resolve())
 
         launch = adapter.launch(context=context)
         assert launch["launched"] is True
@@ -78,6 +79,16 @@ def test_runtime_adapter_launches_ml_lab_owned_ui(tmp_path: Path):
     finally:
         adapter.shutdown(context=context)
     assert adapter.status(context=context)["running"] is False
+
+
+def test_runtime_adapter_preserves_truly_custom_host_results_root(tmp_path: Path):
+    custom = tmp_path / "custom-results"
+    adapter = MLLabRuntimeAdapter()
+    status = adapter.status(context={
+        "project_root": tmp_path,
+        "results_root": custom,
+    })
+    assert status["metadata"]["results_root"] == str(custom.resolve())
 
 
 def test_host_configured_ui_writes_default_derived_output_under_results_root(tmp_path: Path):
