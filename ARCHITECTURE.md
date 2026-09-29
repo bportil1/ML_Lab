@@ -443,3 +443,8 @@ to XML Sprint 7 so user confirmation remains distinct from materialization.
 XML remains structurally first-class until the user explicitly confirms an extraction preview. `materialize_xml_tabularization` requires the confirmed preview signature and revalidates the source XML before writing anything. A matching configuration becomes one ordinary CSV/TSV main dataset, with optional supplemental child tables for `separate_table` rules. The XML structural artifact is persisted independently beside the derived table so tabularization never destroys the hierarchy needed for later inspection or alternate extractions.
 
 The XML extraction manifest is an integration artifact, not an authoritative lineage edge. It captures the exact selection and collection plan used to create the table, while the formal provenance subsystem remains responsible for establishing authoritative XML-to-table lineage in the subsequent provenance sprint.
+
+
+## XML provenance boundary (0.28.0)
+
+XML extraction is now an authoritative ML Lab lineage event. The derived tabular dataset receives a standard `.provenance.json` sidecar whose source is a typed XML root descriptor and whose recipe snapshot fully captures the deterministic extraction configuration. The general lineage tracer understands this typed root without requiring XML to satisfy the delimited-table contract. Regeneration re-analyzes the source, verifies its exact SHA-256/fingerprint, reconstructs the preview signature, and only then materializes the recorded recipe.

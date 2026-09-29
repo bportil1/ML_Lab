@@ -14,6 +14,7 @@ from .xml_selection import XmlSelectionError, build_xml_record_selection
 from .xml_rules import XmlCollectionRuleError, build_xml_collection_plan, xml_collection_strategy_catalog
 from .xml_preview import XmlPreviewError, preview_xml_tabularization
 from .xml_materialize import XmlMaterializationError, materialize_xml_tabularization
+from .xml_provenance import build_xml_extraction_recipe, persist_xml_extraction_provenance, regenerate_xml_extraction
 from .profiling import profile_file, profile_paths
 from .provenance import (
     describe_dataset,
@@ -91,6 +92,9 @@ __all__ = [
     "xml_collection_strategy_catalog",
     "preview_xml_tabularization",
     "materialize_xml_tabularization",
+    "build_xml_extraction_recipe",
+    "persist_xml_extraction_provenance",
+    "regenerate_xml_extraction",
     "load_persisted_profile",
     "load_provenance_event",
     "logical_table_sha256",

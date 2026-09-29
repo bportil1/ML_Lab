@@ -386,6 +386,7 @@ class XmlMaterializationResult:
     dataset_path: str
     structure_artifact_path: str
     manifest_path: str
+    provenance_path: str
     row_count: int
     column_count: int
     columns: tuple[str, ...] = ()
@@ -409,6 +410,7 @@ class XmlMaterializationResult:
             },
             "structure_artifact_path": self.structure_artifact_path,
             "manifest_path": self.manifest_path,
+            "provenance_path": self.provenance_path,
             "child_table_paths": list(self.child_table_paths),
             "warnings": list(self.warnings),
         }

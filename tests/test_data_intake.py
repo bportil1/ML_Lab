@@ -696,7 +696,23 @@ def test_xml_confirmed_extraction_materializes_normal_dataset_and_structure_arti
     assert manifest["source"]["fingerprint"] == artifact.source_fingerprint
     assert manifest["extraction"]["preview_signature"] == preview.preview_signature
     assert manifest["dataset"]["path"] == str(output.resolve())
-    assert manifest["provenance"]["status"] == "not_recorded"
+    assert manifest["provenance"]["status"] == "recorded"
+    provenance_path = Path(result.provenance_path)
+    assert provenance_path.is_file()
+    event = data.load_provenance_event(provenance_path)
+    assert event["operation_kind"] == "xml_tabularization"
+    assert event["source"]["source_type"] == "xml"
+    assert event["source"]["sha256"] == artifact.source_sha256
+    assert event["derived"]["logical_sha256"] == data.describe_dataset(output)["logical_sha256"]
+    assert event["recipe"]["snapshot"]["record_root_canonical_path"] == "/catalog/project"
+    assert event["recipe"]["snapshot"]["preview_signature"] == preview.preview_signature
+    assert event["structure_artifact"]["sha256"]
+
+    lineage = data.trace_lineage(output)
+    assert lineage["authoritative"] is True
+    assert lineage["event_count"] == 1
+    assert lineage["root"]["source_type"] == "xml"
+    assert lineage["root"]["path"] == str(source.resolve())
 
 
 def test_xml_materialization_writes_separate_table_as_supplemental_dataset(tmp_path: Path):
@@ -758,3 +774,38 @@ def test_xml_materialization_rejects_unconfirmed_or_stale_preview_signature_with
 
     assert not output.exists()
     assert source.read_text(encoding="utf-8") == '<root><row id="1"><value>A</value></row></root>'
+
+
+def test_xml_provenance_regenerates_recorded_extraction_and_rejects_changed_source(tmp_path: Path):
+    source = tmp_path / "records.xml"
+    source.write_text(
+        '<root><row id="1"><value>A</value></row><row id="2"><value>B</value></row></root>',
+        encoding="utf-8",
+    )
+    artifact = data.analyze_xml_structure(source)
+    selection = data.build_xml_record_selection(artifact, "/root/row")
+    selected = [field.field_id for field in selection.fields if field.relative_path in {"@id", "value"}]
+    preview = data.preview_xml_tabularization(source, artifact, "/root/row", selected)
+    original = data.materialize_xml_tabularization(
+        source, artifact, "/root/row", selected,
+        confirmed_preview_signature=preview.preview_signature,
+        output=tmp_path / "original.csv",
+    )
+
+    regenerated = data.regenerate_xml_extraction(
+        original.provenance_path,
+        output=tmp_path / "regenerated.csv",
+    )
+    assert Path(regenerated.dataset_path).read_text(encoding="utf-8") == Path(original.dataset_path).read_text(encoding="utf-8")
+    original_desc = data.describe_dataset(original.dataset_path)
+    regenerated_desc = data.describe_dataset(regenerated.dataset_path)
+    assert regenerated_desc["logical_sha256"] == original_desc["logical_sha256"]
+    assert Path(regenerated.provenance_path).is_file()
+
+    source.write_text(
+        '<root><row id="1"><value>CHANGED</value></row><row id="2"><value>B</value></row></root>',
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="source hash"):
+        data.regenerate_xml_extraction(original.provenance_path, output=tmp_path / "should-not-exist.csv")
+    assert not (tmp_path / "should-not-exist.csv").exists()

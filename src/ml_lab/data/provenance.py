@@ -333,7 +333,10 @@ def trace_lineage(path: str | Path, *, max_depth: int = 100) -> dict[str, Any]:
 
         parent = event.get("parent")
         if not parent:
-            root = describe_dataset(source_path)
+            if source_payload.get("source_type") == "xml":
+                root = dict(source_payload)
+            else:
+                root = describe_dataset(source_path)
             break
         expected_event_id = str(parent.get("event_id") or "") or None
         recorded_parent_path = parent.get("provenance_path")

@@ -39,7 +39,7 @@
 <section class="panel provenance-root-panel">
   <h2>Lineage endpoints</h2>
   <div class="provenance-endpoints">
-    <div><span class="tiny muted">Root</span><code>{{ lineage.root.path }}</code><div class="tiny">{{ lineage.root.rows }} rows × {{ lineage.root.columns }} columns</div><div class="tiny muted">{{ lineage.root.dataset_id }}</div></div>
+    <div><span class="tiny muted">Root</span><code>{{ lineage.root.path }}</code>{% if lineage.root.source_type == 'xml' %}<div class="tiny">XML · {{ lineage.root.element_count }} elements · {{ lineage.root.namespace_count }} namespaces</div><div class="tiny muted">{{ lineage.root.fingerprint }}</div>{% else %}<div class="tiny">{{ lineage.root.rows }} rows × {{ lineage.root.columns }} columns</div><div class="tiny muted">{{ lineage.root.dataset_id }}</div>{% endif %}</div>
     <div class="provenance-arrow" aria-hidden="true">→</div>
     <div><span class="tiny muted">Target</span><code>{{ lineage.target.path }}</code><div class="tiny">{{ lineage.target.rows }} rows × {{ lineage.target.columns }} columns</div><div class="tiny muted">{{ lineage.target.dataset_id }}</div></div>
   </div>
@@ -54,7 +54,7 @@
       <header><strong>Step {{ loop.index }} · {{ event.relation }}</strong><span class="badge ready">authoritative</span></header>
       <div class="tiny muted"><code>{{ event.event_id }}</code></div>
       <div class="provenance-grid">
-        <div><span class="tiny muted">Source</span><code>{{ event.source.path }}</code><div class="tiny">{{ event.source.rows }} × {{ event.source.columns }}</div></div>
+        <div><span class="tiny muted">Source</span><code>{{ event.source.path }}</code><div class="tiny">{% if event.source.source_type == 'xml' %}XML · {{ event.source.element_count }} elements{% else %}{{ event.source.rows }} × {{ event.source.columns }}{% endif %}</div></div>
         <div><span class="tiny muted">Recipe</span><code>{{ event.recipe.sha256 }}</code><div class="tiny">{{ event.changes.operation_count }} operations</div></div>
         <div><span class="tiny muted">Derived</span><code>{{ event.derived.path }}</code><div class="tiny">{{ event.derived.rows }} × {{ event.derived.columns }}</div></div>
       </div>
