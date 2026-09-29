@@ -19,7 +19,7 @@ def _free_port() -> int:
 def test_manifest_exposes_ml_lab_capabilities_without_pah_dependency():
     manifest = module_manifest()
     assert manifest["module_id"] == "ml_lab"
-    assert manifest["version"] == "0.21.0"
+    assert manifest["version"] == "0.22.0"
     assert manifest["collections"] == ["ml_lab"]
     assert "data_provenance" in manifest["capabilities"]
     assert "embedded_ui" in manifest["interfaces"]

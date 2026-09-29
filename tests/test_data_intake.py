@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from ml_lab import data
 
 
@@ -102,7 +104,7 @@ def test_xml_inventory_loads_structural_artifact_and_namespaces(tmp_path: Path):
     assert len(record.sha256) == 64
     assert record.xml_structure is not None
     artifact = record.xml_structure
-    assert artifact.schema == "ml-lab.xml-structure@1"
+    assert artifact.schema == "ml-lab.xml-structure@2"
     assert artifact.source_fingerprint == f"sha256:{record.sha256}"
     assert artifact.root_local_name == "catalog"
     assert artifact.root_namespace_uri == "urn:catalog"
@@ -177,6 +179,187 @@ def test_xml_structure_artifact_can_be_persisted_as_json(tmp_path: Path):
     output = data.save_xml_structure(artifact, tmp_path / "artifacts")
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert output.name == "xml_structure.json"
-    assert payload["schema"] == "ml-lab.xml-structure@1"
+    assert payload["schema"] == "ml-lab.xml-structure@2"
     assert payload["source_sha256"] == artifact.source_sha256
     assert payload["root"]["local_name"] == "root"
+
+
+def test_xml_structure_analysis_builds_paths_cardinality_and_optional_branches(tmp_path: Path):
+    source = tmp_path / "structure.xml"
+    source.write_text(
+        "<catalog>"
+        '<project id="p1"><name>A</name><metric>1</metric><metric>2</metric><note>x</note></project>'
+        '<project id="p2"><name>B</name><metric>3</metric></project>'
+        '<project id="p3"><name>C</name><metric>4</metric><metric>5</metric><metric>6</metric></project>'
+        "</catalog>",
+        encoding="utf-8",
+    )
+
+    artifact = data.analyze_xml_structure(source)
+    assert artifact.schema == "ml-lab.xml-structure@2"
+    assert artifact.unique_element_path_count == 5
+    assert artifact.leaf_path_count == 3
+    assert artifact.repeated_path_count == 2
+    assert artifact.optional_path_count == 1
+
+    profiles = {item.path: item for item in artifact.element_profiles}
+    project = profiles["/catalog/project"]
+    assert project.occurrence_count == 3
+    assert project.parent_occurrence_count == 1
+    assert project.parents_with_element == 1
+    assert project.min_per_parent == 3
+    assert project.max_per_parent == 3
+    assert project.mean_per_parent == 3.0
+    assert project.repeated is True
+    assert project.optional is False
+    assert project.child_paths == (
+        "/catalog/project/name",
+        "/catalog/project/metric",
+        "/catalog/project/note",
+    )
+
+    metric = profiles["/catalog/project/metric"]
+    assert metric.occurrence_count == 6
+    assert metric.parent_occurrence_count == 3
+    assert metric.parents_with_element == 3
+    assert metric.min_per_parent == 1
+    assert metric.max_per_parent == 3
+    assert metric.mean_per_parent == 2.0
+    assert metric.repeated is True
+    assert metric.optional is False
+    assert metric.text_occurrence_count == 6
+    assert metric.text_presence_rate == 1.0
+
+    note = profiles["/catalog/project/note"]
+    assert note.occurrence_count == 1
+    assert note.parent_occurrence_count == 3
+    assert note.parents_with_element == 1
+    assert note.min_per_parent == 0
+    assert note.max_per_parent == 1
+    assert note.mean_per_parent == pytest.approx(1 / 3, abs=1e-6)
+    assert note.repeated is False
+    assert note.optional is True
+
+
+def test_xml_structure_analysis_profiles_attributes_and_likely_identifiers(tmp_path: Path):
+    source = tmp_path / "ids.xml"
+    source.write_text(
+        "<root>"
+        '<record id="r1" kind="a"><value>1</value></record>'
+        '<record id="r2" kind="a"><value>2</value></record>'
+        '<record id="r3"><value>3</value></record>'
+        "</root>",
+        encoding="utf-8",
+    )
+
+    artifact = data.analyze_xml_structure(source)
+    record = next(item for item in artifact.element_profiles if item.path == "/root/record")
+    attributes = {item.local_name: item for item in record.attributes}
+
+    identifier = attributes["id"]
+    assert identifier.occurrence_count == 3
+    assert identifier.presence_rate == 1.0
+    assert identifier.distinct_sample_count == 3
+    assert identifier.distinct_sample_rate == 1.0
+    assert identifier.likely_identifier is True
+    assert record.likely_identifier_attributes == ("id",)
+
+    kind = attributes["kind"]
+    assert kind.occurrence_count == 2
+    assert kind.presence_rate == pytest.approx(2 / 3, abs=1e-6)
+    assert kind.distinct_sample_count == 1
+    assert kind.likely_identifier is False
+
+    candidate = next(item for item in artifact.record_candidates if item.path == "/root/record")
+    assert candidate.score >= 0.9
+    assert "repeats_within_parent" in candidate.reasons
+    assert "has_likely_identifier" in candidate.reasons
+
+
+def test_xml_structure_analysis_preserves_namespace_aware_paths(tmp_path: Path):
+    source = tmp_path / "namespaced.xml"
+    source.write_text(
+        '<c:catalog xmlns:c="urn:catalog" xmlns:m="urn:metrics">'
+        '<c:project c:id="p1"><m:metric m:id="m1">1</m:metric></c:project>'
+        '<c:project c:id="p2"><m:metric m:id="m2">2</m:metric></c:project>'
+        "</c:catalog>",
+        encoding="utf-8",
+    )
+
+    artifact = data.analyze_xml_structure(source)
+    paths = {item.path: item for item in artifact.element_profiles}
+    assert "/c:catalog/c:project" in paths
+    assert "/c:catalog/c:project/m:metric" in paths
+    metric = paths["/c:catalog/c:project/m:metric"]
+    assert metric.canonical_path == "/{urn:catalog}catalog/{urn:catalog}project/{urn:metrics}metric"
+    assert metric.namespace_uri == "urn:metrics"
+    assert metric.prefix == "m"
+    assert metric.attributes[0].prefix == "m"
+    assert metric.attributes[0].likely_identifier is True
+
+
+def test_xml_attribute_identifier_sampling_is_bounded(tmp_path: Path):
+    source = tmp_path / "bounded.xml"
+    source.write_text(
+        "<root>" + "".join(f'<row id="{index}" />' for index in range(20)) + "</root>",
+        encoding="utf-8",
+    )
+
+    artifact = data.analyze_xml_structure(source, max_attribute_value_samples=5)
+    row = next(item for item in artifact.element_profiles if item.path == "/root/row")
+    identifier = row.attributes[0]
+    assert identifier.occurrence_count == 20
+    assert identifier.sampled_value_count == 5
+    assert identifier.distinct_sample_count == 5
+    assert identifier.likely_identifier is True
+
+
+def test_xml_structure_json_persists_sprint2_analysis(tmp_path: Path):
+    source = tmp_path / "sample.xml"
+    source.write_text('<root><row id="1"/><row id="2"/></root>', encoding="utf-8")
+    artifact = data.analyze_xml_structure(source)
+
+    output = data.save_xml_structure(artifact, tmp_path / "artifacts")
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["schema"] == "ml-lab.xml-structure@2"
+    assert payload["analysis"]["unique_element_path_count"] == 2
+    assert payload["analysis"]["repeated_path_count"] == 1
+    assert payload["element_profiles"][1]["path"] == "/root/row"
+    assert payload["element_profiles"][1]["attributes"][0]["likely_identifier"] is True
+    assert payload["record_candidates"][0]["path"] == "/root/row"
+
+
+def test_xml_structure_analysis_detects_identifier_text_children(tmp_path: Path):
+    source = tmp_path / "child_ids.xml"
+    source.write_text(
+        "<root>"
+        "<record><id>r1</id><value>A</value></record>"
+        "<record><id>r2</id><value>B</value></record>"
+        "<record><id>r3</id><value>C</value></record>"
+        "</root>",
+        encoding="utf-8",
+    )
+
+    artifact = data.analyze_xml_structure(source)
+    profiles = {item.path: item for item in artifact.element_profiles}
+    identifier = profiles["/root/record/id"]
+    assert identifier.likely_identifier_text is True
+    assert identifier.text_sampled_value_count == 3
+    assert identifier.text_distinct_sample_count == 3
+    assert identifier.text_distinct_sample_rate == 1.0
+
+    record = profiles["/root/record"]
+    assert "has_likely_identifier" in record.record_candidate_reasons
+
+
+def test_xml_canonical_paths_escape_namespace_uri_separators(tmp_path: Path):
+    source = tmp_path / "uri.xml"
+    source.write_text(
+        '<root xmlns:x="https://example.test/ns/v1"><x:row /></root>',
+        encoding="utf-8",
+    )
+
+    artifact = data.analyze_xml_structure(source)
+    row = next(item for item in artifact.element_profiles if item.local_name == "row")
+    assert row.path == "/root/x:row"
+    assert row.canonical_path == "/root/{https:~1~1example.test~1ns~1v1}row"

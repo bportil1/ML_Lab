@@ -30,6 +30,122 @@ class XmlNamespace:
 
 
 @dataclass(frozen=True)
+class XmlAttributeProfile:
+    name: str
+    local_name: str
+    namespace_uri: str | None
+    prefix: str | None
+    occurrence_count: int
+    element_occurrence_count: int
+    presence_rate: float
+    sampled_value_count: int
+    distinct_sample_count: int
+    distinct_sample_rate: float
+    likely_identifier: bool = False
+
+    def to_record(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "local_name": self.local_name,
+            "namespace_uri": self.namespace_uri,
+            "prefix": self.prefix,
+            "occurrence_count": self.occurrence_count,
+            "element_occurrence_count": self.element_occurrence_count,
+            "presence_rate": self.presence_rate,
+            "sampled_value_count": self.sampled_value_count,
+            "distinct_sample_count": self.distinct_sample_count,
+            "distinct_sample_rate": self.distinct_sample_rate,
+            "likely_identifier": self.likely_identifier,
+        }
+
+
+@dataclass(frozen=True)
+class XmlElementProfile:
+    path: str
+    canonical_path: str
+    tag: str
+    local_name: str
+    namespace_uri: str | None
+    prefix: str | None
+    depth: int
+    occurrence_count: int
+    parent_path: str | None
+    parent_occurrence_count: int | None
+    parents_with_element: int | None
+    min_per_parent: int | None
+    max_per_parent: int | None
+    mean_per_parent: float | None
+    repeated: bool
+    optional: bool
+    text_occurrence_count: int
+    text_presence_rate: float
+    text_sampled_value_count: int
+    text_distinct_sample_count: int
+    text_distinct_sample_rate: float
+    likely_identifier_text: bool
+    attributes: tuple[XmlAttributeProfile, ...] = ()
+    child_paths: tuple[str, ...] = ()
+    likely_identifier_attributes: tuple[str, ...] = ()
+    record_candidate_score: float = 0.0
+    record_candidate_reasons: tuple[str, ...] = ()
+
+    def to_record(self) -> dict[str, Any]:
+        return {
+            "path": self.path,
+            "canonical_path": self.canonical_path,
+            "tag": self.tag,
+            "local_name": self.local_name,
+            "namespace_uri": self.namespace_uri,
+            "prefix": self.prefix,
+            "depth": self.depth,
+            "occurrence_count": self.occurrence_count,
+            "parent_path": self.parent_path,
+            "parent_occurrence_count": self.parent_occurrence_count,
+            "parents_with_element": self.parents_with_element,
+            "cardinality": {
+                "min_per_parent": self.min_per_parent,
+                "max_per_parent": self.max_per_parent,
+                "mean_per_parent": self.mean_per_parent,
+                "repeated": self.repeated,
+                "optional": self.optional,
+            },
+            "text": {
+                "occurrence_count": self.text_occurrence_count,
+                "presence_rate": self.text_presence_rate,
+                "sampled_value_count": self.text_sampled_value_count,
+                "distinct_sample_count": self.text_distinct_sample_count,
+                "distinct_sample_rate": self.text_distinct_sample_rate,
+                "likely_identifier": self.likely_identifier_text,
+            },
+            "attributes": [item.to_record() for item in self.attributes],
+            "child_paths": list(self.child_paths),
+            "likely_identifier_attributes": list(self.likely_identifier_attributes),
+            "record_candidate_score": self.record_candidate_score,
+            "record_candidate_reasons": list(self.record_candidate_reasons),
+        }
+
+
+@dataclass(frozen=True)
+class XmlRecordCandidate:
+    path: str
+    canonical_path: str
+    score: float
+    occurrence_count: int
+    depth: int
+    reasons: tuple[str, ...] = ()
+
+    def to_record(self) -> dict[str, Any]:
+        return {
+            "path": self.path,
+            "canonical_path": self.canonical_path,
+            "score": self.score,
+            "occurrence_count": self.occurrence_count,
+            "depth": self.depth,
+            "reasons": list(self.reasons),
+        }
+
+
+@dataclass(frozen=True)
 class XmlStructureArtifact:
     source_path: str
     source_sha256: str
@@ -46,7 +162,13 @@ class XmlStructureArtifact:
     top_level_child_count: int = 0
     element_count: int = 0
     observed_max_depth: int = 0
-    schema: str = "ml-lab.xml-structure@1"
+    unique_element_path_count: int = 0
+    leaf_path_count: int = 0
+    repeated_path_count: int = 0
+    optional_path_count: int = 0
+    element_profiles: tuple[XmlElementProfile, ...] = ()
+    record_candidates: tuple[XmlRecordCandidate, ...] = ()
+    schema: str = "ml-lab.xml-structure@2"
 
     def to_record(self) -> dict[str, Any]:
         return {
@@ -68,6 +190,14 @@ class XmlStructureArtifact:
             "top_level_child_count": self.top_level_child_count,
             "element_count": self.element_count,
             "observed_max_depth": self.observed_max_depth,
+            "analysis": {
+                "unique_element_path_count": self.unique_element_path_count,
+                "leaf_path_count": self.leaf_path_count,
+                "repeated_path_count": self.repeated_path_count,
+                "optional_path_count": self.optional_path_count,
+            },
+            "element_profiles": [item.to_record() for item in self.element_profiles],
+            "record_candidates": [item.to_record() for item in self.record_candidates],
         }
 
 

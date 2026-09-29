@@ -9,7 +9,7 @@ remain immutable by default.
 from .artifacts import load_persisted_profile, load_profile_run, persist_profile_run, recent_profile_runs
 from .comparison import compare_files, compare_paths, save_comparison
 from .intake import inspect_file, inspect_paths
-from .xml_ingest import XmlSafetyError, inspect_xml_structure, load_xml_structure
+from .xml_ingest import XmlSafetyError, analyze_xml_structure, inspect_xml_structure, load_xml_structure
 from .profiling import profile_file, profile_paths
 from .provenance import (
     describe_dataset,
@@ -30,7 +30,10 @@ from .types import (
     DataProfileCollection,
     DataQualityIssue,
     MalformedRow,
+    XmlAttributeProfile,
+    XmlElementProfile,
     XmlNamespace,
+    XmlRecordCandidate,
     XmlStructureArtifact,
     RelationshipProfile,
 )
@@ -46,11 +49,15 @@ __all__ = [
     "DataQualityIssue",
     "describe_dataset",
     "MalformedRow",
+    "XmlAttributeProfile",
+    "XmlElementProfile",
     "XmlNamespace",
+    "XmlRecordCandidate",
     "XmlStructureArtifact",
     "XmlSafetyError",
     "RelationshipProfile",
     "inspect_file",
+    "analyze_xml_structure",
     "inspect_xml_structure",
     "load_xml_structure",
     "load_persisted_profile",

@@ -96,7 +96,7 @@ The UI has no CDN, external asset, or network-service requirement. Its static as
 
 ## Data Lab A1 boundary (0.14.0)
 
-`ml_lab.data` is a stable, model-neutral intake subsystem. A1 performs read-only discovery and structural inventory of CSV/TSV sources. XML ingestion (0.21.0) extends that boundary with guarded parsing into `ml-lab.xml-structure@1`; raw XML remains explicitly non-tabular until a later guided extraction creates a table. Intake does not clean, coerce, normalize, impute, or otherwise mutate data.
+`ml_lab.data` is a stable, model-neutral intake subsystem. A1 performs read-only discovery and structural inventory of CSV/TSV sources. XML ingestion/analysis (0.21.0–0.22.0) extends that boundary with guarded parsing into `ml-lab.xml-structure@2`; raw XML remains explicitly non-tabular until a later guided extraction creates a table. Intake does not clean, coerce, normalize, impute, or otherwise mutate data.
 
 ```text
 file / directory paths
@@ -359,14 +359,20 @@ Each ML_Lab-derived CSV/TSV receives a sibling `*.provenance.json` event using s
 The derived-dataset manifest remains the operational ML-2 artifact and now references its provenance event. This keeps transformation execution and lineage complementary: the manifest describes the produced artifact; provenance describes the authoritative source→recipe→derived relationship. ML-5 may register these neutral lineage artifacts with PAH, but PAH must not become the owner of provenance semantics.
 
 
-### XML ingestion boundary (0.21.0)
+### XML ingestion + structure-analysis boundary (0.21.0–0.22.0)
 
-`ml_lab.data.xml_ingest` owns format-specific XML safety and ingestion. It rejects DTD/entity
-declarations, applies bounded element/depth guards, captures namespace declarations, and
-returns a source-fingerprinted `XmlStructureArtifact`. The inventory marks such inputs as
-`supported=True` but `tabular_ready=False`. Downstream tabular profiling/comparison and
-transformation must continue to gate on `tabular_ready`; XML-to-table conversion belongs to
-the guided extraction layer rather than to generic estimators or profilers.
+`ml_lab.data.xml_ingest` owns format-specific XML safety, ingestion, and read-only structural
+analysis. It rejects DTD/entity declarations, applies bounded element/depth guards, captures
+namespace declarations, and returns a source-fingerprinted `ml-lab.xml-structure@2` artifact.
+The Sprint-2 artifact adds distinct element paths, parent/child hierarchy, occurrence and
+cardinality evidence, optional/repeated branch flags, bounded attribute uniqueness evidence,
+likely identifier attributes, and ranked record-root candidates. Candidate scores are
+heuristics with explicit reasons; they are not authoritative record-root selections.
+
+The inventory marks XML inputs as `supported=True` but `tabular_ready=False`. Downstream
+tabular profiling/comparison and transformation must continue to gate on `tabular_ready`;
+interactive structure browsing, explicit record-root selection, and XML-to-table conversion
+belong to later guided-extraction sprints rather than to generic estimators or profilers.
 
 ## PAH adapter boundary (0.20.0)
 

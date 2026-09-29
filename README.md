@@ -27,7 +27,7 @@ The UI extra is not required for CLI/Python use. `import ml_lab` and `import ml_
 
 ## Data Lab — intake, profiling, interaction & controlled transformation
 
-Data Lab can inspect unknown CSV/TSV/XML files or directory trees without modifying the sources. A1 detects encoding, delimiter, likely header presence, shape, malformed-width rows, likely exported index columns, and source SHA-256 for tabular sources. XML Sprint 1 adds guarded XML ingestion, namespace capture, source fingerprinting, and a reusable `ml-lab.xml-structure@1` artifact while keeping raw XML non-tabular until guided extraction is configured. A2 adds read-only statistical profiling: inferred column types, missingness, cardinality, constants, duplicate rows, descriptive numeric/text/date summaries, IQR outlier flags, categorical imbalance signals, and bounded pairwise relationship analysis.
+Data Lab can inspect unknown CSV/TSV/XML files or directory trees without modifying the sources. A1 detects encoding, delimiter, likely header presence, shape, malformed-width rows, likely exported index columns, and source SHA-256 for tabular sources. XML Sprint 1 adds guarded XML ingestion and source fingerprinting; XML Sprint 2 expands that artifact to `ml-lab.xml-structure@2` with namespace-aware hierarchy paths, attribute inventories, path occurrence/cardinality statistics, optional/repeated branch detection, likely identifier attributes, and ranked record-node candidates while keeping raw XML non-tabular until guided extraction is configured. A2 adds read-only statistical profiling: inferred column types, missingness, cardinality, constants, duplicate rows, descriptive numeric/text/date summaries, IQR outlier flags, categorical imbalance signals, and bounded pairwise relationship analysis.
 
 CLI inventory:
 
@@ -728,6 +728,19 @@ lineage = data.trace_lineage("results/cleaned.csv")
 
 The optional UI exposes a **Provenance** workspace and lineage links from Data Lab, source browsing, and successful transformation results. Raw datasets without an ML_Lab provenance sidecar remain valid `unrecorded_root` inputs rather than receiving invented ancestry.
 
+
+## 0.22.0 — XML structure analysis
+
+XML Sprint 2 upgrades the structural artifact to `ml-lab.xml-structure@2`. The same bounded,
+read-only streaming parse now records each distinct element path with namespace-aware display
+and canonical identities, depth, occurrence counts, parent cardinality (min/max/mean),
+optional/repeated branch flags, child paths, text presence, and per-path attribute profiles.
+
+Attribute profiling records bounded uniqueness evidence and marks likely identifier attributes
+using explicit name/presence/uniqueness heuristics. Repeated non-root structures are ranked as
+record-root candidates with human-readable reasons; these are recommendations only and do not
+automatically choose a record root. Raw XML remains `tabular_ready = false`. Interactive tree
+browsing and user record-root selection remain later XML sprints.
 
 ## 0.21.0 — XML ingestion foundation
 
