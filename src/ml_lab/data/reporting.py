@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .types import DataInventory, DataProfileCollection
+from .types import DataInventory, DataProfileCollection, XmlStructureArtifact
 
 
 def save_inventory(inventory: DataInventory, output: str | Path) -> Path:
@@ -21,4 +21,13 @@ def save_profile(profile: DataProfileCollection, output: str | Path) -> Path:
         destination = destination / "profile.json"
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(profile.to_record(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return destination
+
+
+def save_xml_structure(artifact: XmlStructureArtifact, output: str | Path) -> Path:
+    destination = Path(output).expanduser()
+    if destination.suffix.lower() != ".json":
+        destination = destination / "xml_structure.json"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(artifact.to_record(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return destination

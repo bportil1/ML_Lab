@@ -21,6 +21,57 @@ class MalformedRow:
 
 
 @dataclass(frozen=True)
+class XmlNamespace:
+    prefix: str
+    uri: str
+
+    def to_record(self) -> dict[str, Any]:
+        return {"prefix": self.prefix, "uri": self.uri}
+
+
+@dataclass(frozen=True)
+class XmlStructureArtifact:
+    source_path: str
+    source_sha256: str
+    source_fingerprint: str
+    encoding: str
+    has_xml_declaration: bool
+    root_tag: str
+    root_local_name: str
+    root_namespace_uri: str | None
+    root_prefix: str | None
+    root_attribute_names: tuple[str, ...] = ()
+    namespaces: tuple[XmlNamespace, ...] = ()
+    top_level_element_tags: tuple[str, ...] = ()
+    top_level_child_count: int = 0
+    element_count: int = 0
+    observed_max_depth: int = 0
+    schema: str = "ml-lab.xml-structure@1"
+
+    def to_record(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "source_path": self.source_path,
+            "source_sha256": self.source_sha256,
+            "source_fingerprint": self.source_fingerprint,
+            "encoding": self.encoding,
+            "has_xml_declaration": self.has_xml_declaration,
+            "root": {
+                "tag": self.root_tag,
+                "local_name": self.root_local_name,
+                "namespace_uri": self.root_namespace_uri,
+                "prefix": self.root_prefix,
+                "attribute_names": list(self.root_attribute_names),
+            },
+            "namespaces": [item.to_record() for item in self.namespaces],
+            "top_level_element_tags": list(self.top_level_element_tags),
+            "top_level_child_count": self.top_level_child_count,
+            "element_count": self.element_count,
+            "observed_max_depth": self.observed_max_depth,
+        }
+
+
+@dataclass(frozen=True)
 class DataFileRecord:
     path: str
     relative_path: str
@@ -41,6 +92,8 @@ class DataFileRecord:
     malformed_rows: tuple[MalformedRow, ...] = ()
     warnings: tuple[str, ...] = ()
     error: str | None = None
+    tabular_ready: bool = True
+    xml_structure: XmlStructureArtifact | None = None
 
     def to_record(self) -> dict[str, Any]:
         return {
@@ -63,6 +116,8 @@ class DataFileRecord:
             "malformed_rows": [row.to_record() for row in self.malformed_rows],
             "warnings": list(self.warnings),
             "error": self.error,
+            "tabular_ready": self.tabular_ready,
+            "xml_structure": self.xml_structure.to_record() if self.xml_structure is not None else None,
         }
 
 

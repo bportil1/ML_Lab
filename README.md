@@ -27,7 +27,7 @@ The UI extra is not required for CLI/Python use. `import ml_lab` and `import ml_
 
 ## Data Lab — intake, profiling, interaction & controlled transformation
 
-Data Lab can inspect unknown CSV/TSV files or directory trees without modifying the sources. A1 detects encoding, delimiter, likely header presence, shape, malformed-width rows, likely exported index columns, and source SHA-256. A2 adds read-only statistical profiling: inferred column types, missingness, cardinality, constants, duplicate rows, descriptive numeric/text/date summaries, IQR outlier flags, categorical imbalance signals, and bounded pairwise relationship analysis.
+Data Lab can inspect unknown CSV/TSV/XML files or directory trees without modifying the sources. A1 detects encoding, delimiter, likely header presence, shape, malformed-width rows, likely exported index columns, and source SHA-256 for tabular sources. XML Sprint 1 adds guarded XML ingestion, namespace capture, source fingerprinting, and a reusable `ml-lab.xml-structure@1` artifact while keeping raw XML non-tabular until guided extraction is configured. A2 adds read-only statistical profiling: inferred column types, missingness, cardinality, constants, duplicate rows, descriptive numeric/text/date summaries, IQR outlier flags, categorical imbalance signals, and bounded pairwise relationship analysis.
 
 CLI inventory:
 
@@ -727,6 +727,25 @@ lineage = data.trace_lineage("results/cleaned.csv")
 `ml-lab.data-lineage@1` is deliberately narrower than ML-3 relationship discovery. A file that merely resembles another dataset remains an inferred comparison relationship. Only a recorded transformation event creates an authoritative `derived_from` provenance edge. The lineage checker verifies the current source and derived byte hashes and marks a chain invalid if an intermediate file has been modified or disappeared.
 
 The optional UI exposes a **Provenance** workspace and lineage links from Data Lab, source browsing, and successful transformation results. Raw datasets without an ML_Lab provenance sidecar remain valid `unrecorded_root` inputs rather than receiving invented ancestry.
+
+
+## 0.21.0 — XML ingestion foundation
+
+Data Lab recognizes `.xml` sources as first-class ingestible inputs without pretending that
+hierarchical XML is already a table. XML ingestion is read-only and produces a
+`ml-lab.xml-structure@1` artifact containing the exact source SHA-256/fingerprint, declared
+encoding, root QName/namespace identity, namespace declarations, root attribute names,
+top-level element identities, and bounded parser structure counters.
+
+The parser rejects DTD/entity declarations and applies explicit element/depth limits before
+XML is admitted to later structural-analysis work. Raw XML records are marked
+`tabular_ready = false`, so existing CSV/TSV profiling, comparison, source-table, and
+transformation workflows cannot accidentally consume XML before a future record-root and
+extraction recipe produces the tabular end product.
+
+This release intentionally stops at the ingestion boundary. Full hierarchy/path analysis,
+record-root selection, one-to-many rules, and tabularization belong to the following XML
+sprints.
 
 ## 0.20.0 — PAH integration
 

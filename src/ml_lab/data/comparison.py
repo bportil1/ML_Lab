@@ -222,7 +222,7 @@ def compare_paths(
     paths: Iterable[str | Path], *, recursive: bool = True, include_hidden: bool = False, max_pairs: int | None = 200
 ) -> dict[str, Any]:
     inventory = inspect_paths(paths, recursive=recursive, include_hidden=include_hidden)
-    files = [Path(record.path) for record in inventory.files if record.supported and record.parse_status != "failed"]
+    files = [Path(record.path) for record in inventory.files if record.tabular_ready and record.supported and record.parse_status != "failed"]
     comparisons: list[dict[str, Any]] = []
     truncated = False
     for left_index in range(len(files)):

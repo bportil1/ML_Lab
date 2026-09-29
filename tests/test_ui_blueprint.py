@@ -434,6 +434,6 @@ def test_transform_page_uses_reusable_path_autocomplete_component(tmp_path):
     response = app.test_client().get("/data/transform")
     assert response.status_code == 200
     assert b'data-path-autocomplete' in response.data
-    assert b'data-path-extensions="csv,tsv"' in response.data
+    assert b'data-path-extensions="csv,tsv,xml"' in response.data
     assert b'ml_lab_path_input.js' in response.data
     assert b'/api/path-suggestions' in response.data

@@ -30,7 +30,7 @@ def _parser() -> argparse.ArgumentParser:
 
     data_parser = sub.add_parser("data", help="Inspect and prepare unknown datasets")
     data_sub = data_parser.add_subparsers(dest="data_command", required=True)
-    data_inspect = data_sub.add_parser("inspect", help="Inventory CSV/TSV files without modifying them")
+    data_inspect = data_sub.add_parser("inspect", help="Inventory CSV/TSV/XML files without modifying them")
     data_inspect.add_argument("paths", nargs="+", help="File(s) or directories to inspect")
     data_inspect.add_argument("--recursive", action=argparse.BooleanOptionalAction, default=True)
     data_inspect.add_argument("--include-hidden", action="store_true", help="Include hidden files/directories")

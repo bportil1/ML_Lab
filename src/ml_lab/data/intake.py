@@ -4,16 +4,19 @@ import csv
 import hashlib
 import io
 import os
+import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
 from typing import Iterable, Iterator
 
 from .types import DataFileRecord, DataInventory, MalformedRow
+from .xml_ingest import XmlSafetyError, inspect_xml_structure
 
 
 _SUPPORTED: dict[str, str] = {
     ".csv": "delimited_text",
     ".tsv": "delimited_text",
+    ".xml": "xml",
 }
 _SAMPLE_BYTES = 128 * 1024
 _INDEX_NAMES = {
@@ -308,6 +311,41 @@ def _inspect_delimited(path: Path, root: Path, *, preview_rows: int) -> DataFile
     )
 
 
+def _inspect_xml(path: Path, root: Path) -> DataFileRecord:
+    size = path.stat().st_size
+    digest = _sha256(path)
+    suffix = path.suffix.lower()
+    try:
+        artifact = inspect_xml_structure(path, source_sha256=digest)
+    except (XmlSafetyError, ET.ParseError, LookupError, UnicodeError) as exc:
+        return DataFileRecord(
+            path=str(path.resolve()),
+            relative_path=str(path.relative_to(root)),
+            size_bytes=size,
+            sha256=digest,
+            suffix=suffix,
+            format="xml",
+            supported=True,
+            parse_status="failed",
+            tabular_ready=False,
+            error=f"{type(exc).__name__}: {exc}",
+        )
+    return DataFileRecord(
+        path=str(path.resolve()),
+        relative_path=str(path.relative_to(root)),
+        size_bytes=size,
+        sha256=digest,
+        suffix=suffix,
+        format="xml",
+        supported=True,
+        parse_status="parsed",
+        encoding=artifact.encoding,
+        tabular_ready=False,
+        xml_structure=artifact,
+        warnings=("XML structure loaded; tabularization is not enabled until a record root/extraction recipe is selected.",),
+    )
+
+
 def _unsupported(path: Path, root: Path) -> DataFileRecord:
     size = path.stat().st_size
     return DataFileRecord(
@@ -329,8 +367,10 @@ def inspect_file(path: str | Path, *, root: str | Path | None = None, preview_ro
         raise FileNotFoundError(f"not a file: {candidate}")
     base = Path(root).expanduser() if root is not None else candidate.parent
     suffix = candidate.suffix.lower()
-    if suffix in _SUPPORTED:
+    if suffix in {".csv", ".tsv"}:
         return _inspect_delimited(candidate, base, preview_rows=preview_rows)
+    if suffix == ".xml":
+        return _inspect_xml(candidate, base)
     return _unsupported(candidate, base)
 
 

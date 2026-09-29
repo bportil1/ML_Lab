@@ -500,7 +500,7 @@ def profile_paths(
     )
     profiles: list[DataProfile] = []
     warnings = list(inventory.warnings)
-    eligible = [record for record in inventory.files if record.supported and record.parse_status != "failed"]
+    eligible = [record for record in inventory.files if record.tabular_ready and record.supported and record.parse_status != "failed"]
     if progress is not None:
         progress({"stage": "inventory_complete", "current": 0, "total": len(eligible), "path": None})
     for profile_index, record in enumerate(eligible, start=1):

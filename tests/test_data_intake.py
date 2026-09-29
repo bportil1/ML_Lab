@@ -80,3 +80,103 @@ def test_inventory_reporting_writes_schema_json(tmp_path: Path):
     assert output.name == "inventory.json"
     assert payload["schema"] == "ml-lab.data-inventory@1"
     assert payload["summary"]["parsed_file_count"] == 1
+
+
+def test_xml_inventory_loads_structural_artifact_and_namespaces(tmp_path: Path):
+    source = tmp_path / "sample.xml"
+    source.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<catalog xmlns="urn:catalog" xmlns:m="urn:metrics" id="root">\n'
+        '  <project id="a"><m:metric name="x">1</m:metric></project>\n'
+        '  <project id="b"><m:metric name="y">2</m:metric></project>\n'
+        '</catalog>\n',
+        encoding="utf-8",
+    )
+
+    inventory = data.inspect_paths([source])
+    record = inventory.files[0]
+    assert record.supported is True
+    assert record.format == "xml"
+    assert record.parse_status == "parsed"
+    assert record.tabular_ready is False
+    assert len(record.sha256) == 64
+    assert record.xml_structure is not None
+    artifact = record.xml_structure
+    assert artifact.schema == "ml-lab.xml-structure@1"
+    assert artifact.source_fingerprint == f"sha256:{record.sha256}"
+    assert artifact.root_local_name == "catalog"
+    assert artifact.root_namespace_uri == "urn:catalog"
+    assert artifact.root_attribute_names == ("id",)
+    assert artifact.top_level_child_count == 2
+    assert artifact.top_level_element_tags == ("{urn:catalog}project",)
+    assert {(item.prefix, item.uri) for item in artifact.namespaces} == {
+        ("", "urn:catalog"),
+        ("m", "urn:metrics"),
+    }
+    assert source.read_text(encoding="utf-8").startswith("<?xml")
+
+
+def test_xml_direct_loader_computes_source_fingerprint(tmp_path: Path):
+    source = tmp_path / "plain.xml"
+    source.write_text("<root><child /></root>", encoding="utf-8")
+
+    artifact = data.load_xml_structure(source)
+    assert artifact.source_sha256
+    assert artifact.source_fingerprint == f"sha256:{artifact.source_sha256}"
+    assert artifact.root_tag == "root"
+    assert artifact.element_count == 2
+    assert artifact.observed_max_depth == 2
+
+
+def test_xml_ingestion_rejects_doctype_and_entity_declarations(tmp_path: Path):
+    source = tmp_path / "unsafe.xml"
+    source.write_text(
+        '<!DOCTYPE root [<!ENTITY local "expanded">]><root>&local;</root>',
+        encoding="utf-8",
+    )
+
+    record = data.inspect_file(source)
+    assert record.supported is True
+    assert record.parse_status == "failed"
+    assert record.tabular_ready is False
+    assert "DTD/entity declarations are not allowed" in (record.error or "")
+
+
+def test_malformed_xml_is_supported_but_reported_failed(tmp_path: Path):
+    source = tmp_path / "broken.xml"
+    source.write_text("<root><child></root>", encoding="utf-8")
+
+    record = data.inspect_file(source)
+    assert record.supported is True
+    assert record.format == "xml"
+    assert record.parse_status == "failed"
+    assert record.xml_structure is None
+    assert "ParseError" in (record.error or "")
+
+
+def test_raw_xml_is_not_profiled_as_a_tabular_dataset(tmp_path: Path):
+    csv_source = tmp_path / "sample.csv"
+    csv_source.write_text("x,y\n1,2\n", encoding="utf-8")
+    xml_source = tmp_path / "sample.xml"
+    xml_source.write_text("<root><row><x>1</x></row></root>", encoding="utf-8")
+
+    collection = data.profile_paths([tmp_path], max_rows=0)
+    assert collection.inventory.supported_file_count == 2
+    assert len(collection.profiles) == 1
+    assert collection.profiles[0].relative_path == "sample.csv"
+
+    comparison = data.compare_paths([tmp_path])
+    assert comparison["summary"]["dataset_count"] == 1
+
+
+def test_xml_structure_artifact_can_be_persisted_as_json(tmp_path: Path):
+    source = tmp_path / "sample.xml"
+    source.write_text('<root xmlns="urn:test"><row /></root>', encoding="utf-8")
+    artifact = data.load_xml_structure(source)
+
+    output = data.save_xml_structure(artifact, tmp_path / "artifacts")
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert output.name == "xml_structure.json"
+    assert payload["schema"] == "ml-lab.xml-structure@1"
+    assert payload["source_sha256"] == artifact.source_sha256
+    assert payload["root"]["local_name"] == "root"
