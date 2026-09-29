@@ -429,3 +429,24 @@ th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spa
 .xml-rule-option input, .xml-rule-option select { min-width: 180px; }
 .xml-rule-errors { margin: 10px 0 0; padding-left: 20px; color: var(--danger, #b42318); }
 .xml-rule-warnings { display: grid; gap: 5px; margin-top: 10px; padding: 9px 10px; border: 1px solid var(--warn, #d59b1a); border-radius: 8px; }
+
+/* XML Sprint 6: guided tabularization preview */
+.xml-preview-panel { margin: 18px 0; }
+.xml-preview-controls { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; margin: 12px 0 8px; }
+.xml-preview-controls label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+.xml-preview-controls input[type="number"] { width: 110px; }
+.xml-preview-summary { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.xml-preview-summary span { padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--muted); }
+.xml-preview-summary strong { color: var(--text); }
+.xml-preview-table-wrap { max-height: 520px; overflow: auto; border: 1px solid var(--line); border-radius: 9px; }
+.xml-preview-table { width: max-content; min-width: 100%; }
+.xml-preview-table th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); }
+.xml-preview-table td { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xml-preview-column-link { border: 0; background: transparent; color: var(--text); font: inherit; font-weight: 700; padding: 0; cursor: pointer; }
+.xml-preview-column-link:hover, .xml-preview-column-link:focus-visible { color: var(--accent); outline: none; text-decoration: underline; }
+.xml-preview-subhead { margin: 18px 0 8px; }
+.xml-preview-mapping-wrap { max-height: 360px; overflow: auto; }
+.xml-preview-mapping-table { min-width: 820px; }
+.xml-preview-warnings { display: grid; gap: 5px; margin-top: 10px; padding: 9px 10px; border: 1px solid var(--warn, #d59b1a); border-radius: 8px; }
+.xml-child-preview { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); }
+.xml-child-preview h3 { margin: 0; }

@@ -612,3 +612,72 @@ def test_xml_repeated_branch_rule_endpoint_and_controls(tmp_path):
     assert configured_payload["summary"]["ready_for_preview"] is True
     assert configured_payload["repeated_branches"][0]["rule"]["strategy"] == "join"
     assert configured_payload["repeated_branches"][0]["rule"]["options"]["join_delimiter"] == "; "
+
+
+def test_xml_tabular_preview_endpoint_and_guided_preview_controls(tmp_path):
+    import html
+    import re
+
+    source = tmp_path / "preview.xml"
+    source.write_text(
+        "<catalog><project id='a'><cwe id='190' count='2'/><cwe id='191' count='1'/></project>"
+        "<project id='b'><cwe id='190' count='3'/></project></catalog>",
+        encoding="utf-8",
+    )
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+    inventory = client.post("/data", data={"paths": str(source), "recursive": "1", "preview_rows": "20"})
+    match = re.search(rb'href="([^"]*/data/xml/[^"]+)"[^>]*>Explore XML</a>', inventory.data)
+    assert match is not None
+    explorer_url = html.unescape(match.group(1).decode("utf-8"))
+    page = client.get(explorer_url)
+
+    assert page.status_code == 200
+    assert b"Guided tabularization" in page.data
+    assert b'data-xml-preview-panel' in page.data
+    assert b'data-xml-build-preview' in page.data
+    assert b'data-xml-confirm-preview' in page.data
+    assert b"Field \xe2\x86\x92 column mapping" in page.data
+    preview_url_match = re.search(rb'data-preview-url="([^"]+)"', page.data)
+    fields_url_match = re.search(rb'data-record-fields-url="([^"]+)"', page.data)
+    assert preview_url_match is not None
+    assert fields_url_match is not None
+    preview_url = html.unescape(preview_url_match.group(1).decode("utf-8"))
+    fields_url = html.unescape(fields_url_match.group(1).decode("utf-8"))
+
+    fields = client.get(fields_url, query_string={"root": "/catalog/project"}).get_json()["fields"]
+    by_relative = {field["relative_path"]: field for field in fields}
+    selected = [by_relative[name]["field_id"] for name in ("@id", "cwe/@id", "cwe/@count")]
+    response = client.post(
+        preview_url,
+        json={
+            "record_root_canonical_path": "/catalog/project",
+            "selected_field_ids": selected,
+            "rules": [{
+                "branch_canonical_path": "/catalog/project/cwe",
+                "strategy": "pivot",
+                "options": {
+                    "pivot_key_field_id": by_relative["cwe/@id"]["field_id"],
+                    "pivot_value_field_id": by_relative["cwe/@count"]["field_id"],
+                },
+            }],
+            "max_rows": 10,
+        },
+    )
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["schema"] == "ml-lab.xml-tabular-preview@1"
+    assert payload["main_table"]["preview_row_count"] == 2
+    assert {column["name"] for column in payload["main_table"]["columns"]} >= {"@id", "cwe[190]", "cwe[191]"}
+
+    invalid = client.post(
+        preview_url,
+        json={
+            "record_root_canonical_path": "/catalog/project",
+            "selected_field_ids": selected,
+            "rules": [],
+            "max_rows": 10,
+        },
+    )
+    assert invalid.status_code == 400
+    assert "rules are not ready" in invalid.get_json()["error"]

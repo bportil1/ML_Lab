@@ -436,6 +436,7 @@ def create_ui_blueprint(
             data_url=url_for(request.blueprint + ".data_lab"),
             record_fields_url=url_for(request.blueprint + ".xml_record_fields", token=token),
             collection_plan_url=url_for(request.blueprint + ".xml_collection_plan", token=token),
+            preview_url=url_for(request.blueprint + ".xml_tabular_preview", token=token),
         )
 
 
@@ -483,6 +484,40 @@ def create_ui_blueprint(
         except (OSError, UnicodeError, ValueError, TypeError) as exc:
             return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 400
         return jsonify(plan.to_record())
+
+
+    @blueprint.post("/data/xml/<token>/preview")
+    def xml_tabular_preview(token: str):
+        path = verify_path(token)
+        if path.suffix.casefold() != ".xml":
+            abort(400)
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "ValueError: JSON object body is required"}), 400
+        root = str(payload.get("record_root_canonical_path") or "").strip()
+        selected_field_ids = payload.get("selected_field_ids", [])
+        rules = payload.get("rules", [])
+        max_rows = payload.get("max_rows", 25)
+        if not isinstance(selected_field_ids, list):
+            return jsonify({"error": "ValueError: selected_field_ids must be a list"}), 400
+        if not isinstance(rules, list):
+            return jsonify({"error": "ValueError: rules must be a list"}), 400
+        try:
+            max_rows = int(max_rows)
+            record = data.inspect_file(path)
+            if record.format != "xml" or record.parse_status == "failed" or record.xml_structure is None:
+                raise ValueError(record.error or "XML structure could not be loaded.")
+            preview = data.preview_xml_tabularization(
+                path,
+                record.xml_structure,
+                root,
+                selected_field_ids,
+                rules=rules,
+                max_rows=max_rows,
+            )
+        except (OSError, UnicodeError, ValueError, TypeError) as exc:
+            return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 400
+        return jsonify(preview.to_record())
 
 
     @blueprint.route("/data/compare", methods=["GET", "POST"])

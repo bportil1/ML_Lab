@@ -811,3 +811,25 @@ selected field IDs under the source fingerprint. A machine-readable `ml-lab.xml-
 contract reports unresolved and invalid rules and whether the configuration is ready for the next
 preview stage. Raw XML remains non-tabular and no rows, pivots, aggregates, or child tables are
 materialized in this release.
+
+
+## 0.26.0 — XML guided tabularization preview
+
+XML Sprint 6 is the first XML stage that reads source scalar values. A configured record root,
+selected fields, and validated repeated-branch plan can now be rendered as a bounded
+`ml-lab.xml-tabular-preview@1` without registering or exporting a normal ML Lab dataset. The
+preview reports the exact source fingerprint, a deterministic configuration signature, output
+column mappings, sampled rows, child-table previews, truncation state, and value-aware warnings.
+
+The preview applies the Sprint-5 strategies in a non-destructive sandbox: direct fields remain
+one column per field; first/last/join/aggregate reduce repeated values; count emits an explicit
+count column; pivot creates dynamic columns from observed keys; explode duplicates parent rows;
+keep-nested retains a structured cell value; and separate-table emits a linked child preview with
+`__parent_record`. Aggregate preview reports ignored non-numeric values rather than silently
+coercing them. A stale source fingerprint invalidates the preview request.
+
+The XML Structure workspace adds a guided preview panel with a bounded-record control, preview
+table, field-to-column mapping, child-table views, source-node jump links, warnings, and an
+explicit **Confirm extraction configuration** action. Confirmation remains browser-local and does
+not create a dataset; Sprint 7 owns registration of the confirmed extraction as an ordinary
+ML Lab tabular dataset.

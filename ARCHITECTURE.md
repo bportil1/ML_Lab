@@ -421,3 +421,19 @@ aggregate rules is deferred to extraction preview. The UI may persist rule inten
 fingerprint, but the XML source and `ml-lab.xml-structure@2` artifact remain immutable. Sprint 6 owns
 value-aware preview and is the first stage allowed to demonstrate how these explicit rules affect a
 tabular result.
+
+
+## XML guided-preview boundary (0.26.0)
+
+`ml_lab.data.xml_preview` is the first XML layer allowed to read scalar values after structural
+analysis. It consumes only an explicit record root, selected field IDs, and a structurally valid
+`ml-lab.xml-collection-plan@1`. Before value extraction it revalidates the local XML source with
+the same safety parser and requires the source fingerprint to match the structural artifact.
+
+The result is a bounded `ml-lab.xml-tabular-preview@1`, not a persisted dataset. It records a
+deterministic preview signature, output-column-to-source-field mappings, a main table sample,
+optional child-table samples, and warnings. Preview row limits are a UI/inspection guard; they do
+not redefine the source dataset or provenance. The preview layer may demonstrate pivot, explode,
+join, aggregate, nested-cell, count, first/last, and separate-table effects, but it must not write
+a CSV/TSV, mark raw XML as `tabular_ready`, or register a derived dataset. Those transitions belong
+to XML Sprint 7 so user confirmation remains distinct from materialization.

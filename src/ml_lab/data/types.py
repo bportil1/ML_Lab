@@ -307,6 +307,78 @@ class XmlCollectionPlan:
 
 
 @dataclass(frozen=True)
+class XmlPreviewColumn:
+    name: str
+    source_field_ids: tuple[str, ...] = ()
+    source_relative_paths: tuple[str, ...] = ()
+    source_element_canonical_paths: tuple[str, ...] = ()
+    strategy: str = "direct"
+    repeated_branch_canonical_path: str | None = None
+    dynamic: bool = False
+
+    def to_record(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "source_field_ids": list(self.source_field_ids),
+            "source_relative_paths": list(self.source_relative_paths),
+            "source_element_canonical_paths": list(self.source_element_canonical_paths),
+            "strategy": self.strategy,
+            "repeated_branch_canonical_path": self.repeated_branch_canonical_path,
+            "dynamic": self.dynamic,
+        }
+
+
+@dataclass(frozen=True)
+class XmlPreviewTable:
+    name: str
+    role: str
+    columns: tuple[XmlPreviewColumn, ...] = ()
+    rows: tuple[dict[str, Any], ...] = ()
+    preview_row_count: int = 0
+    estimated_total_rows: int | None = None
+    truncated: bool = False
+
+    def to_record(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "role": self.role,
+            "columns": [column.to_record() for column in self.columns],
+            "rows": [dict(row) for row in self.rows],
+            "preview_row_count": self.preview_row_count,
+            "estimated_total_rows": self.estimated_total_rows,
+            "truncated": self.truncated,
+        }
+
+
+@dataclass(frozen=True)
+class XmlTabularPreview:
+    source_fingerprint: str
+    preview_signature: str
+    record_root_path: str
+    record_root_canonical_path: str
+    selected_field_ids: tuple[str, ...] = ()
+    main_table: XmlPreviewTable | None = None
+    child_tables: tuple[XmlPreviewTable, ...] = ()
+    warnings: tuple[str, ...] = ()
+    schema: str = "ml-lab.xml-tabular-preview@1"
+
+    def to_record(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "source_fingerprint": self.source_fingerprint,
+            "preview_signature": self.preview_signature,
+            "record_root": {
+                "path": self.record_root_path,
+                "canonical_path": self.record_root_canonical_path,
+            },
+            "selected_field_ids": list(self.selected_field_ids),
+            "main_table": self.main_table.to_record() if self.main_table is not None else None,
+            "child_tables": [table.to_record() for table in self.child_tables],
+            "warnings": list(self.warnings),
+        }
+
+
+@dataclass(frozen=True)
 class XmlStructureArtifact:
     source_path: str
     source_sha256: str

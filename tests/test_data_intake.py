@@ -508,3 +508,118 @@ def test_xml_collection_plan_rejects_unknown_selected_fields_and_rule_branches(t
             selected,
             rules=[{"branch_canonical_path": "/root/row/missing", "strategy": "first"}],
         )
+
+
+def test_xml_tabular_preview_materializes_pivot_columns_without_mutating_source(tmp_path: Path):
+    source = tmp_path / "preview.xml"
+    original = (
+        "<catalog>"
+        "<project id='a'><name>A</name><cwe id='190' count='2'/><cwe id='191' count='1'/></project>"
+        "<project id='b'><name>B</name><cwe id='190' count='3'/></project>"
+        "</catalog>"
+    )
+    source.write_text(original, encoding="utf-8")
+    artifact = data.analyze_xml_structure(source)
+    selection = data.build_xml_record_selection(artifact, "/catalog/project")
+    fields = {field.relative_path: field for field in selection.fields}
+    selected = [fields[name].field_id for name in ("@id", "name", "cwe/@id", "cwe/@count")]
+    rules = [{
+        "branch_canonical_path": "/catalog/project/cwe",
+        "strategy": "pivot",
+        "options": {
+            "pivot_key_field_id": fields["cwe/@id"].field_id,
+            "pivot_value_field_id": fields["cwe/@count"].field_id,
+        },
+    }]
+
+    preview = data.preview_xml_tabularization(
+        source,
+        artifact,
+        "/catalog/project",
+        selected,
+        rules=rules,
+        max_rows=25,
+    )
+
+    payload = preview.to_record()
+    assert payload["schema"] == "ml-lab.xml-tabular-preview@1"
+    assert payload["preview_signature"].startswith("sha256:")
+    assert payload["source_fingerprint"] == artifact.source_fingerprint
+    main = payload["main_table"]
+    assert [column["name"] for column in main["columns"]] == ["@id", "name", "cwe[190]", "cwe[191]"]
+    assert main["rows"] == [
+        {"@id": "a", "name": "A", "cwe[190]": "2", "cwe[191]": "1"},
+        {"@id": "b", "name": "B", "cwe[190]": "3", "cwe[191]": None},
+    ]
+    pivot_columns = [column for column in main["columns"] if column["strategy"] == "pivot"]
+    assert all(column["dynamic"] is True for column in pivot_columns)
+    assert all(column["source_element_canonical_paths"] == ["/catalog/project/cwe"] for column in pivot_columns)
+    assert source.read_text(encoding="utf-8") == original
+
+
+def test_xml_tabular_preview_supports_explode_and_separate_table_rules(tmp_path: Path):
+    source = tmp_path / "collections.xml"
+    source.write_text(
+        "<root>"
+        "<row id='a'><item code='x' value='1'/><item code='y' value='2'/></row>"
+        "<row id='b'><item code='z' value='3'/></row>"
+        "</root>",
+        encoding="utf-8",
+    )
+    artifact = data.analyze_xml_structure(source)
+    selection = data.build_xml_record_selection(artifact, "/root/row")
+    fields = {field.relative_path: field for field in selection.fields}
+    selected = [fields[name].field_id for name in ("@id", "item/@code", "item/@value")]
+
+    exploded = data.preview_xml_tabularization(
+        source,
+        artifact,
+        "/root/row",
+        selected,
+        rules=[{"branch_canonical_path": "/root/row/item", "strategy": "explode_rows"}],
+    ).to_record()
+    assert exploded["main_table"]["preview_row_count"] == 3
+    assert exploded["main_table"]["rows"][0]["@id"] == "a"
+    assert [row["item/@code"] for row in exploded["main_table"]["rows"]] == ["x", "y", "z"]
+
+    separated = data.preview_xml_tabularization(
+        source,
+        artifact,
+        "/root/row",
+        selected,
+        rules=[{
+            "branch_canonical_path": "/root/row/item",
+            "strategy": "separate_table",
+            "options": {"separate_table_name": "items"},
+        }],
+    ).to_record()
+    assert separated["main_table"]["rows"] == [{"@id": "a"}, {"@id": "b"}]
+    assert len(separated["child_tables"]) == 1
+    child = separated["child_tables"][0]
+    assert child["name"] == "items"
+    assert child["rows"] == [
+        {"__parent_record": 1, "@code": "x", "@value": "1"},
+        {"__parent_record": 1, "@code": "y", "@value": "2"},
+        {"__parent_record": 2, "@code": "z", "@value": "3"},
+    ]
+
+
+def test_xml_tabular_preview_requires_ready_rules_and_rejects_stale_source(tmp_path: Path):
+    source = tmp_path / "guarded.xml"
+    source.write_text("<root><row><item x='1'/><item x='2'/></row></root>", encoding="utf-8")
+    artifact = data.analyze_xml_structure(source)
+    selection = data.build_xml_record_selection(artifact, "/root/row")
+    selected = [field.field_id for field in selection.fields if field.relative_path == "item/@x"]
+
+    with pytest.raises(data.XmlPreviewError, match="rules are not ready"):
+        data.preview_xml_tabularization(source, artifact, "/root/row", selected, rules=[])
+
+    source.write_text("<root><row><item x='changed'/></row></root>", encoding="utf-8")
+    with pytest.raises(data.XmlPreviewError, match="source changed"):
+        data.preview_xml_tabularization(
+            source,
+            artifact,
+            "/root/row",
+            selected,
+            rules=[{"branch_canonical_path": "/root/row/item", "strategy": "first"}],
+        )
