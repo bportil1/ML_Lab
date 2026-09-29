@@ -73,7 +73,7 @@
           <td>{% if file.has_header is sameas true %}yes{% elif file.has_header is sameas false %}no{% else %}—{% endif %}</td>
           <td>{{ file.likely_exported_index_columns|join(', ') if file.likely_exported_index_columns else '—' }}</td>
           <td>{% if file.error %}<div class="warning">{{ file.error }}</div>{% endif %}{% if file.warnings %}{{ file.warnings|join('; ') }}{% else %}—{% endif %}</td>
-          <td>{% if file.tabular_ready and file.supported and file.parse_status != 'failed' %}<a class="button mini secondary" href="{{ source_url(file.path) }}">Open source</a> <a class="button mini secondary" href="{{ transform_url(file.path) }}">Transform</a> <a class="button mini secondary" href="{{ provenance_url(file.path) }}">Lineage</a>{% elif file.format == 'xml' and file.parse_status == 'parsed' %}<span class="tiny muted">XML structure loaded</span>{% else %}—{% endif %}</td>
+          <td>{% if file.tabular_ready and file.supported and file.parse_status != 'failed' %}<a class="button mini secondary" href="{{ source_url(file.path) }}">Open source</a> <a class="button mini secondary" href="{{ transform_url(file.path) }}">Transform</a> <a class="button mini secondary" href="{{ provenance_url(file.path) }}">Lineage</a>{% elif file.format == 'xml' and file.parse_status == 'parsed' %}<a class="button mini secondary" href="{{ xml_structure_url(file.path) }}">Explore XML</a>{% else %}—{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>

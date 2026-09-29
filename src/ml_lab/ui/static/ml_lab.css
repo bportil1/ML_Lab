@@ -346,3 +346,60 @@ th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spa
 .path-suggestion-item:hover, .path-suggestion-item.is-active { background: var(--surface-2); }
 .path-suggestion-kind { min-width: 38px; color: var(--muted); font-size: 10px; font-weight: 750; letter-spacing: .06em; }
 .path-suggestion-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+
+/* XML Sprint 3: interactive structural explorer */
+.xml-workspace-head { margin-bottom: 18px; }
+.xml-source-path { margin-top: 8px; overflow-wrap: anywhere; }
+.xml-summary-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.xml-explorer { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(330px, .85fr); gap: 16px; align-items: start; margin: 18px 0; }
+.xml-tree-panel, .xml-inspector-panel { min-width: 0; }
+.xml-inspector-panel { position: sticky; top: 18px; max-height: calc(100vh - 36px); overflow: auto; }
+.xml-section-head { align-items: flex-start; }
+.xml-tree-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0 8px; }
+.xml-tree-toolbar label { display: inline-flex; gap: 7px; align-items: center; color: var(--muted); }
+.xml-candidate-filter { margin-left: auto; }
+.xml-tree-status { min-height: 18px; margin-bottom: 7px; }
+.xml-tree { max-height: 680px; overflow: auto; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); padding: 8px; }
+.xml-tree-roots, .xml-tree-children { list-style: none; margin: 0; padding: 0; }
+.xml-tree-children { margin-left: 22px; border-left: 1px solid var(--line); padding-left: 8px; }
+.xml-tree-item[hidden] { display: none; }
+.xml-tree-row { display: flex; gap: 5px; align-items: center; min-width: max-content; border-radius: 7px; padding: 2px 4px; }
+.xml-tree-row:hover { background: color-mix(in srgb, var(--accent), transparent 93%); }
+.xml-tree-row.is-selected { background: color-mix(in srgb, var(--accent), transparent 86%); box-shadow: inset 2px 0 0 var(--accent); }
+.xml-tree-toggle { width: 24px; height: 27px; padding: 0; flex: 0 0 24px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; }
+.xml-tree-toggle:disabled { cursor: default; opacity: .55; }
+.xml-tree-select { display: inline-flex; gap: 7px; align-items: baseline; max-width: 520px; padding: 5px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--text); cursor: pointer; text-align: left; }
+.xml-node-name { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.xml-node-count { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.xml-node-badge { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px; color: var(--muted); font-size: 9px; letter-spacing: .03em; white-space: nowrap; }
+.xml-node-badge.is-repeated { color: var(--accent); border-color: color-mix(in srgb, var(--accent), transparent 50%); }
+.xml-node-badge.is-optional { color: var(--warn); border-color: color-mix(in srgb, var(--warn), transparent 50%); }
+.xml-node-badge.is-candidate { color: var(--good); border-color: color-mix(in srgb, var(--good), transparent 50%); }
+.xml-inspector-title { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.xml-inspector-title h3 { margin-top: 3px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.xml-definition-list { display: grid; gap: 0; margin: 0; }
+.xml-definition-list > div { display: grid; grid-template-columns: 115px minmax(0, 1fr); gap: 10px; padding: 7px 0; border-top: 1px solid color-mix(in srgb, var(--line), transparent 35%); }
+.xml-definition-list dt { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.xml-definition-list dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.compact-definitions > div { grid-template-columns: 145px minmax(0, 1fr); }
+.xml-inspector-subhead { margin: 18px 0 8px; font-size: 14px; }
+.xml-cardinality-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.xml-cardinality-grid > div { display: grid; gap: 2px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.xml-cardinality-grid span { color: var(--muted); font-size: 10px; }
+.xml-flag-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.xml-attributes-wrap { max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.xml-attributes-table { min-width: 560px; }
+.xml-attributes-table th { position: sticky; top: 0; background: var(--surface-2); }
+.xml-monospace-cell { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.xml-candidate-score { display: flex; align-items: baseline; gap: 8px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.xml-candidate-score strong { font-size: 20px; }
+.xml-candidate-score span { color: var(--muted); font-size: 11px; }
+.xml-reason-list { margin: 8px 0 0; padding-left: 20px; }
+.xml-small-empty { min-height: 100px; }
+.xml-candidates-panel code, .xml-namespace-panel code { overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .xml-explorer { grid-template-columns: 1fr; }
+  .xml-inspector-panel { position: static; max-height: none; }
+  .xml-tree { max-height: 520px; }
+  .xml-candidate-filter { margin-left: 0; }
+}

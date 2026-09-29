@@ -325,6 +325,9 @@ def create_ui_blueprint(
     def provenance_url(path: str) -> str:
         return url_for(request.blueprint + ".data_provenance", source_token=sign_path(path))
 
+    def xml_structure_url(path: str) -> str:
+        return url_for(request.blueprint + ".xml_structure_view", token=sign_path(path))
+
     @blueprint.get("/")
     def index():
         return render_template(
@@ -383,8 +386,54 @@ def create_ui_blueprint(
             source_url=source_url,
             transform_url=transform_url,
             provenance_url=provenance_url,
+            xml_structure_url=xml_structure_url,
             recent_runs=data.recent_profile_runs(output_root=profile_output_root, limit=12),
             experimental_enabled=enable_experimental,
+        )
+
+
+    @blueprint.get("/data/xml/<token>")
+    def xml_structure_view(token: str):
+        path = verify_path(token)
+        if path.suffix.casefold() != ".xml":
+            abort(400)
+        try:
+            record = data.inspect_file(path)
+        except (OSError, UnicodeError, ValueError, TypeError) as exc:
+            return render_template(
+                "ml_lab_ui/xml_structure.html",
+                version=__version__,
+                source_name=path.name,
+                source_path=str(path),
+                structure=None,
+                structure_json=None,
+                error=f"{type(exc).__name__}: {exc}",
+                data_url=url_for(request.blueprint + ".data_lab"),
+            ), 400
+        if record.format != "xml":
+            abort(400)
+        if record.parse_status == "failed" or record.xml_structure is None:
+            return render_template(
+                "ml_lab_ui/xml_structure.html",
+                version=__version__,
+                source_name=path.name,
+                source_path=str(path),
+                structure=None,
+                structure_json=None,
+                error=record.error or "XML structure could not be loaded.",
+                data_url=url_for(request.blueprint + ".data_lab"),
+            ), 400
+
+        structure = record.xml_structure.to_record()
+        return render_template(
+            "ml_lab_ui/xml_structure.html",
+            version=__version__,
+            source_name=path.name,
+            source_path=str(path),
+            structure=structure,
+            structure_json=_pretty(structure),
+            error=None,
+            data_url=url_for(request.blueprint + ".data_lab"),
         )
 
 

@@ -96,7 +96,7 @@ The UI has no CDN, external asset, or network-service requirement. Its static as
 
 ## Data Lab A1 boundary (0.14.0)
 
-`ml_lab.data` is a stable, model-neutral intake subsystem. A1 performs read-only discovery and structural inventory of CSV/TSV sources. XML ingestion/analysis (0.21.0–0.22.0) extends that boundary with guarded parsing into `ml-lab.xml-structure@2`; raw XML remains explicitly non-tabular until a later guided extraction creates a table. Intake does not clean, coerce, normalize, impute, or otherwise mutate data.
+`ml_lab.data` is a stable, model-neutral intake subsystem. A1 performs read-only discovery and structural inventory of CSV/TSV sources. XML ingestion/analysis (0.21.0–0.22.0) extends that boundary with guarded parsing into `ml-lab.xml-structure@2`; the 0.23.0 UI consumes that artifact through a read-only interactive hierarchy explorer. Raw XML remains explicitly non-tabular until a later guided extraction creates a table. Intake does not clean, coerce, normalize, impute, or otherwise mutate data.
 
 ```text
 file / directory paths
@@ -358,6 +358,15 @@ Each ML_Lab-derived CSV/TSV receives a sibling `*.provenance.json` event using s
 
 The derived-dataset manifest remains the operational ML-2 artifact and now references its provenance event. This keeps transformation execution and lineage complementary: the manifest describes the produced artifact; provenance describes the authoritative source→recipe→derived relationship. ML-5 may register these neutral lineage artifacts with PAH, but PAH must not become the owner of provenance semantics.
 
+
+### XML structure explorer boundary (0.23.0)
+
+`ml_lab.ui` may render `ml-lab.xml-structure@2` as an interactive, read-only hierarchy. The UI
+uses canonical paths as stable node identities, while display paths retain namespace prefixes for
+human inspection. Tree interaction, filtering, node inspection, namespace tables, and candidate
+highlighting are presentation concerns only: they do not mutate the XML source, select a record
+root, or create a tabular dataset. Record-root choice and extraction state remain downstream XML
+sprints so structural evidence stays separate from user intent.
 
 ### XML ingestion + structure-analysis boundary (0.21.0–0.22.0)
 

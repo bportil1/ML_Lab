@@ -437,3 +437,79 @@ def test_transform_page_uses_reusable_path_autocomplete_component(tmp_path):
     assert b'data-path-extensions="csv,tsv,xml"' in response.data
     assert b'ml_lab_path_input.js' in response.data
     assert b'/api/path-suggestions' in response.data
+
+
+def test_xml_structure_explorer_renders_hierarchy_and_inspector(tmp_path):
+    import html
+    import re
+
+    source = tmp_path / "catalog.xml"
+    source.write_text(
+        '''<?xml version="1.0" encoding="UTF-8"?>
+<catalog xmlns:m="urn:metrics">
+  <project id="alpha"><name>A</name><m:metrics><m:cwe id="190" count="15"/><m:cwe id="191" count="7"/></m:metrics></project>
+  <project id="beta"><name>B</name><m:metrics><m:cwe id="190" count="6"/></m:metrics></project>
+</catalog>
+''',
+        encoding="utf-8",
+    )
+
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+    inventory = client.post(
+        "/data",
+        data={"paths": str(source), "recursive": "1", "preview_rows": "20"},
+    )
+    assert inventory.status_code == 200
+    assert b"Explore XML" in inventory.data
+    match = re.search(rb'href="([^"]*/data/xml/[^"]+)"[^>]*>Explore XML</a>', inventory.data)
+    assert match is not None
+
+    explorer_url = html.unescape(match.group(1).decode("utf-8"))
+    response = client.get(explorer_url)
+
+    assert response.status_code == 200
+    assert b"XML structural analysis" in response.data
+    assert b"Explore the XML hierarchy" in response.data
+    assert b'data-xml-explorer' in response.data
+    assert b'data-xml-tree' in response.data
+    assert b'data-xml-inspector' in response.data
+    assert b'data-xml-candidates-only' in response.data
+    assert b"Candidate record roots" in response.data
+    assert b"urn:metrics" in response.data
+    assert b"/catalog/project" in response.data
+    assert b"record candidate" in response.data
+    assert b"ml_lab_xml_structure.js" in response.data
+    assert b"ml-lab.xml-structure@2" in response.data
+
+
+def test_xml_structure_explorer_keeps_raw_xml_non_tabular(tmp_path):
+    import html
+    import re
+
+    source = tmp_path / "simple.xml"
+    source.write_text("<root><item id='1'/><item id='2'/></root>", encoding="utf-8")
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+
+    inventory = client.post("/data", data={"paths": str(source), "recursive": "1", "preview_rows": "20"})
+    match = re.search(rb'href="([^"]*/data/xml/[^"]+)"[^>]*>Explore XML</a>', inventory.data)
+    assert match is not None
+    response = client.get(html.unescape(match.group(1).decode("utf-8")))
+
+    assert response.status_code == 200
+    assert b"does not flatten or transform the source" in response.data
+    assert b"Transform this source" not in response.data
+    assert b"Evidence only. Sprint 3 does not choose a record root for you." in response.data
+
+
+def test_xml_structure_explorer_rejects_malformed_xml_from_direct_inventory_action(tmp_path):
+    source = tmp_path / "broken.xml"
+    source.write_text("<root><item></root>", encoding="utf-8")
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+
+    inventory = client.post("/data", data={"paths": str(source), "recursive": "1", "preview_rows": "20"})
+    assert inventory.status_code == 200
+    assert b"Explore XML" not in inventory.data
+    assert b"ParseError" in inventory.data

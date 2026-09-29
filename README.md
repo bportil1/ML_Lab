@@ -27,7 +27,7 @@ The UI extra is not required for CLI/Python use. `import ml_lab` and `import ml_
 
 ## Data Lab — intake, profiling, interaction & controlled transformation
 
-Data Lab can inspect unknown CSV/TSV/XML files or directory trees without modifying the sources. A1 detects encoding, delimiter, likely header presence, shape, malformed-width rows, likely exported index columns, and source SHA-256 for tabular sources. XML Sprint 1 adds guarded XML ingestion and source fingerprinting; XML Sprint 2 expands that artifact to `ml-lab.xml-structure@2` with namespace-aware hierarchy paths, attribute inventories, path occurrence/cardinality statistics, optional/repeated branch detection, likely identifier attributes, and ranked record-node candidates while keeping raw XML non-tabular until guided extraction is configured. A2 adds read-only statistical profiling: inferred column types, missingness, cardinality, constants, duplicate rows, descriptive numeric/text/date summaries, IQR outlier flags, categorical imbalance signals, and bounded pairwise relationship analysis.
+Data Lab can inspect unknown CSV/TSV/XML files or directory trees without modifying the sources. A1 detects encoding, delimiter, likely header presence, shape, malformed-width rows, likely exported index columns, and source SHA-256 for tabular sources. XML Sprint 1 adds guarded XML ingestion and source fingerprinting; XML Sprint 2 expands that artifact to `ml-lab.xml-structure@2` with namespace-aware hierarchy paths, attribute inventories, path occurrence/cardinality statistics, optional/repeated branch detection, likely identifier attributes, and ranked record-node candidates. XML Sprint 3 adds a read-only interactive structure explorer with expandable hierarchy browsing, path filtering, namespace visibility, live node/cardinality/attribute inspection, and highlighted record-root evidence while keeping raw XML non-tabular until guided extraction is configured. A2 adds read-only statistical profiling: inferred column types, missingness, cardinality, constants, duplicate rows, descriptive numeric/text/date summaries, IQR outlier flags, categorical imbalance signals, and bounded pairwise relationship analysis.
 
 CLI inventory:
 
@@ -728,6 +728,18 @@ lineage = data.trace_lineage("results/cleaned.csv")
 
 The optional UI exposes a **Provenance** workspace and lineage links from Data Lab, source browsing, and successful transformation results. Raw datasets without an ML_Lab provenance sidecar remain valid `unrecorded_root` inputs rather than receiving invented ancestry.
 
+
+## 0.23.0 — Interactive XML structure explorer
+
+XML Sprint 3 adds a first-party Data Lab workspace for the `ml-lab.xml-structure@2` artifact.
+Parsed XML rows in the Data Lab inventory now expose **Explore XML**, opening an expandable,
+namespace-aware hierarchy browser with path search, expand/collapse controls, candidate-branch
+filtering, and a live node inspector. The inspector exposes element occurrences, per-parent
+cardinality, optional/repeated evidence, text distinctness, attribute presence/distinctness,
+likely-identifier evidence, and the existing record-candidate score/reasons. Candidate record
+roots are highlighted and listed, but the UI intentionally does not select or persist a record
+root; explicit record-root selection remains XML Sprint 4. No tabularization or source mutation is
+introduced in this sprint.
 
 ## 0.22.0 — XML structure analysis
 
