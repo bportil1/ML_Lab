@@ -552,3 +552,63 @@ def test_xml_record_root_field_selector_endpoint_and_controls(tmp_path):
     invalid = client.get(fields_url, query_string={"root": "/catalog/missing"})
     assert invalid.status_code == 400
     assert "not present" in invalid.get_json()["error"]
+
+
+def test_xml_repeated_branch_rule_endpoint_and_controls(tmp_path):
+    import html
+    import re
+
+    source = tmp_path / "rules.xml"
+    source.write_text(
+        "<catalog><project id='a'><cwe id='190' count='2'/><cwe id='191' count='1'/></project>"
+        "<project id='b'><cwe id='190' count='3'/></project></catalog>",
+        encoding="utf-8",
+    )
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+    inventory = client.post("/data", data={"paths": str(source), "recursive": "1", "preview_rows": "20"})
+    match = re.search(rb'href="([^"]*/data/xml/[^"]+)"[^>]*>Explore XML</a>', inventory.data)
+    assert match is not None
+    explorer_url = html.unescape(match.group(1).decode("utf-8"))
+    page = client.get(explorer_url)
+
+    assert page.status_code == 200
+    assert b"Repeated branch rules" in page.data
+    assert b"One-to-many rules" in page.data
+    assert b'data-xml-rule-panel' in page.data
+    plan_url_match = re.search(rb'data-collection-plan-url="([^"]+)"', page.data)
+    assert plan_url_match is not None
+    plan_url = html.unescape(plan_url_match.group(1).decode("utf-8"))
+
+    fields_url_match = re.search(rb'data-record-fields-url="([^"]+)"', page.data)
+    fields_url = html.unescape(fields_url_match.group(1).decode("utf-8"))
+    fields_response = client.get(fields_url, query_string={"root": "/catalog/project"})
+    fields = fields_response.get_json()["fields"]
+    selected = [field["field_id"] for field in fields if field["relative_path"] in {"@id", "cwe/@id", "cwe/@count"}]
+
+    discovery = client.post(
+        plan_url,
+        json={"record_root_canonical_path": "/catalog/project", "selected_field_ids": selected, "rules": []},
+    )
+    assert discovery.status_code == 200
+    payload = discovery.get_json()
+    assert payload["schema"] == "ml-lab.xml-collection-plan@1"
+    assert payload["summary"]["repeated_branch_count"] == 1
+    assert payload["summary"]["unresolved_branch_count"] == 1
+    branch = payload["repeated_branches"][0]
+    assert branch["relative_path"] == "cwe"
+    assert {item["id"] for item in payload["strategy_catalog"]} >= {"pivot", "explode_rows", "separate_table"}
+
+    configured = client.post(
+        plan_url,
+        json={
+            "record_root_canonical_path": "/catalog/project",
+            "selected_field_ids": selected,
+            "rules": [{"branch_canonical_path": branch["canonical_path"], "strategy": "join", "options": {"join_delimiter": "; "}}],
+        },
+    )
+    assert configured.status_code == 200
+    configured_payload = configured.get_json()
+    assert configured_payload["summary"]["ready_for_preview"] is True
+    assert configured_payload["repeated_branches"][0]["rule"]["strategy"] == "join"
+    assert configured_payload["repeated_branches"][0]["rule"]["options"]["join_delimiter"] == "; "

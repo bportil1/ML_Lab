@@ -790,3 +790,24 @@ logic. ML Lab does not import the PAH package and remains usable without PAH.
 ## 0.24.0 — XML record-root and field selection
 
 XML structural exploration now supports explicit record-boundary configuration without flattening the source. Any observed element path can be selected as a record root; candidate-root evidence remains advisory. ML Lab derives scalar element-text and attribute fields relative to that root, including optional/repeated shape and likely-identifier evidence. The browser keeps the current root and selected field IDs as local UI state keyed by the XML source fingerprint. Raw XML remains non-tabular in this release; extraction rules and materialization are deferred to later XML sprints.
+
+## 0.25.0 — XML one-to-many transformation rules
+
+XML Sprint 5 adds an explicit configuration layer for repeated branches beneath a selected XML
+record root. ML Lab identifies every repeated element boundary touched by the currently selected
+scalar fields and requires the user to choose how that one-to-many relationship should map into a
+future table. Supported strategies are **Keep nested**, **First**, **Last**, **Count**, **Join**,
+**Aggregate**, **Pivot**, **Explode rows**, and **Separate table**.
+
+Rules are attached to repeated XML branches rather than independently to descendant columns, so
+nested collections retain their structural ancestry. Strategy-specific options are validated
+without reading XML values: joins require an explicit delimiter; aggregate requires one of
+`sum`, `mean`, `min`, or `max`; pivot requires distinct selected key/value fields; and optional
+child-table naming is retained for separate-table extraction. Numeric compatibility for aggregate
+operations remains a preview-time check because Sprint 5 intentionally does not inspect values.
+
+The XML Structure workspace persists the repeated-branch rules together with the record root and
+selected field IDs under the source fingerprint. A machine-readable `ml-lab.xml-collection-plan@1`
+contract reports unresolved and invalid rules and whether the configuration is ready for the next
+preview stage. Raw XML remains non-tabular and no rows, pivots, aggregates, or child tables are
+materialized in this release.

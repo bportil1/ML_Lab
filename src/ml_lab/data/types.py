@@ -208,6 +208,105 @@ class XmlRecordSelection:
 
 
 @dataclass(frozen=True)
+class XmlCollectionRule:
+    branch_canonical_path: str
+    strategy: str | None = None
+    join_delimiter: str | None = None
+    aggregate_operation: str | None = None
+    pivot_key_field_id: str | None = None
+    pivot_value_field_id: str | None = None
+    separate_table_name: str | None = None
+    valid: bool = False
+    errors: tuple[str, ...] = ()
+
+    def to_record(self) -> dict[str, Any]:
+        return {
+            "branch_canonical_path": self.branch_canonical_path,
+            "strategy": self.strategy,
+            "options": {
+                "join_delimiter": self.join_delimiter,
+                "aggregate_operation": self.aggregate_operation,
+                "pivot_key_field_id": self.pivot_key_field_id,
+                "pivot_value_field_id": self.pivot_value_field_id,
+                "separate_table_name": self.separate_table_name,
+            },
+            "valid": self.valid,
+            "errors": list(self.errors),
+        }
+
+
+@dataclass(frozen=True)
+class XmlRepeatedBranch:
+    path: str
+    canonical_path: str
+    relative_path: str
+    depth: int
+    occurrence_count: int
+    parent_occurrence_count: int | None
+    min_per_parent: int | None
+    max_per_parent: int | None
+    mean_per_parent: float | None
+    parent_repeated_branch_canonical_path: str | None = None
+    selected_field_ids: tuple[str, ...] = ()
+    selected_fields: tuple[XmlFieldCandidate, ...] = ()
+    rule: XmlCollectionRule | None = None
+
+    def to_record(self) -> dict[str, Any]:
+        return {
+            "path": self.path,
+            "canonical_path": self.canonical_path,
+            "relative_path": self.relative_path,
+            "depth": self.depth,
+            "occurrence_count": self.occurrence_count,
+            "parent_occurrence_count": self.parent_occurrence_count,
+            "cardinality": {
+                "min_per_parent": self.min_per_parent,
+                "max_per_parent": self.max_per_parent,
+                "mean_per_parent": self.mean_per_parent,
+            },
+            "parent_repeated_branch_canonical_path": self.parent_repeated_branch_canonical_path,
+            "selected_field_ids": list(self.selected_field_ids),
+            "selected_fields": [field.to_record() for field in self.selected_fields],
+            "rule": self.rule.to_record() if self.rule is not None else None,
+        }
+
+
+@dataclass(frozen=True)
+class XmlCollectionPlan:
+    source_fingerprint: str
+    record_root_path: str
+    record_root_canonical_path: str
+    selected_field_ids: tuple[str, ...] = ()
+    repeated_branches: tuple[XmlRepeatedBranch, ...] = ()
+    strategy_catalog: tuple[dict[str, Any], ...] = ()
+    unresolved_branch_count: int = 0
+    invalid_rule_count: int = 0
+    ready_for_preview: bool = False
+    warnings: tuple[str, ...] = ()
+    schema: str = "ml-lab.xml-collection-plan@1"
+
+    def to_record(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "source_fingerprint": self.source_fingerprint,
+            "record_root": {
+                "path": self.record_root_path,
+                "canonical_path": self.record_root_canonical_path,
+            },
+            "selected_field_ids": list(self.selected_field_ids),
+            "repeated_branches": [branch.to_record() for branch in self.repeated_branches],
+            "strategy_catalog": [dict(item) for item in self.strategy_catalog],
+            "summary": {
+                "repeated_branch_count": len(self.repeated_branches),
+                "unresolved_branch_count": self.unresolved_branch_count,
+                "invalid_rule_count": self.invalid_rule_count,
+                "ready_for_preview": self.ready_for_preview,
+            },
+            "warnings": list(self.warnings),
+        }
+
+
+@dataclass(frozen=True)
 class XmlStructureArtifact:
     source_path: str
     source_sha256: str

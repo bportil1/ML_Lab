@@ -396,3 +396,115 @@ def test_xml_record_root_selection_rejects_unknown_path(tmp_path: Path):
     artifact = data.analyze_xml_structure(source)
     with pytest.raises(data.XmlSelectionError, match="not present"):
         data.build_xml_record_selection(artifact, "/root/missing")
+
+
+def test_xml_collection_plan_identifies_repeated_branches_and_requires_explicit_rules(tmp_path: Path):
+    source = tmp_path / "collections.xml"
+    source.write_text(
+        "<catalog>"
+        "<project id='a'><metrics><cwe id='190' count='2'/><cwe id='191' count='1'/></metrics></project>"
+        "<project id='b'><metrics><cwe id='190' count='3'/></metrics></project>"
+        "</catalog>",
+        encoding="utf-8",
+    )
+    artifact = data.analyze_xml_structure(source)
+    selection = data.build_xml_record_selection(artifact, "/catalog/project")
+    selected = [field.field_id for field in selection.fields if field.relative_path in {"@id", "metrics/cwe/@id", "metrics/cwe/@count"}]
+
+    plan = data.build_xml_collection_plan(artifact, "/catalog/project", selected)
+
+    assert plan.schema == "ml-lab.xml-collection-plan@1"
+    assert plan.unresolved_branch_count == 1
+    assert plan.invalid_rule_count == 0
+    assert plan.ready_for_preview is False
+    assert len(plan.repeated_branches) == 1
+    branch = plan.repeated_branches[0]
+    assert branch.path == "/catalog/project/metrics/cwe"
+    assert branch.relative_path == "metrics/cwe"
+    assert branch.max_per_parent == 2
+    assert {field.relative_path for field in branch.selected_fields} == {"metrics/cwe/@id", "metrics/cwe/@count"}
+    assert branch.rule is not None
+    assert branch.rule.strategy is None
+    assert branch.rule.valid is False
+
+    strategy_ids = {item["id"] for item in plan.strategy_catalog}
+    assert strategy_ids == {
+        "keep_nested", "first", "last", "count", "join", "aggregate", "pivot", "explode_rows", "separate_table"
+    }
+
+
+def test_xml_collection_plan_validates_strategy_specific_options(tmp_path: Path):
+    source = tmp_path / "rules.xml"
+    source.write_text(
+        "<root><row><item key='a' value='1'/><item key='b' value='2'/></row>"
+        "<row><item key='c' value='3'/></row></root>",
+        encoding="utf-8",
+    )
+    artifact = data.analyze_xml_structure(source)
+    selection = data.build_xml_record_selection(artifact, "/root/row")
+    selected = [field.field_id for field in selection.fields]
+    initial = data.build_xml_collection_plan(artifact, "/root/row", selected)
+    branch = initial.repeated_branches[0]
+    branch_path = branch.canonical_path
+    key_id = next(field.field_id for field in branch.selected_fields if field.relative_path.endswith("@key"))
+    value_id = next(field.field_id for field in branch.selected_fields if field.relative_path.endswith("@value"))
+
+    def plan_for(strategy: str, **options):
+        return data.build_xml_collection_plan(
+            artifact,
+            "/root/row",
+            selected,
+            rules=[{"branch_canonical_path": branch_path, "strategy": strategy, "options": options}],
+        )
+
+    for strategy in ("keep_nested", "first", "last", "count", "explode_rows", "separate_table"):
+        assert plan_for(strategy).ready_for_preview is True
+    assert plan_for("join", join_delimiter=" | ").ready_for_preview is True
+    assert plan_for("aggregate", aggregate_operation="mean").ready_for_preview is True
+    assert plan_for("pivot", pivot_key_field_id=key_id, pivot_value_field_id=value_id).ready_for_preview is True
+
+    bad_aggregate = plan_for("aggregate")
+    assert bad_aggregate.invalid_rule_count == 1
+    assert "sum, mean, min, max" in bad_aggregate.repeated_branches[0].rule.errors[0]
+
+    bad_pivot = plan_for("pivot", pivot_key_field_id=key_id, pivot_value_field_id=key_id)
+    assert bad_pivot.invalid_rule_count == 1
+    assert any("different" in error for error in bad_pivot.repeated_branches[0].rule.errors)
+
+
+def test_xml_collection_plan_tracks_nested_repeated_branch_ancestry(tmp_path: Path):
+    source = tmp_path / "nested.xml"
+    source.write_text(
+        "<root><row>"
+        "<group><item code='a'/><item code='b'/></group>"
+        "<group><item code='c'/><item code='d'/></group>"
+        "</row></root>",
+        encoding="utf-8",
+    )
+    artifact = data.analyze_xml_structure(source)
+    selection = data.build_xml_record_selection(artifact, "/root/row")
+    selected = [field.field_id for field in selection.fields if field.relative_path == "group/item/@code"]
+    plan = data.build_xml_collection_plan(artifact, "/root/row", selected)
+
+    assert [branch.relative_path for branch in plan.repeated_branches] == ["group", "group/item"]
+    assert plan.repeated_branches[0].parent_repeated_branch_canonical_path is None
+    assert plan.repeated_branches[1].parent_repeated_branch_canonical_path == plan.repeated_branches[0].canonical_path
+
+
+def test_xml_collection_plan_rejects_unknown_selected_fields_and_rule_branches(tmp_path: Path):
+    source = tmp_path / "invalid-rules.xml"
+    source.write_text("<root><row><item x='1'/><item x='2'/></row></root>", encoding="utf-8")
+    artifact = data.analyze_xml_structure(source)
+
+    with pytest.raises(data.XmlCollectionRuleError, match="selected field is not available"):
+        data.build_xml_collection_plan(artifact, "/root/row", ["attribute:/not/a/field@x"])
+
+    selection = data.build_xml_record_selection(artifact, "/root/row")
+    selected = [field.field_id for field in selection.fields]
+    with pytest.raises(data.XmlCollectionRuleError, match="does not match a repeated branch"):
+        data.build_xml_collection_plan(
+            artifact,
+            "/root/row",
+            selected,
+            rules=[{"branch_canonical_path": "/root/row/missing", "strategy": "first"}],
+        )

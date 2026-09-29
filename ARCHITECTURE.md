@@ -405,3 +405,19 @@ source.
 ## XML record selection boundary
 
 `ml_lab.data.build_xml_record_selection()` converts the structural-analysis artifact into a selection catalog for one explicit record root. The catalog contains only structural field metadata; it does not read XML values, flatten collections, or emit a DataFrame. The UI retrieves this catalog through the signed XML-source route, and keeps the user's chosen field IDs as browser-local configuration state. This creates a stable boundary for later one-to-many extraction rules and tabularization while preserving the source XML and the structural artifact.
+
+## XML repeated-branch rule boundary (0.25.0)
+
+`ml_lab.data.xml_rules` converts an explicit XML record/field selection into a
+`ml-lab.xml-collection-plan@1` configuration artifact. A rule belongs to the repeated element
+boundary that creates the one-to-many relationship, not to an arbitrary output column. This keeps
+nested repeated branches ordered and parent-linked so later tabularization can apply transformations
+at the correct structural boundary.
+
+The rule layer supports `keep_nested`, `first`, `last`, `count`, `join`, `aggregate`, `pivot`,
+`explode_rows`, and `separate_table`. Sprint 5 validates only structural/configuration requirements;
+it does not read XML scalar values or create tables. In particular, numeric type compatibility for
+aggregate rules is deferred to extraction preview. The UI may persist rule intent locally by source
+fingerprint, but the XML source and `ml-lab.xml-structure@2` artifact remain immutable. Sprint 6 owns
+value-aware preview and is the first stage allowed to demonstrate how these explicit rules affect a
+tabular result.

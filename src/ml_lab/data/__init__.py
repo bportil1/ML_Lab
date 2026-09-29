@@ -2,7 +2,7 @@
 
 Data Lab supports CSV/TSV inventory, profiling, browsing, and explicit non-destructive
 transformation recipes. XML sources can also be safely ingested into a structural artifact
-without being treated as tabular until guided extraction is configured. Raw source files
+without being treated as tabular until guided extraction is configured. Repeated XML branches can be assigned explicit one-to-many rules before preview/materialization. Raw source files
 remain immutable by default.
 """
 
@@ -11,6 +11,7 @@ from .comparison import compare_files, compare_paths, save_comparison
 from .intake import inspect_file, inspect_paths
 from .xml_ingest import XmlSafetyError, analyze_xml_structure, inspect_xml_structure, load_xml_structure
 from .xml_selection import XmlSelectionError, build_xml_record_selection
+from .xml_rules import XmlCollectionRuleError, build_xml_collection_plan, xml_collection_strategy_catalog
 from .profiling import profile_file, profile_paths
 from .provenance import (
     describe_dataset,
@@ -37,6 +38,9 @@ from .types import (
     XmlFieldCandidate,
     XmlRecordCandidate,
     XmlRecordSelection,
+    XmlCollectionPlan,
+    XmlCollectionRule,
+    XmlRepeatedBranch,
     XmlStructureArtifact,
     RelationshipProfile,
 )
@@ -58,15 +62,21 @@ __all__ = [
     "XmlFieldCandidate",
     "XmlRecordCandidate",
     "XmlRecordSelection",
+    "XmlCollectionPlan",
+    "XmlCollectionRule",
+    "XmlRepeatedBranch",
     "XmlStructureArtifact",
     "XmlSafetyError",
     "XmlSelectionError",
+    "XmlCollectionRuleError",
     "RelationshipProfile",
     "inspect_file",
     "analyze_xml_structure",
     "inspect_xml_structure",
     "load_xml_structure",
     "build_xml_record_selection",
+    "build_xml_collection_plan",
+    "xml_collection_strategy_catalog",
     "load_persisted_profile",
     "load_provenance_event",
     "logical_table_sha256",
