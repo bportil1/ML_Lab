@@ -146,6 +146,68 @@ class XmlRecordCandidate:
 
 
 @dataclass(frozen=True)
+class XmlFieldCandidate:
+    field_id: str
+    kind: str
+    path: str
+    canonical_path: str
+    relative_path: str
+    source_element_path: str
+    source_element_canonical_path: str
+    name: str
+    local_name: str
+    namespace_uri: str | None
+    prefix: str | None
+    repeated: bool
+    optional: bool
+    likely_identifier: bool = False
+
+    def to_record(self) -> dict[str, Any]:
+        return {
+            "field_id": self.field_id,
+            "kind": self.kind,
+            "path": self.path,
+            "canonical_path": self.canonical_path,
+            "relative_path": self.relative_path,
+            "source_element_path": self.source_element_path,
+            "source_element_canonical_path": self.source_element_canonical_path,
+            "name": self.name,
+            "local_name": self.local_name,
+            "namespace_uri": self.namespace_uri,
+            "prefix": self.prefix,
+            "repeated": self.repeated,
+            "optional": self.optional,
+            "likely_identifier": self.likely_identifier,
+        }
+
+
+@dataclass(frozen=True)
+class XmlRecordSelection:
+    source_fingerprint: str
+    record_root_path: str
+    record_root_canonical_path: str
+    record_root_occurrence_count: int
+    record_root_candidate_score: float
+    record_root_candidate_reasons: tuple[str, ...] = ()
+    fields: tuple[XmlFieldCandidate, ...] = ()
+    schema: str = "ml-lab.xml-record-selection@1"
+
+    def to_record(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "source_fingerprint": self.source_fingerprint,
+            "record_root": {
+                "path": self.record_root_path,
+                "canonical_path": self.record_root_canonical_path,
+                "occurrence_count": self.record_root_occurrence_count,
+                "candidate_score": self.record_root_candidate_score,
+                "candidate_reasons": list(self.record_root_candidate_reasons),
+            },
+            "fields": [field.to_record() for field in self.fields],
+        }
+
+
+@dataclass(frozen=True)
 class XmlStructureArtifact:
     source_path: str
     source_sha256: str

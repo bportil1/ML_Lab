@@ -10,6 +10,7 @@ from .artifacts import load_persisted_profile, load_profile_run, persist_profile
 from .comparison import compare_files, compare_paths, save_comparison
 from .intake import inspect_file, inspect_paths
 from .xml_ingest import XmlSafetyError, analyze_xml_structure, inspect_xml_structure, load_xml_structure
+from .xml_selection import XmlSelectionError, build_xml_record_selection
 from .profiling import profile_file, profile_paths
 from .provenance import (
     describe_dataset,
@@ -33,7 +34,9 @@ from .types import (
     XmlAttributeProfile,
     XmlElementProfile,
     XmlNamespace,
+    XmlFieldCandidate,
     XmlRecordCandidate,
+    XmlRecordSelection,
     XmlStructureArtifact,
     RelationshipProfile,
 )
@@ -52,14 +55,18 @@ __all__ = [
     "XmlAttributeProfile",
     "XmlElementProfile",
     "XmlNamespace",
+    "XmlFieldCandidate",
     "XmlRecordCandidate",
+    "XmlRecordSelection",
     "XmlStructureArtifact",
     "XmlSafetyError",
+    "XmlSelectionError",
     "RelationshipProfile",
     "inspect_file",
     "analyze_xml_structure",
     "inspect_xml_structure",
     "load_xml_structure",
+    "build_xml_record_selection",
     "load_persisted_profile",
     "load_provenance_event",
     "logical_table_sha256",

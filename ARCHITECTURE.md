@@ -401,3 +401,7 @@ Only files carrying recognized `ml-lab.*@1` schemas are surfaced as PAH artifact
 ML-3 heuristic comparison relationships are never converted into provenance edges;
 ML-4 recorded transformation/provenance artifacts remain the authoritative lineage
 source.
+
+## XML record selection boundary
+
+`ml_lab.data.build_xml_record_selection()` converts the structural-analysis artifact into a selection catalog for one explicit record root. The catalog contains only structural field metadata; it does not read XML values, flatten collections, or emit a DataFrame. The UI retrieves this catalog through the signed XML-source route, and keeps the user's chosen field IDs as browser-local configuration state. This creates a stable boundary for later one-to-many extraction rules and tabularization while preserving the source XML and the structural artifact.

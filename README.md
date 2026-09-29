@@ -786,3 +786,7 @@ through host-specific imports in the scientific core:
 
 PAH therefore orchestrates ML Lab without reimplementing Data Lab forms or model
 logic. ML Lab does not import the PAH package and remains usable without PAH.
+
+## 0.24.0 — XML record-root and field selection
+
+XML structural exploration now supports explicit record-boundary configuration without flattening the source. Any observed element path can be selected as a record root; candidate-root evidence remains advisory. ML Lab derives scalar element-text and attribute fields relative to that root, including optional/repeated shape and likely-identifier evidence. The browser keeps the current root and selected field IDs as local UI state keyed by the XML source fingerprint. Raw XML remains non-tabular in this release; extraction rules and materialization are deferred to later XML sprints.

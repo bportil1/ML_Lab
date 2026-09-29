@@ -434,7 +434,24 @@ def create_ui_blueprint(
             structure_json=_pretty(structure),
             error=None,
             data_url=url_for(request.blueprint + ".data_lab"),
+            record_fields_url=url_for(request.blueprint + ".xml_record_fields", token=token),
         )
+
+
+    @blueprint.get("/data/xml/<token>/record-fields")
+    def xml_record_fields(token: str):
+        path = verify_path(token)
+        if path.suffix.casefold() != ".xml":
+            abort(400)
+        root = request.args.get("root", "").strip()
+        try:
+            record = data.inspect_file(path)
+            if record.format != "xml" or record.parse_status == "failed" or record.xml_structure is None:
+                raise ValueError(record.error or "XML structure could not be loaded.")
+            selection = data.build_xml_record_selection(record.xml_structure, root)
+        except (OSError, UnicodeError, ValueError, TypeError) as exc:
+            return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 400
+        return jsonify(selection.to_record())
 
 
     @blueprint.route("/data/compare", methods=["GET", "POST"])

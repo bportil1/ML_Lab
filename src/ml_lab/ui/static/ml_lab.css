@@ -403,3 +403,14 @@ th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spa
   .xml-tree { max-height: 520px; }
   .xml-candidate-filter { margin-left: 0; }
 }
+.xml-tree-row.is-record-root { box-shadow: inset 3px 0 0 var(--good); background: color-mix(in srgb, var(--good), transparent 91%); }
+.xml-record-root-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+.xml-field-selector { margin: 18px 0; }
+.xml-selection-summary { margin: 10px 0 14px; }
+.xml-field-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.xml-field-toolbar label { display: inline-flex; gap: 7px; align-items: center; color: var(--muted); }
+.xml-field-table-wrap { max-height: 480px; overflow: auto; }
+.xml-field-table { min-width: 860px; }
+.xml-field-table th { position: sticky; top: 0; background: var(--surface-2); z-index: 1; }
+.xml-selection-json { margin-top: 12px; }
+.xml-candidate-actions { display: flex; gap: 6px; flex-wrap: wrap; }

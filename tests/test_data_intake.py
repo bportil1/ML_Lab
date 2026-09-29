@@ -363,3 +363,36 @@ def test_xml_canonical_paths_escape_namespace_uri_separators(tmp_path: Path):
     row = next(item for item in artifact.element_profiles if item.local_name == "row")
     assert row.path == "/root/x:row"
     assert row.canonical_path == "/root/{https:~1~1example.test~1ns~1v1}row"
+
+
+def test_xml_record_root_selection_derives_relative_scalar_fields(tmp_path: Path):
+    source = tmp_path / "records.xml"
+    source.write_text(
+        "<catalog>"
+        "<project id='a'><name>A</name><metrics><cwe id='190' count='2'/><cwe id='191' count='1'/></metrics></project>"
+        "<project id='b'><name>B</name><metrics><cwe id='190' count='3'/></metrics></project>"
+        "</catalog>",
+        encoding="utf-8",
+    )
+    artifact = data.analyze_xml_structure(source)
+    selection = data.build_xml_record_selection(artifact, "/catalog/project")
+
+    assert selection.schema == "ml-lab.xml-record-selection@1"
+    assert selection.record_root_path == "/catalog/project"
+    assert selection.record_root_occurrence_count == 2
+    fields = {field.relative_path: field for field in selection.fields}
+    assert fields["@id"].kind == "attribute"
+    assert fields["@id"].likely_identifier is True
+    assert fields["name"].kind == "element_text"
+    assert fields["name"].repeated is False
+    assert fields["metrics/cwe/@id"].repeated is True
+    assert fields["metrics/cwe/@count"].repeated is True
+    assert all(field.source_element_canonical_path.startswith("/catalog/project") for field in selection.fields)
+
+
+def test_xml_record_root_selection_rejects_unknown_path(tmp_path: Path):
+    source = tmp_path / "records.xml"
+    source.write_text("<root><row><value>1</value></row></root>", encoding="utf-8")
+    artifact = data.analyze_xml_structure(source)
+    with pytest.raises(data.XmlSelectionError, match="not present"):
+        data.build_xml_record_selection(artifact, "/root/missing")

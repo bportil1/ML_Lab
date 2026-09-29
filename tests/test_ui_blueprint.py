@@ -500,7 +500,7 @@ def test_xml_structure_explorer_keeps_raw_xml_non_tabular(tmp_path):
     assert response.status_code == 200
     assert b"does not flatten or transform the source" in response.data
     assert b"Transform this source" not in response.data
-    assert b"Evidence only. Sprint 3 does not choose a record root for you." in response.data
+    assert b"Recommendations only. You choose the record root explicitly." in response.data
 
 
 def test_xml_structure_explorer_rejects_malformed_xml_from_direct_inventory_action(tmp_path):
@@ -513,3 +513,42 @@ def test_xml_structure_explorer_rejects_malformed_xml_from_direct_inventory_acti
     assert inventory.status_code == 200
     assert b"Explore XML" not in inventory.data
     assert b"ParseError" in inventory.data
+
+
+def test_xml_record_root_field_selector_endpoint_and_controls(tmp_path):
+    import html
+    import re
+
+    source = tmp_path / "records.xml"
+    source.write_text(
+        "<catalog><project id='a'><name>A</name></project><project id='b'><name>B</name></project></catalog>",
+        encoding="utf-8",
+    )
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+    inventory = client.post("/data", data={"paths": str(source), "recursive": "1", "preview_rows": "20"})
+    match = re.search(rb'href="([^"]*/data/xml/[^"]+)"[^>]*>Explore XML</a>', inventory.data)
+    assert match is not None
+    explorer_url = html.unescape(match.group(1).decode("utf-8"))
+    page = client.get(explorer_url)
+
+    assert page.status_code == 200
+    assert b'data-xml-field-selector' in page.data
+    assert b'data-xml-use-record-root' in page.data
+    assert b'data-xml-choose-record-root' in page.data
+    assert b'Extraction configuration' in page.data
+    fields_url_match = re.search(rb'data-record-fields-url="([^"]+)"', page.data)
+    assert fields_url_match is not None
+    fields_url = html.unescape(fields_url_match.group(1).decode("utf-8"))
+
+    response = client.get(fields_url, query_string={"root": "/catalog/project"})
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["schema"] == "ml-lab.xml-record-selection@1"
+    assert payload["record_root"]["path"] == "/catalog/project"
+    relative = {field["relative_path"] for field in payload["fields"]}
+    assert {"@id", "name"}.issubset(relative)
+
+    invalid = client.get(fields_url, query_string={"root": "/catalog/missing"})
+    assert invalid.status_code == 400
+    assert "not present" in invalid.get_json()["error"]
