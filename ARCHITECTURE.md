@@ -454,3 +454,8 @@ XML extraction is now an authoritative ML Lab lineage event. The derived tabular
 XML multi-extraction is modeled as a family of authoritative transformation events that share the exact XML source SHA-256 and structural fingerprint. Each materialized table retains its own `ml-lab.transformation-event@1` sidecar and points directly to the XML root. Sibling extractions do not form artificial parent/child chains.
 
 `ml-lab.xml-extraction-history@1` is a non-authoritative convenience index stored under the configured derived-results root. It is refreshed from XML provenance sidecars and may be rebuilt at any time. Re-entry loads the recipe snapshot only after validating that the recorded event belongs to the current XML artifact. Recipe comparison reports root, field, and repeated-branch-rule differences without changing lineage.
+
+
+## XML hardening boundary (0.30.0)
+
+The XML ingestion boundary remains local and non-mutating, but now rejects inputs that exceed configurable byte-size, element-count, nesting-depth, unique-path, or namespace limits before they can grow unbounded structural state. DTD/entity declarations remain prohibited. Structural artifacts record mixed-content paths explicitly; mixed-content element text is diagnostic rather than a selectable scalar because a scalar conversion would otherwise discard interleaved child/tail text. Leaf descendants and attributes remain available for guided extraction.

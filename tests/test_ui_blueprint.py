@@ -770,3 +770,36 @@ def test_xml_confirmed_preview_materializes_dataset_from_explorer(tmp_path):
     )
     assert stale.status_code == 400
     assert "confirmed preview no longer matches" in stale.get_json()["error"]
+
+
+def test_xml_hardening_ui_exposes_mixed_content_but_excludes_lossy_scalar_field(tmp_path):
+    import html
+    import re
+
+    source = tmp_path / "mixed-ui.xml"
+    source.write_text(
+        "<root><p id='1'>before <b>bold</b> after</p><p id='2'>again <b>text</b>.</p></root>",
+        encoding="utf-8",
+    )
+    app = create_app(config={"TESTING": True})
+    client = app.test_client()
+    inventory = client.post("/data", data={"paths": str(source), "recursive": "1", "preview_rows": "20"})
+    match = re.search(rb'href="([^"]*/data/xml/[^"]+)"[^>]*>Explore XML</a>', inventory.data)
+    assert match is not None
+    explorer_url = html.unescape(match.group(1).decode("utf-8"))
+    page = client.get(explorer_url)
+    assert page.status_code == 200
+    assert b'"mixed_content": true' in page.data
+
+    fields_url = html.unescape(re.search(rb'data-record-fields-url="([^"]+)"', page.data).group(1).decode("utf-8"))
+    structure = data.analyze_xml_structure(source)
+    paragraph = next(item for item in structure.element_profiles if item.path == "/root/p")
+    fields = client.get(fields_url, query_string={"root": paragraph.canonical_path})
+    assert fields.status_code == 200
+    relative = {field["relative_path"] for field in fields.get_json()["fields"]}
+    assert "." not in relative
+    assert {"@id", "b"}.issubset(relative)
+
+    js = client.get("/static/ml_lab_xml_structure.js")
+    assert js.status_code == 200
+    assert b"mixed content" in js.data

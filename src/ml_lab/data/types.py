@@ -83,6 +83,8 @@ class XmlElementProfile:
     text_distinct_sample_count: int
     text_distinct_sample_rate: float
     likely_identifier_text: bool
+    mixed_content_occurrence_count: int = 0
+    mixed_content: bool = False
     attributes: tuple[XmlAttributeProfile, ...] = ()
     child_paths: tuple[str, ...] = ()
     likely_identifier_attributes: tuple[str, ...] = ()
@@ -116,6 +118,8 @@ class XmlElementProfile:
                 "distinct_sample_count": self.text_distinct_sample_count,
                 "distinct_sample_rate": self.text_distinct_sample_rate,
                 "likely_identifier": self.likely_identifier_text,
+                "mixed_content_occurrence_count": self.mixed_content_occurrence_count,
+                "mixed_content": self.mixed_content,
             },
             "attributes": [item.to_record() for item in self.attributes],
             "child_paths": list(self.child_paths),
@@ -437,6 +441,7 @@ class XmlStructureArtifact:
     leaf_path_count: int = 0
     repeated_path_count: int = 0
     optional_path_count: int = 0
+    mixed_content_path_count: int = 0
     element_profiles: tuple[XmlElementProfile, ...] = ()
     record_candidates: tuple[XmlRecordCandidate, ...] = ()
     schema: str = "ml-lab.xml-structure@2"
@@ -466,6 +471,7 @@ class XmlStructureArtifact:
                 "leaf_path_count": self.leaf_path_count,
                 "repeated_path_count": self.repeated_path_count,
                 "optional_path_count": self.optional_path_count,
+                "mixed_content_path_count": self.mixed_content_path_count,
             },
             "element_profiles": [item.to_record() for item in self.element_profiles],
             "record_candidates": [item.to_record() for item in self.record_candidates],

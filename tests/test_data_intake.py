@@ -894,3 +894,111 @@ def test_xml_extraction_history_supports_reentry_multi_extraction_and_recipe_com
     assert people_lineage["root"]["path"] == item_lineage["root"]["path"] == str(source.resolve())
     assert data.load_provenance_event(people.provenance_path)["parent"] is None
     assert data.load_provenance_event(items.provenance_path)["parent"] is None
+
+
+def test_xml_hardening_enforces_source_element_depth_path_and_namespace_limits(tmp_path: Path):
+    source = tmp_path / "limits.xml"
+    source.write_text("<root><a/><b/><c/></root>", encoding="utf-8")
+
+    with pytest.raises(data.XmlSafetyError, match="source size limit"):
+        data.analyze_xml_structure(source, max_source_bytes=8)
+    with pytest.raises(data.XmlSafetyError, match="element limit"):
+        data.analyze_xml_structure(source, max_elements=3)
+    with pytest.raises(data.XmlSafetyError, match="unique element path limit"):
+        data.analyze_xml_structure(source, max_unique_paths=3)
+
+    deep = tmp_path / "deep.xml"
+    deep.write_text("<a><b><c><d><e/></d></c></b></a>", encoding="utf-8")
+    boundary = data.analyze_xml_structure(deep, max_depth=5)
+    assert boundary.observed_max_depth == 5
+    with pytest.raises(data.XmlSafetyError, match="nesting depth limit"):
+        data.analyze_xml_structure(deep, max_depth=4)
+
+    namespaced = tmp_path / "namespaces.xml"
+    namespaced.write_text(
+        '<root xmlns:a="urn:a" xmlns:b="urn:b" xmlns:c="urn:c"><a:x/><b:y/><c:z/></root>',
+        encoding="utf-8",
+    )
+    with pytest.raises(data.XmlSafetyError, match="namespace limit"):
+        data.analyze_xml_structure(namespaced, max_namespaces=2)
+
+
+def test_xml_hardening_marks_mixed_content_and_does_not_offer_lossy_scalar_text(tmp_path: Path):
+    source = tmp_path / "mixed-content.xml"
+    source.write_text(
+        "<root><p id='one'>Hello <b>world</b> after</p><p id='two'>Again <b>there</b>.</p></root>",
+        encoding="utf-8",
+    )
+
+    artifact = data.analyze_xml_structure(source)
+    profiles = {item.path: item for item in artifact.element_profiles}
+    paragraph = profiles["/root/p"]
+    assert paragraph.mixed_content is True
+    assert paragraph.mixed_content_occurrence_count == 2
+    assert artifact.mixed_content_path_count == 1
+    payload = artifact.to_record()
+    assert payload["analysis"]["mixed_content_path_count"] == 1
+    assert payload["element_profiles"][1]["text"]["mixed_content"] is True
+
+    selection = data.build_xml_record_selection(artifact, "/root/p")
+    relative = {field.relative_path for field in selection.fields}
+    assert "." not in relative
+    assert {"@id", "b"}.issubset(relative)
+
+
+def test_xml_hardening_handles_sparse_variable_records_without_inventing_values(tmp_path: Path):
+    source = tmp_path / "sparse.xml"
+    source.write_text(
+        "<root>"
+        "<row id='1'><name>A</name><score>5</score></row>"
+        "<row id='2'><name>B</name></row>"
+        "<row id='3'><score>7</score><note>x</note></row>"
+        "</root>",
+        encoding="utf-8",
+    )
+    artifact = data.analyze_xml_structure(source)
+    selection = data.build_xml_record_selection(artifact, "/root/row")
+    by_relative = {field.relative_path: field for field in selection.fields}
+    assert by_relative["name"].optional is True
+    assert by_relative["score"].optional is True
+    assert by_relative["note"].optional is True
+
+    selected = [by_relative[name].field_id for name in ("@id", "name", "score", "note")]
+    preview = data.preview_xml_tabularization(source, artifact, "/root/row", selected)
+    rows = list(preview.main_table.rows)
+    assert rows[0] == {"@id": "1", "name": "A", "score": "5", "note": None}
+    assert rows[1] == {"@id": "2", "name": "B", "score": None, "note": None}
+    assert rows[2] == {"@id": "3", "name": None, "score": "7", "note": "x"}
+
+
+def test_xml_hardening_default_namespace_round_trips_through_materialization_and_provenance(tmp_path: Path):
+    source = tmp_path / "default-ns.xml"
+    source.write_text(
+        '<catalog xmlns="https://example.test/catalog/v1">'
+        '<record id="r1"><name>A</name></record>'
+        '<record id="r2"><name>B</name></record>'
+        '</catalog>',
+        encoding="utf-8",
+    )
+    artifact = data.analyze_xml_structure(source)
+    record = next(item for item in artifact.element_profiles if item.local_name == "record")
+    selection = data.build_xml_record_selection(artifact, record.canonical_path)
+    fields = {field.relative_path: field.field_id for field in selection.fields}
+    selected = [fields["@id"], fields["name"]]
+    preview = data.preview_xml_tabularization(source, artifact, record.canonical_path, selected)
+    result = data.materialize_xml_tabularization(
+        source,
+        artifact,
+        record.canonical_path,
+        selected,
+        confirmed_preview_signature=preview.preview_signature,
+        output=tmp_path / "default-ns.csv",
+    )
+    event = data.load_provenance_event(result.provenance_path)
+    assert event["recipe"]["snapshot"]["record_root_canonical_path"] == record.canonical_path
+    assert event["recipe"]["snapshot"]["namespace_map"] == [{"prefix": "", "uri": "https://example.test/catalog/v1"}]
+    regenerated = data.regenerate_xml_extraction(
+        result.provenance_path,
+        output=tmp_path / "default-ns-regenerated.csv",
+    )
+    assert data.describe_dataset(regenerated.dataset_path)["logical_sha256"] == data.describe_dataset(result.dataset_path)["logical_sha256"]

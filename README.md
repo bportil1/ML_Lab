@@ -850,3 +850,8 @@ Confirmed XML materializations now write the same authoritative `.provenance.jso
 XML sources now keep a discoverable extraction family inside the configured derived-results root. The history index is a convenience layer only: every entry is reconstructed from and revalidated against authoritative XML tabularization provenance sidecars. Existing 0.28.0 XML outputs under the derived root are discovered automatically, so they can be reopened without rematerializing them.
 
 The XML structure workspace can reopen a recorded record-root/field/rule recipe, edit it, choose another record root, and materialize additional sibling tables from the same XML source. Recorded recipes can also be compared for record-root changes, selected-field additions/removals, and repeated-branch rule changes. Sibling derived tables remain independent children of the raw XML source; one extraction is never treated as the parent of another merely because they share a source.
+
+
+## 0.30.0 — XML hardening and coverage
+
+XML ingestion now enforces explicit source-size, unique-path, namespace, element-count, and nesting-depth safety bounds. Structural analysis records mixed-content paths and the guided selector no longer offers mixed-content element text as a scalar field, avoiding silent loss of interleaved text during tabularization. Sprint 10 also expands regression coverage for malformed input, namespaces, sparse/variable records, deep trees, mixed content, large-input limits, provenance regeneration, and XML UI contracts.
