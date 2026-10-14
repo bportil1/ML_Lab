@@ -44,7 +44,7 @@ def test_two_file_consolidation_alignment_and_source_lineage(tmp_path: Path):
         materialize_xml_collection(recipe, out)
     manifest = materialize_xml_collection(recipe, out, confirm=True)
     assert manifest['schema'] == 'ml-lab.xml-collection-materialization@1'
-    assert manifest['provenance']['status'] == 'not_recorded'
+    assert manifest['provenance']['status'] == 'recorded'
     assert manifest['main_dataset']['row_count'] == 2
     with out.open(newline='', encoding='utf-8') as handle:
         reader = csv.DictReader(handle)

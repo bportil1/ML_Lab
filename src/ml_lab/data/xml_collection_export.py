@@ -25,6 +25,9 @@ from .xml_collection_recipe import build_xml_collection_recipe
 from .xml_ingest import inspect_xml_structure
 from .xml_preview import preview_xml_tabularization
 from .xml_similarity import compare_xml_collection
+from .xml_collection_provenance import (
+    checkpoint_path, make_collection_event, provenance_path, start_checkpoint,
+)
 
 
 class XmlCollectionExportError(ValueError):
@@ -204,7 +207,8 @@ def materialize_xml_collection(recipe: Mapping[str, Any], output: str | Path, *,
                                max_files: int = 80, max_source_bytes: int = 64 * 1024**2,
                                max_source_records: int = 10000,
                                max_total_rows: int = 100000,
-                               max_child_rows: int = 50000) -> dict[str, Any]:
+                               max_child_rows: int = 50000,
+                               _resume_checkpoint: bool = False) -> dict[str, Any]:
     """Write reviewed sources as one CSV/TSV, optional children, and a C5 manifest.
 
     All tables are staged first. Existing targets are backed up for rollback when
@@ -217,6 +221,19 @@ def materialize_xml_collection(recipe: Mapping[str, Any], output: str | Path, *,
         raise XmlCollectionExportError('Consolidated output must use .csv or .tsv')
     if target.is_symlink():
         raise XmlCollectionExportError('Refusing to write through an output symlink')
+    if not overwrite:
+        for initial in (target, target.with_suffix(target.suffix + '.collection.json'), provenance_path(target)):
+            if initial.exists():
+                raise FileExistsError(f'Output exists (or is not a file): {initial}')
+    # Create a durable replay intent *before* the potentially long extraction.
+    # Never mistake this checkpoint for authoritative lineage or a completed CSV.
+    journal = checkpoint_path(target)
+    if journal.is_symlink():
+        raise XmlCollectionExportError(f'Recovery checkpoint is a symlink: {journal}')
+    if _resume_checkpoint and not journal.is_file():
+        raise XmlCollectionExportError('Cannot resume without the existing C6 checkpoint')
+    if not _resume_checkpoint:
+        start_checkpoint(recipe, target)
     result = _extract(recipe, preview=False, max_files=max_files,
                       max_source_bytes=max_source_bytes, max_source_records=max_source_records,
                       max_total_rows=max_total_rows, max_child_rows=max_child_rows)
@@ -232,7 +249,8 @@ def materialize_xml_collection(recipe: Mapping[str, Any], output: str | Path, *,
     if len(set(children.values())) != len(children):
         raise XmlCollectionExportError('Child table filenames collide; rename the extraction rules')
     manifest_path = target.with_suffix(target.suffix + '.collection.json')
-    expected = [target, *children.values(), manifest_path]
+    event_path = provenance_path(target)
+    expected = [target, *children.values(), event_path, manifest_path]
     if len(set(expected)) != len(expected):
         raise XmlCollectionExportError('Consolidated output paths collide')
     for path in expected:
@@ -266,6 +284,17 @@ def materialize_xml_collection(recipe: Mapping[str, Any], output: str | Path, *,
             'provenance': {'status': 'not_recorded',
                            'note': 'C5 manifest is a descriptive export record, not authoritative C6 lineage.'},
         }
+        # C6 authoritative provenance is prepared from verified staged bytes,
+        # not from optimistic source paths or an incompletely published dataset.
+        event = make_collection_event(manifest)
+        event_temp = staged_path(event_path)
+        event_temp.write_text(json.dumps(event, indent=2, sort_keys=True, ensure_ascii=False) + '\n', encoding='utf-8')
+        staged[event_path] = event_temp
+        manifest['provenance'] = {
+            'status': 'recorded', 'schema': event['schema'],
+            'path': str(event_path), 'event_id': event['event_id'],
+            'sha256': _sha(event_temp),
+        }
         manifest_temp = staged_path(manifest_path)
         manifest_temp.write_text(json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=False) + '\n', encoding='utf-8')
         staged[manifest_path] = manifest_temp
@@ -286,6 +315,9 @@ def materialize_xml_collection(recipe: Mapping[str, Any], output: str | Path, *,
             for destination, backup in backups.items():
                 os.replace(backup, destination)
             raise
+        # The manifest is committed last. Only then retire the non-authoritative
+        # replay intent; an interrupted run retains a recoverable checkpoint.
+        journal.unlink(missing_ok=True)
         return manifest
 
 

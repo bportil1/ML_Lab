@@ -609,6 +609,49 @@ def create_ui_blueprint(
             result=result, error=error,
         ), (400 if error else 200)
 
+    @blueprint.route("/data/xml/collection/provenance", methods=["GET", "POST"])
+    def xml_collection_provenance():
+        """C6: local verification, checkpoint audit, and explicitly confirmed replay."""
+        from ml_lab.data.xml_collection_provenance import (
+            verify_collection_event, inspect_collection_recovery,
+            resume_xml_collection_export, regenerate_xml_collection,
+        )
+        action = request.form.get("action", "verify")
+        event_path = request.form.get("provenance_path", "").strip()
+        output = request.form.get("output", "").strip()
+        result = error = None
+        try:
+            if request.method == "POST":
+                if any(len(str(value)) > 4096 for value in (event_path, output)):
+                    raise ValueError("Provenance/output path is too long")
+                if action == "verify":
+                    if not event_path:
+                        raise ValueError("Select a provenance JSON file")
+                    result = verify_collection_event(event_path)
+                elif action == "inspect":
+                    if not output:
+                        raise ValueError("Select a collection CSV/TSV output path")
+                    result = inspect_collection_recovery(output)
+                elif action in {"resume", "regenerate"}:
+                    if request.form.get("confirm") != "1":
+                        raise ValueError("Explicit confirmation is required to write files")
+                    if action == "resume":
+                        if not output:
+                            raise ValueError("Select the checkpoint output path")
+                        result = resume_xml_collection_export(output, confirm=True)
+                    else:
+                        if not event_path or not output:
+                            raise ValueError("Provide the provenance file and a new output path")
+                        result = regenerate_xml_collection(event_path, output, confirm=True)
+                else:
+                    raise ValueError("Unrecognized C6 action")
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            error = f"{type(exc).__name__}: {exc}"
+        return render_template(
+            "ml_lab_ui/xml_collection_provenance.html", version=__version__,
+            action=action, event_path=event_path, output=output, result=result, error=error,
+        ), (400 if error else 200)
+
     @blueprint.get("/data/xml/<token>")
     def xml_structure_view(token: str):
         path = verify_path(token)

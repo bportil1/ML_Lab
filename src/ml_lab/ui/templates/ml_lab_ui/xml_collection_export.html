@@ -21,7 +21,7 @@
     <label for="xml-c5-output">Output CSV or TSV path</label>
     <input id="xml-c5-output" name="output" value="{{ output }}" required>
     <label class="check"><input type="checkbox" name="overwrite" value="1"> Replace existing output and related artifacts (rollback attempted on error)</label>
-    <label class="check"><input type="checkbox" name="confirm" value="1"> I approve creating the consolidated dataset and its descriptive manifest</label>
+    <label class="check"><input type="checkbox" name="confirm" value="1"> I approve creating the consolidated dataset, materialization manifest, and authoritative multi-file provenance event</label>
     <button class="button" type="submit" name="mode" value="export">Generate consolidated dataset</button>
   </section>
 </form>
@@ -42,7 +42,8 @@
 <section class="panel">
   <h2>Consolidated dataset generated</h2>
   <p>{{ result.main_dataset.row_count }} rows written to <code>{{ result.main_dataset.path }}</code></p>
-  <p class="muted">{{ result.child_datasets|length }} child tables · source hashes and output checksums recorded in <code>{{ result.main_dataset.path }}.collection.json</code>.</p>
+  <p class="muted">{{ result.child_datasets|length }} child tables · source and output checksums recorded in the manifest and <code>{{ result.provenance.path }}</code>.</p>
+  <p><a href="{{ url_for(request.blueprint + 'xml_collection_provenance') }}">Verify provenance / inspect recovery / regenerate</a></p>
   <details class="json-details"><summary>Export manifest</summary><pre>{{ result|tojson(indent=2) }}</pre></details>
 </section>
 {% endif %}

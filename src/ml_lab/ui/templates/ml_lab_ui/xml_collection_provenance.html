@@ -1,0 +1,35 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}XML collection provenance · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for(request.blueprint + '.xml_collection_export') }}">← XML collection export</a>
+<section class="workspace-head"><div>
+  <p class="eyebrow">Data · XML-C6</p>
+  <h1>Multi-file provenance and safe recovery</h1>
+  <p class="lede">Verify recorded source/output hashes, inspect recovery checkpoints, or explicitly replay a validated extraction. A checkpoint never certifies an incomplete dataset.</p>
+</div></section>
+{% if error %}<div class="alert data-alert" role="alert">{{ error }}</div>{% endif %}
+<form method="post" action="{{ url_for(request.blueprint + '.xml_collection_provenance') }}">
+  <section class="panel">
+    <h2>Local audit or replay</h2>
+    <label for="c6-event">Authoritative .provenance.json path (verify or regenerate)</label>
+    <input id="c6-event" name="provenance_path" value="{{ event_path }}">
+    <label for="c6-output">Collection output path (.csv/.tsv; inspect, resume or regenerate)</label>
+    <input id="c6-output" name="output" value="{{ output }}">
+    <p class="muted">A failed or interrupted export may retain <code>.collection.checkpoint.json</code>. Inspect it before replay. Existing partial outputs prevent automatic recovery and must be resolved manually.</p>
+    <label class="check"><input type="checkbox" name="confirm" value="1"> I explicitly authorize a new extraction (required for resume or regenerate; existing outputs are not overwritten)</label>
+    <div class="toolbar">
+      <button class="button secondary" name="action" value="verify" type="submit">Verify lineage</button>
+      <button class="button secondary" name="action" value="inspect" type="submit">Inspect checkpoint</button>
+      <button class="button" name="action" value="resume" type="submit">Replay checkpoint</button>
+      <button class="button" name="action" value="regenerate" type="submit">Regenerate new CSV</button>
+    </div>
+  </section>
+</form>
+{% if result %}
+<section class="panel">
+  <h2>Operation result</h2>
+  {% if result.status %}<p><strong>Status:</strong> {{ result.status }}</p>{% endif %}
+  <pre>{{ result|tojson(indent=2) }}</pre>
+</section>
+{% endif %}
+{% endblock %}
