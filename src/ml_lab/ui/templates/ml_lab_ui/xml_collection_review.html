@@ -73,6 +73,7 @@
     <div class="button-row">
       <button class="button" type="submit" name="mode" value="review">Review selected sources</button>
       <button class="button secondary" type="submit" name="mode" value="export" formaction="{{ url_for(request.blueprint + '.xml_collection_review') }}">Export review JSON (only if ready)</button>
+      <button class="button secondary" type="submit" name="mode" value="inspect" formaction="{{ url_for(request.blueprint + '.xml_collection_recipe') }}">Configure shared extraction recipe (C4)</button>
     </div>
   </form>
 </section>

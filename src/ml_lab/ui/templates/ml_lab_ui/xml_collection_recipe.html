@@ -1,0 +1,98 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}XML shared extraction recipe · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for(request.blueprint + '.xml_collection_review') }}">← XML collection review</a>
+<section class="workspace-head"><div>
+  <p class="eyebrow">Data · XML-C4</p>
+  <h1>Shared XML extraction recipe</h1>
+  <p class="lede">Configure one record root and field mapping across reviewed XML sources. Validate missing fields and repeated-branch strategies before collection extraction. No CSV files are generated here.</p>
+</div></section>
+{% if error %}<div class="alert data-alert" role="alert">{{ error }}</div>{% endif %}
+{% if not catalog %}
+<section class="panel"><p>Select and review XML files on the collection review page, then choose <strong>Configure shared extraction recipe</strong>.</p>
+<a class="button secondary" href="{{ url_for(request.blueprint + '.xml_collection_review') }}">Return to collection review</a></section>
+{% else %}
+<section class="panel">
+  <h2>Reviewed collection</h2>
+  <p>{{ catalog.selected_sources|length }} sources, with fingerprints checked against fresh inventory and comparison evidence.</p>
+  <div class="table-wrap"><table class="interactive-table" data-page-size="25"><thead><tr><th>Source</th><th>SHA-256 fingerprint</th></tr></thead>
+  <tbody>{% for source in catalog.selected_sources %}<tr><td>{{ source }}</td><td><code>{{ catalog.source_fingerprints[source] }}</code></td></tr>{% endfor %}</tbody></table></div>
+</section>
+<form method="post" action="{{ url_for(request.blueprint + '.xml_collection_recipe') }}">
+  <input type="hidden" name="directory" value="{{ directory }}">
+  <input type="hidden" name="include_glob" value="{{ include_glob }}">
+  <input type="hidden" name="exclude_glob" value="{{ exclude_glob }}">
+  <input type="hidden" name="max_files" value="{{ max_files }}">
+  <input type="hidden" name="min_shared_fraction" value="{{ min_shared_fraction }}">
+  {% if recursive %}<input type="hidden" name="recursive" value="1">{% endif %}
+  {% if include_hidden %}<input type="hidden" name="include_hidden" value="1">{% endif %}
+  {% if acknowledge_variants %}<input type="hidden" name="acknowledge_variants" value="1">{% endif %}
+  {% for source in selected %}<input type="hidden" name="selected" value="{{ source }}">{% endfor %}
+  <section class="panel">
+    <h2>1. Select a shared record root</h2>
+    <label for="xml-c4-root">Record root canonical path</label>
+    <select id="xml-c4-root" name="record_root" required>
+      <option value="">Choose a root present in every selected source</option>
+      {% for root in catalog.record_root_options %}
+        <option value="{{ root.canonical_path }}" {% if record_root == root.canonical_path %}selected{% endif %}>{{ root.display_path }} — min {{ root.min_records }} records; candidate score {{ root.candidate_score }}</option>
+      {% endfor %}
+    </select>
+    <button class="button secondary" type="submit" name="mode" value="fields">Inspect available fields</button>
+  </section>
+  {% if catalog.record_root_canonical_path %}
+  <section class="panel">
+    <h2>2. Select shared fields</h2>
+    <p class="muted">Fields shown here are the union of canonical fields across selected sources. Missing fields are not silently mapped or filled in this sprint.</p>
+    <div class="table-wrap"><table class="interactive-table" data-page-size="50">
+      <thead><tr><th>Use</th><th>Field / path</th><th>Type</th><th>Present in</th><th>Absent in</th><th>Repeated in</th></tr></thead>
+      <tbody>{% for field in catalog.fields %}<tr>
+        <td><input type="checkbox" name="field" value="{{ field.field_id }}" {% if field.field_id in fields %}checked{% endif %} aria-label="Select {{ field.field_id }}"></td>
+        <td><code>{{ field.relative_path }}</code></td><td>{{ field.kind }}</td>
+        <td>{{ field.present_in|length }}</td><td>{{ field.missing_in|length }}</td><td>{{ field.repeated_in|length }}</td>
+      </tr>{% endfor %}</tbody></table></div>
+    <label class="check"><input type="checkbox" name="allow_missing_fields" value="1" {% if allow_missing_fields %}checked{% endif %}> Explicitly permit missing selected fields in some sources (future C5 export must align them as nulls).</label>
+    <button class="button secondary" type="submit" name="mode" value="branches">Inspect required repeated-branch rules</button>
+  </section>
+  {% endif %}
+  {% if recipe %}
+  <section class="panel">
+    <h2>3. Repeated-branch strategies</h2>
+    <p class="muted">Configure a shared rule for each branch used by the selected fields. Rules only apply to sources in which the branch is repeated.</p>
+    {% for branch in recipe.required_repeated_branches %}
+    <div class="panel">
+      <input type="hidden" name="branch_path" value="{{ branch }}">
+      <label><strong><code>{{ branch }}</code></strong></label>
+      <div class="form-row">
+        <label>Strategy
+          <select name="strategy::{{ branch }}"><option value="">Choose strategy</option>
+          {% for strategy in strategy_catalog %}<option value="{{ strategy.id }}" {% if recipe.rules|selectattr('branch_canonical_path', 'equalto', branch)|selectattr('strategy', 'equalto', strategy.id)|list %}selected{% endif %}>{{ strategy.label }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Join delimiter <input type="text" name="join_delimiter::{{ branch }}" placeholder="e.g. |" value="{{ (recipe.rules|selectattr('branch_canonical_path', 'equalto', branch)|first|default({})).get('join_delimiter', '') }}"></label>
+        <label>Aggregate <select name="aggregate_operation::{{ branch }}"><option value="">Choose</option>
+        {% for agg in ['sum', 'mean', 'min', 'max'] %}<option value="{{ agg }}" {% if (recipe.rules|selectattr('branch_canonical_path', 'equalto', branch)|first|default({})).get('aggregate_operation') == agg %}selected{% endif %}>{{ agg }}</option>{% endfor %}</select></label>
+      </div>
+      <div class="form-row">
+        <label>Pivot key field ID <input name="pivot_key_field_id::{{ branch }}" value="{{ (recipe.rules|selectattr('branch_canonical_path', 'equalto', branch)|first|default({})).get('pivot_key_field_id', '') }}"></label>
+        <label>Pivot value field ID <input name="pivot_value_field_id::{{ branch }}" value="{{ (recipe.rules|selectattr('branch_canonical_path', 'equalto', branch)|first|default({})).get('pivot_value_field_id', '') }}"></label>
+        <label>Child table name <input name="separate_table_name::{{ branch }}" value="{{ (recipe.rules|selectattr('branch_canonical_path', 'equalto', branch)|first|default({})).get('separate_table_name', '') }}"></label>
+      </div>
+    </div>
+    {% endfor %}
+    {% if not recipe.required_repeated_branches %}<p>No repeated branches require a strategy for the selected fields.</p>{% endif %}
+    <div class="button-row">
+      <button class="button" type="submit" name="mode" value="validate">Validate shared recipe</button>
+      <button class="button secondary" type="submit" name="mode" value="export">Export validated recipe JSON</button>
+    </div>
+  </section>
+  <section class="panel">
+    <h2>Validation: {{ recipe.status|replace('_', ' ') }}</h2>
+    {% if recipe.blocking_reasons %}<div class="alert" role="alert">{% for reason in recipe.blocking_reasons %}<p>{{ reason }}</p>{% endfor %}</div>{% endif %}
+    {% for warning in recipe.warnings %}<p class="muted">{{ warning }}</p>{% endfor %}
+    <p class="muted">No merge authorized. XML-C5 will validate record values and generate any consolidated CSV.</p>
+    <details class="json-details"><summary>Recipe configuration and per-source diagnostics</summary><pre>{{ recipe|tojson(indent=2) }}</pre></details>
+  </section>
+  {% endif %}
+</form>
+{% endif %}
+{% endblock %}

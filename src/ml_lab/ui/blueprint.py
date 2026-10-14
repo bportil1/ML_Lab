@@ -494,6 +494,85 @@ def create_ui_blueprint(
             review_limit_notice=review_limit_notice, error=error,
         ), (400 if error else 200)
 
+    @blueprint.route("/data/xml/collection/recipe", methods=["GET", "POST"])
+    def xml_collection_recipe():
+        """C4 recipe design only: never extract rows or write tabular datasets."""
+        from ml_lab.data.xml_collection_recipe import (
+            inspect_xml_collection_recipe, build_xml_collection_recipe,
+        )
+        directory = request.form.get("directory", "").strip()
+        recursive = request.form.get("recursive", "") == "1"
+        include_hidden = request.form.get("include_hidden", "") == "1"
+        include_glob = request.form.get("include_glob", "*.xml").strip() or "*.xml"
+        exclude_glob = request.form.get("exclude_glob", "").strip()
+        max_files = min(_form_int("max_files", 40), 80)
+        fraction = request.form.get("min_shared_fraction", "0.5")
+        selected = request.form.getlist("selected")
+        acknowledged = request.form.get("acknowledge_variants", "") == "1"
+        record_root = request.form.get("record_root", "").strip()
+        fields = request.form.getlist("field")
+        allow_missing = request.form.get("allow_missing_fields", "") == "1"
+        mode = request.form.get("mode", "inspect")
+        catalog = recipe = None
+        error = None
+        try:
+            if request.method == "POST":
+                if not directory or not 1 <= max_files <= 80:
+                    raise ValueError("Choose an XML directory and a maximum of 1–80 files.")
+                shared_fraction = float(fraction)
+                if not 0 <= shared_fraction <= 1:
+                    raise ValueError("Minimum shared fraction must be between 0 and 1.")
+                inventory = data.inventory_xml_collection(
+                    directory, recursive=recursive, include_hidden=include_hidden,
+                    include_globs=(include_glob,), exclude_globs=(exclude_glob,) if exclude_glob else (),
+                    max_files=max_files,
+                )
+                report = data.compare_xml_collection(inventory, min_shared_fraction=shared_fraction)
+                catalog = inspect_xml_collection_recipe(
+                    inventory, report, selected, acknowledge_variants=acknowledged,
+                    record_root_canonical_path=record_root or None,
+                )
+                if mode in {"branches", "validate", "export"}:
+                    paths = request.form.getlist("branch_path")
+                    rules = []
+                    for branch in paths:
+                        strategy = request.form.get(f"strategy::{branch}", "").strip()
+                        if strategy:
+                            rules.append({
+                                "branch_canonical_path": branch, "strategy": strategy,
+                                "join_delimiter": request.form.get(f"join_delimiter::{branch}", ""),
+                                "aggregate_operation": request.form.get(f"aggregate_operation::{branch}", ""),
+                                "pivot_key_field_id": request.form.get(f"pivot_key_field_id::{branch}", ""),
+                                "pivot_value_field_id": request.form.get(f"pivot_value_field_id::{branch}", ""),
+                                "separate_table_name": request.form.get(f"separate_table_name::{branch}", ""),
+                            })
+                    recipe = build_xml_collection_recipe(
+                        inventory, report, selected, record_root, fields,
+                        acknowledge_variants=acknowledged, allow_missing_fields=allow_missing,
+                        rules=rules,
+                    )
+                    if mode == "export":
+                        if recipe["status"] != "ready_for_collection_preview":
+                            raise ValueError("Resolve the recipe's blocking issues before exporting.")
+                        response = jsonify(recipe)
+                        response.headers["Content-Disposition"] = 'attachment; filename="xml_collection_recipe.json"'
+                        response.headers["Cache-Control"] = "no-store"
+                        return response
+                elif mode not in {"inspect", "fields"}:
+                    raise ValueError("Unsupported XML recipe operation")
+        except (OSError, KeyError, LookupError, TypeError, ValueError) as exc:
+            error = f"{type(exc).__name__}: {exc}"
+        return render_template(
+            "ml_lab_ui/xml_collection_recipe.html", version=__version__,
+            directory=directory, recursive=recursive, include_hidden=include_hidden,
+            include_glob=include_glob, exclude_glob=exclude_glob,
+            max_files=max_files, min_shared_fraction=fraction,
+            selected=selected, acknowledge_variants=acknowledged,
+            record_root=record_root, fields=fields, allow_missing_fields=allow_missing,
+            catalog=catalog, recipe=recipe, error=error,
+            strategy_catalog=data.xml_collection_strategy_catalog(),
+        ), (400 if error else 200)
+
     @blueprint.get("/data/xml/<token>")
     def xml_structure_view(token: str):
         path = verify_path(token)
