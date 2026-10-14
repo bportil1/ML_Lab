@@ -10,6 +10,25 @@ from typing import Any
 
 from ml_lab import data
 
+try:
+    from pah_jobs.exchange import begin as _monitor_begin, note as _monitor_note
+    from pah_jobs.exchange import heartbeat as _monitor_heartbeat, finish as _monitor_finish
+    from pah_jobs.exchange import monitor_root as _monitor_root, monitor_directory as _monitor_directory
+except ImportError:
+    from contextlib import nullcontext
+    def _monitor_root():
+        return None
+    def _monitor_directory(path):
+        return nullcontext()
+    def _monitor_begin(*args, **kwargs):
+        return None
+    def _monitor_note(*args, **kwargs):
+        return None
+    def _monitor_heartbeat(*args, **kwargs):
+        return None
+    def _monitor_finish(*args, **kwargs):
+        return None
+
 
 def _utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -27,6 +46,8 @@ class ProfileJobManager:
         self.output_root = Path(output_root).expanduser()
         self._jobs: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
+        self._monitor_ids: dict[str, str | None] = {}
+        self._monitor_roots: dict[str, str | None] = {}
 
     def start(self, payload: dict[str, Any]) -> str:
         job_id = uuid.uuid4().hex[:16]
@@ -48,7 +69,9 @@ class ProfileJobManager:
                 "payload": deepcopy(payload),
                 "artifact_manifest": None,
             }
-        thread = threading.Thread(target=self._run, args=(job_id,), name=f"ml-lab-profile-{job_id}", daemon=True)
+        self._monitor_roots[job_id] = _monitor_root()
+        self._monitor_ids[job_id] = _monitor_begin("ml_lab", "Data Lab profile", run_id=job_id)
+        thread = threading.Thread(target=self._run_monitored, args=(job_id,), name=f"ml-lab-profile-{job_id}", daemon=True)
         thread.start()
         return job_id
 
@@ -76,6 +99,11 @@ class ProfileJobManager:
             "profiled_file": "Dataset profile complete",
             "profile_failed": "Dataset profile failed",
         }
+        current = int(event.get("current", 0))
+        total = int(event.get("total", 0))
+        monitor_id = self._monitor_ids.get(job_id)
+        _monitor_heartbeat("ml_lab", monitor_id, progress=(current / total if total else None))
+        _monitor_note("ml_lab", monitor_id, labels.get(str(stage), str(stage or "Profiling data")))
         self._update(
             job_id,
             status="running",
@@ -84,6 +112,13 @@ class ProfileJobManager:
             total=int(event.get("total", 0)),
             current_path=event.get("path"),
         )
+
+    def _run_monitored(self, job_id: str) -> None:
+        root = self._monitor_roots.get(job_id)
+        if root is None:
+            return self._run(job_id)
+        with _monitor_directory(root):
+            return self._run(job_id)
 
     def _run(self, job_id: str) -> None:
         started = time.monotonic()
@@ -127,6 +162,7 @@ class ProfileJobManager:
                 warnings=list(collection.warnings),
                 artifact_manifest=manifest,
             )
+            _monitor_finish("ml_lab", self._monitor_ids.get(job_id))
         except Exception as exc:  # UI job boundary: preserve diagnostics rather than killing the worker
             elapsed = time.monotonic() - started
             self._update(
@@ -137,3 +173,5 @@ class ProfileJobManager:
                 elapsed_seconds=elapsed,
                 error=f"{type(exc).__name__}: {exc}",
             )
+            _monitor_note("ml_lab", self._monitor_ids.get(job_id), f"{type(exc).__name__}: {exc}", stream="stderr")
+            _monitor_finish("ml_lab", self._monitor_ids.get(job_id), state="failed", reason=type(exc).__name__)

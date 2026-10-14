@@ -8,6 +8,12 @@ import pandas as pd
 from ml_lab import classification, clustering, data, energy_based, generative, regression, representation
 from ml_lab.core.serialization import to_jsonable
 
+try:
+    from pah_jobs.exchange import observed as _monitor
+except ImportError:  # Standalone ML Lab never requires the PAH monitor.
+    def _monitor(owner, label):
+        return lambda function: function
+
 
 class PayloadError(ValueError):
     """Raised when an application payload cannot be mapped to an ML Lab task."""
@@ -283,6 +289,7 @@ def _data_transform_apply(payload: dict[str, Any]) -> dict[str, Any]:
         preview_rows=int(payload.get("preview_rows", 50)),
     )
 
+@_monitor("ml_lab", "ML Lab task execution")
 def execute_task(task: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Execute a core task from a JSON-shaped payload without importing Flask."""
     if not isinstance(payload, dict):

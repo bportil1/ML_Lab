@@ -259,6 +259,22 @@ class MLLabRuntimeAdapter:
                 "ML_LAB_PROFILE_OUTPUT_ROOT": str(profile_root),
                 "ML_LAB_DERIVED_OUTPUT_ROOT": str(derived_root),
             })
+            # Hosted requests stay scoped to their selected PAH workspace;
+            # standalone ML Lab remains independent of the monitoring package.
+            if project is not None:
+                try:
+                    from pah_jobs.exchange import monitor_directory
+                except ImportError:
+                    pass
+                else:
+                    original_wsgi = app.wsgi_app
+                    monitor_path = project / ".pah" / "job_monitor"
+
+                    def monitored_wsgi(environ, start_response):
+                        with monitor_directory(monitor_path):
+                            return original_wsgi(environ, start_response)
+
+                    app.wsgi_app = monitored_wsgi
             try:
                 server = make_server(host, port, app, threaded=True)
             except OSError as exc:
