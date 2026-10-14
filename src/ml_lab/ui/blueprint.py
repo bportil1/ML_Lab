@@ -392,6 +392,35 @@ def create_ui_blueprint(
         )
 
 
+    @blueprint.route("/data/xml/collection", methods=["GET", "POST"])
+    def xml_collection_inventory():
+        directory = request.form.get("directory", "").strip()
+        recursive = request.form.get("recursive", "") == "1" if request.method == "POST" else True
+        include_hidden = request.form.get("include_hidden", "") == "1"
+        max_files = _form_int("max_files", 1000)
+        include_glob = request.form.get("include_glob", "*.xml").strip() or "*.xml"
+        exclude_glob = request.form.get("exclude_glob", "").strip()
+        inventory = None
+        error = None
+        if request.method == "POST":
+            try:
+                if not directory:
+                    raise ValueError("Select a local XML directory.")
+                inventory = data.inventory_xml_collection(
+                    directory, recursive=recursive, include_hidden=include_hidden,
+                    include_globs=(include_glob,),
+                    exclude_globs=(exclude_glob,) if exclude_glob else (),
+                    max_files=max_files,
+                ).to_record()
+            except (OSError, TypeError, ValueError) as exc:
+                error = f"{type(exc).__name__}: {exc}"
+        return render_template(
+            "ml_lab_ui/xml_collection_inventory.html", version=__version__,
+            directory=directory, recursive=recursive, include_hidden=include_hidden,
+            include_glob=include_glob, exclude_glob=exclude_glob, max_files=max_files,
+            inventory=inventory, error=error, xml_structure_url=xml_structure_url,
+        )
+
     @blueprint.get("/data/xml/<token>")
     def xml_structure_view(token: str):
         path = verify_path(token)

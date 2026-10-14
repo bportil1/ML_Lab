@@ -10,6 +10,7 @@ from .artifacts import load_persisted_profile, load_profile_run, persist_profile
 from .comparison import compare_files, compare_paths, save_comparison
 from .intake import inspect_file, inspect_paths
 from .xml_ingest import XmlSafetyError, analyze_xml_structure, inspect_xml_structure, load_xml_structure
+from .xml_collection import XmlCollectionInventory, XmlCollectionSource, inventory_xml_collection, save_xml_collection_inventory
 from .xml_selection import XmlSelectionError, build_xml_record_selection
 from .xml_rules import XmlCollectionRuleError, build_xml_collection_plan, xml_collection_strategy_catalog
 from .xml_preview import XmlPreviewError, preview_xml_tabularization
@@ -85,6 +86,10 @@ __all__ = [
     "XmlTabularPreview",
     "XmlMaterializationResult",
     "XmlStructureArtifact",
+    "XmlCollectionInventory",
+    "XmlCollectionSource",
+    "inventory_xml_collection",
+    "save_xml_collection_inventory",
     "XmlSafetyError",
     "XmlSelectionError",
     "XmlCollectionRuleError",

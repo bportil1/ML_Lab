@@ -12,7 +12,7 @@
 </section>
 
 <div class="tip">Inventory and profiling remain read-only. Transformations always create a derived dataset and never silently overwrite the raw source.</div>
-<div class="button-row action-strip"><a class="button secondary" href="{{ url_for(request.blueprint + '.data_transform') }}">Transform a dataset</a><a class="button secondary" href="{{ url_for(request.blueprint + '.data_provenance') }}">Trace provenance</a></div>
+<div class="button-row action-strip"><a class="button secondary" href="{{ url_for(request.blueprint + '.xml_collection_inventory') }}">XML collection inventory</a><a class="button secondary" href="{{ url_for(request.blueprint + '.data_transform') }}">Transform a dataset</a><a class="button secondary" href="{{ url_for(request.blueprint + '.data_provenance') }}">Trace provenance</a></div>
 
 <section class="panel data-input-panel">
   <form method="post" action="{{ url_for(request.blueprint + '.data_lab') }}">

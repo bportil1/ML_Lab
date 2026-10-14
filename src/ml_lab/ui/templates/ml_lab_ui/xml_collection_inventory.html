@@ -1,0 +1,54 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}XML collection inventory · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for(request.blueprint + '.data_lab') }}">← Data Lab</a>
+<section class="workspace-head"><div>
+  <p class="eyebrow">Data · XML-C1</p>
+  <h1>XML collection inventory</h1>
+  <p class="lede">Read-only discovery and structural inspection of many XML files. Similarity grouping and consolidated CSV export arrive in later XML collection sprints.</p>
+</div></section>
+<section class="panel data-input-panel">
+  <form method="post">
+    <label for="xml-collection-directory"><strong>XML directory</strong></label>
+    <div class="path-input-shell" data-path-input>
+      <input id="xml-collection-directory" type="text" name="directory" value="{{ directory }}" placeholder="/path/to/xml_collection" data-path-autocomplete data-path-kind="directory" data-path-suggestions-url="{{ url_for(request.blueprint + '.path_suggestions') }}" autocomplete="off">
+      <div class="path-suggestion-menu" data-path-suggestion-menu hidden></div>
+    </div>
+    <div class="form-row">
+      <label class="check"><input type="checkbox" name="recursive" value="1" {% if recursive %}checked{% endif %}> Recursive</label>
+      <label class="check"><input type="checkbox" name="include_hidden" value="1" {% if include_hidden %}checked{% endif %}> Include hidden files</label>
+      <label>Include glob <input type="text" name="include_glob" value="{{ include_glob }}" placeholder="*.xml"></label>
+      <label>Exclude glob <input type="text" name="exclude_glob" value="{{ exclude_glob }}" placeholder="*.backup.xml"></label>
+      <label>Maximum XML files <input class="medium-input" type="number" name="max_files" min="1" max="100000" value="{{ max_files }}"></label>
+    </div>
+    <button class="button" type="submit">Inventory XML collection</button>
+  </form>
+</section>
+{% if error %}<div class="alert data-alert">{{ error }}</div>{% endif %}
+{% if inventory %}
+{% set summary = inventory.summary %}
+<section class="summary-grid">
+  <div class="metric"><strong>{{ summary.file_count }}</strong><span>XML sources</span></div>
+  <div class="metric"><strong>{{ summary.parsed_file_count }}</strong><span>Parsed</span></div>
+  <div class="metric"><strong>{{ summary.failed_file_count }}</strong><span>Failed</span></div>
+</section>
+<div class="tip">This inventory does not yet decide which files are structurally compatible. Failed sources are not treated as empty datasets.</div>
+<section class="panel inventory-panel">
+  <h2>Discovered XML sources</h2>
+  <div class="table-wrap"><table class="interactive-table" data-page-size="50">
+    <thead><tr><th>File</th><th>Status</th><th>Bytes</th><th>Root</th><th>Namespace</th><th>Elements</th><th>Record candidates</th><th>Error / action</th></tr></thead>
+    <tbody>{% for item in inventory.files %}
+      <tr class="{{ 'row-ok' if item.status == 'parsed' else 'row-error' }}">
+        <td>{{ item.relative_path }}</td><td>{{ item.status }}</td><td>{{ item.size_bytes }}</td>
+        <td>{{ item.root.local_name if item.root else '—' }}</td>
+        <td>{{ (item.root.namespace_uri or '—') if item.root else '—' }}</td>
+        <td>{{ item.element_count if item.element_count is not none else '—' }}</td>
+        <td>{{ item.record_candidates|length }}</td>
+        <td>{% if item.error %}{{ item.error }}{% else %}<a class="button mini secondary" href="{{ xml_structure_url(item.path) }}">Explore XML</a>{% endif %}</td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+<details class="panel json-details"><summary><strong>Machine-readable collection inventory</strong></summary><pre>{{ inventory|tojson(indent=2) }}</pre></details>
+{% endif %}
+{% endblock %}

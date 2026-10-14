@@ -854,6 +854,27 @@ XML sources now keep a discoverable extraction family inside the configured deri
 The XML structure workspace can reopen a recorded record-root/field/rule recipe, edit it, choose another record root, and materialize additional sibling tables from the same XML source. Recorded recipes can also be compared for record-root changes, selected-field additions/removals, and repeated-branch rule changes. Sibling derived tables remain independent children of the raw XML source; one extraction is never treated as the parent of another merely because they share a source.
 
 
+## 0.31.0 — XML-C1 collection discovery and inventory
+
+A new **XML collection inventory** workflow inventories many `.xml` files in one local
+folder without flattening them or claiming they share a schema. Data Lab offers a
+collection inventory page (Data → XML collection inventory), Python API
+`data.inventory_xml_collection(directory, ...)`, and CLI:
+
+```bash
+ml-lab data xml-collection-inventory /path/to/xml/directory --recursive \
+  --include-glob '*.xml' --max-files 1000 \
+  --output analysis/data/xml_collection_inventory.json
+```
+
+The read-only inventory applies explicit directory/entry/file/total-byte limits,
+skips symlinks, supports recursive and hidden-file controls and include/exclude
+globs, and preserves per-source parse failures. It reuses the bounded XML
+structural parser and reports source hashes, namespaces, root elements, and
+record-root candidates with status and errors. XML-C1 deliberately **does not**
+compare schema similarity, combine sources, or write CSVs; these belong to XML-C2–C7.
+The existing single-file XML structure and extraction workflows remain unchanged.
+
 ## 0.30.0 — XML hardening and coverage
 
 XML ingestion now enforces explicit source-size, unique-path, namespace, element-count, and nesting-depth safety bounds. Structural analysis records mixed-content paths and the guided selector no longer offers mixed-content element text as a scalar field, avoiding silent loss of interleaved text during tabularization. Sprint 10 also expands regression coverage for malformed input, namespaces, sparse/variable records, deep trees, mixed content, large-input limits, provenance regeneration, and XML UI contracts.
