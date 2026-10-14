@@ -49,6 +49,20 @@ def _parser() -> argparse.ArgumentParser:
     xml_inventory.add_argument("--max-file-bytes", type=int, default=512 * 1024 ** 2)
     xml_inventory.add_argument("--output", default="analysis/data/xml_collection_inventory.json")
 
+    xml_compare = data_sub.add_parser("xml-collection-compare", help="Compare XML collection structures without merging datasets")
+    xml_compare.add_argument("directory", help="Local directory containing XML sources")
+    xml_compare.add_argument("--recursive", action=argparse.BooleanOptionalAction, default=True)
+    xml_compare.add_argument("--include-hidden", action="store_true")
+    xml_compare.add_argument("--include-glob", action="append", default=None)
+    xml_compare.add_argument("--exclude-glob", action="append", default=[])
+    xml_compare.add_argument("--max-files", type=int, default=100)
+    xml_compare.add_argument("--max-entries", type=int, default=100000)
+    xml_compare.add_argument("--max-total-bytes", type=int, default=2 * 1024 ** 3)
+    xml_compare.add_argument("--max-file-bytes", type=int, default=512 * 1024 ** 2)
+    xml_compare.add_argument("--max-unique-paths", type=int, default=5000)
+    xml_compare.add_argument("--minimum-similarity", type=float, default=0.80)
+    xml_compare.add_argument("--output", default="analysis/data/xml_collection_similarity.json")
+
     data_profile = data_sub.add_parser("profile", help="Profile CSV/TSV structure, quality, distributions, and relationships")
     data_profile.add_argument("paths", nargs="+", help="File(s) or directories to profile")
     data_profile.add_argument("--recursive", action=argparse.BooleanOptionalAction, default=True)
@@ -265,6 +279,27 @@ def main(argv: list[str] | None = None) -> int:
             print(f"XML collection inventory written to: {destination}")
             print(f"files={summary['file_count']} parsed={summary['parsed_file_count']} failed={summary['failed_file_count']}")
             print("Similarity and consolidation are not performed in XML-C1.")
+            return 0
+
+        if args.data_command == "xml-collection-compare":
+            inventory = data.inventory_xml_collection(
+                args.directory, recursive=args.recursive, include_hidden=args.include_hidden,
+                include_globs=args.include_glob or ("*.xml",),
+                exclude_globs=args.exclude_glob,
+                max_files=args.max_files, max_entries=args.max_entries,
+                max_total_bytes=args.max_total_bytes, max_file_bytes=args.max_file_bytes,
+            )
+            comparison = data.compare_xml_collection(
+                inventory, minimum_similarity=args.minimum_similarity,
+                max_sources=args.max_files, max_file_bytes=args.max_file_bytes,
+                max_unique_paths=args.max_unique_paths,
+            )
+            destination = data.save_xml_collection_comparison(comparison, args.output)
+            summary = comparison.to_record()["summary"]
+            print(f"XML collection similarity report written to: {destination}")
+            print(f"compared={summary['compared_source_count']} excluded={summary['excluded_source_count']} "
+                  f"pairs={summary['pair_count']} groups={summary['group_count']}")
+            print("Results are advisory; no files were merged or made tabular.")
             return 0
 
         if args.data_command == "inspect":

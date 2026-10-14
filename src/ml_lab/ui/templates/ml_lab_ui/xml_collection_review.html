@@ -1,0 +1,108 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}XML collection compatibility review · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for(request.blueprint + '.xml_collection_inventory') }}">← XML collection inventory</a>
+<section class="workspace-head"><div>
+  <p class="eyebrow">Data · XML-C3</p>
+  <h1>XML collection compatibility review</h1>
+  <p class="lede">Inspect exact structural groups, variant pairs, conflicting roots and failed files. Choose the sources for a future shared extraction recipe. This page does not merge, export CSV, or infer schema compatibility from similarity alone.</p>
+</div></section>
+<section class="panel data-input-panel">
+  <form method="post" action="{{ url_for(request.blueprint + '.xml_collection_review') }}">
+    <input type="hidden" name="mode" value="inspect">
+    <label for="xml-review-directory"><strong>XML directory</strong></label>
+    <div class="path-input-shell" data-path-input>
+      <input id="xml-review-directory" type="text" name="directory" value="{{ directory }}" placeholder="/path/to/xml_collection" data-path-autocomplete data-path-kind="directory" data-path-suggestions-url="{{ url_for(request.blueprint + '.path_suggestions') }}" autocomplete="off">
+      <div class="path-suggestion-menu" data-path-suggestion-menu hidden></div>
+    </div>
+    <div class="form-row">
+      <label class="check"><input type="checkbox" name="recursive" value="1" {% if recursive %}checked{% endif %}> Recursive</label>
+      <label class="check"><input type="checkbox" name="include_hidden" value="1" {% if include_hidden %}checked{% endif %}> Include hidden files</label>
+      <label>Include glob <input type="text" name="include_glob" value="{{ include_glob }}"></label>
+      <label>Exclude glob <input type="text" name="exclude_glob" value="{{ exclude_glob }}"></label>
+      <label>Maximum XML files (up to 80) <input class="medium-input" type="number" name="max_files" min="1" max="80" value="{{ max_files }}"></label>
+      <label>Minimum shared path fraction <input class="medium-input" type="number" name="min_shared_fraction" min="0" max="1" step="0.05" value="{{ min_shared_fraction }}"></label>
+    </div>
+    <button class="button" type="submit">Inspect compatibility</button>
+  </form>
+</section>
+{% if review_limit_notice %}<div class="tip">{{ review_limit_notice }}</div>{% endif %}
+{% if error %}<div class="alert data-alert" role="alert">{{ error }}</div>{% endif %}
+{% if report %}
+<section class="summary-grid">
+  <div class="metric"><strong>{{ report.summary.analyzed }}</strong><span>Analyzed XML files</span></div>
+  <div class="metric"><strong>{{ report.summary.excluded }}</strong><span>Excluded / failed</span></div>
+  <div class="metric"><strong>{{ report.summary.exact_groups }}</strong><span>Exact structural groups</span></div>
+  <div class="metric"><strong>{{ report.summary.pair_count }}</strong><span>Compared pairs</span></div>
+</section>
+<section class="panel inventory-panel">
+  <h2>Exact structure groups</h2>
+  <p class="muted">Exact signatures form groups. Compatible variants are pairwise suggestions and are never automatically merged into transitive groups.</p>
+  <div class="table-wrap"><table class="interactive-table" data-page-size="25">
+    <thead><tr><th>Group</th><th>Count</th><th>Members</th></tr></thead>
+    <tbody>{% for group in report.exact_groups %}
+    <tr><td>{{ group.group_id }}</td><td>{{ group.members|length }}</td><td>{{ group.members|join(', ') }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+<section class="panel inventory-panel">
+  <h2>Choose collection membership</h2>
+  <p class="muted">Only analyzed files can be included. Review the pairwise evidence below. Incompatible pairs block the proposed collection; variant pairs require acknowledgment. No selection is automatically approved for merging.</p>
+  <form method="post" action="{{ url_for(request.blueprint + '.xml_collection_review') }}">
+    <input type="hidden" name="directory" value="{{ directory }}">
+    <input type="hidden" name="include_glob" value="{{ include_glob }}">
+    <input type="hidden" name="exclude_glob" value="{{ exclude_glob }}">
+    <input type="hidden" name="max_files" value="{{ max_files }}">
+    <input type="hidden" name="min_shared_fraction" value="{{ min_shared_fraction }}">
+    {% if recursive %}<input type="hidden" name="recursive" value="1">{% endif %}
+    {% if include_hidden %}<input type="hidden" name="include_hidden" value="1">{% endif %}
+    <div class="table-wrap"><table class="interactive-table" data-page-size="50">
+      <thead><tr><th>Include</th><th>Source</th><th>Analysis</th><th>Root</th><th>Record-root candidates</th><th>Fingerprint / problem</th></tr></thead>
+      <tbody>{% for source in report.sources %}
+        <tr class="{{ 'row-ok' if source.status == 'analyzed' else 'row-error' }}">
+          <td>{% if source.status == 'analyzed' %}<input type="checkbox" name="selected" value="{{ source.relative_path }}" aria-label="Include {{ source.relative_path }}" {% if source.relative_path in selected %}checked{% endif %}>{% else %}—{% endif %}</td>
+          <td>{{ source.relative_path }}{% if source.status == 'analyzed' and source.relative_path in structure_urls %}<div><a class="button mini secondary" href="{{ structure_urls[source.relative_path] }}">Explore XML</a></div>{% endif %}</td>
+          <td>{{ source.status }}</td>
+          <td>{{ source.root if source.root else '—' }}</td>
+          <td>{% if source.record_candidates %}<details><summary>{{ source.record_candidates|length }} candidate(s)</summary><pre>{{ source.record_candidates|tojson(indent=2) }}</pre></details>{% else %}—{% endif %}</td>
+          <td>{% if source.reason %}<span class="warning">{{ source.reason }}</span>{% else %}<code>{{ source.source_fingerprint }}</code>{% endif %}</td>
+        </tr>
+      {% endfor %}</tbody>
+    </table></div>
+    <label class="check"><input type="checkbox" name="acknowledge_variants" value="1" {% if acknowledge_variants %}checked{% endif %}> I understand that structural variants need field and record-root validation in XML-C4; this selection does not authorize CSV consolidation.</label>
+    <div class="button-row">
+      <button class="button" type="submit" name="mode" value="review">Review selected sources</button>
+      <button class="button secondary" type="submit" name="mode" value="export" formaction="{{ url_for(request.blueprint + '.xml_collection_review') }}">Export review JSON (only if ready)</button>
+    </div>
+  </form>
+</section>
+{% if review %}
+<section class="panel inventory-panel">
+  <h2>Selection review: {{ review.status|replace('_', ' ') }}</h2>
+  <p>{{ review.summary.selected_count }} selected · {{ review.summary.exact_pair_count }} exact pairs · {{ review.summary.variant_pair_count }} variant pairs · {{ review.summary.incompatible_pair_count }} incompatible pairs</p>
+  {% if review.blocking_reasons %}<div class="alert" role="alert">{% for reason in review.blocking_reasons %}<p>{{ reason }}</p>{% endfor %}</div>{% endif %}
+  {% if review.status == 'ready_for_recipe_design' %}<div class="tip">Selection can proceed to shared-recipe design in XML-C4. No extraction recipe has been validated and no merge is authorized.</div>{% endif %}
+  <details class="json-details"><summary><strong>Read-only selection and pairwise evidence</strong></summary><pre>{{ review|tojson(indent=2) }}</pre></details>
+</section>
+{% endif %}
+<section class="panel inventory-panel">
+  <h2>Pairwise structural evidence</h2>
+  <p class="muted">Similarity compares observed element paths; it does not validate field types or cardinality transformations. Showing up to {{ max_visible_pairs }} pairs of {{ report.pairwise|length }}; the selected-review contract includes all chosen pairs.</p>
+  <div class="table-wrap"><table class="interactive-table" data-page-size="25">
+    <thead><tr><th>Left</th><th>Right</th><th>Classification</th><th>Path overlap</th><th>Differences / evidence</th></tr></thead>
+    <tbody>{% for pair in report.pairwise[:max_visible_pairs] %}
+      <tr class="{{ 'row-error' if pair.classification == 'incompatible' else 'row-ok' }}">
+        <td>{{ pair.left }}</td><td>{{ pair.right }}</td><td>{{ pair.classification|replace('_', ' ') }}</td>
+        <td>{{ (pair.path_jaccard * 100)|round(1) }}%</td>
+        <td><details><summary>Paths and reasons</summary>
+          <div><strong>Left only:</strong> {{ pair.left_only_paths|join(', ') if pair.left_only_paths else '—' }}</div>
+          <div><strong>Right only:</strong> {{ pair.right_only_paths|join(', ') if pair.right_only_paths else '—' }}</div>
+          <div><strong>Reasons:</strong> {{ pair.reasons|join('; ') }}</div>
+        </details></td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+<details class="panel json-details"><summary><strong>Complete structural comparison report</strong></summary><pre>{{ report|tojson(indent=2) }}</pre></details>
+{% endif %}
+{% endblock %}

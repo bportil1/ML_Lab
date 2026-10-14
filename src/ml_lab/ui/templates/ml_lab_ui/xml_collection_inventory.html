@@ -3,9 +3,9 @@
 {% block content %}
 <a class="back" href="{{ url_for(request.blueprint + '.data_lab') }}">← Data Lab</a>
 <section class="workspace-head"><div>
-  <p class="eyebrow">Data · XML-C1</p>
+  <p class="eyebrow">Data · XML-C1 / XML-C2</p>
   <h1>XML collection inventory</h1>
-  <p class="lede">Read-only discovery and structural inspection of many XML files. Similarity grouping and consolidated CSV export arrive in later XML collection sprints.</p>
+  <p class="lede">Read-only discovery and structural inspection of many XML files. XML-C2 adds advisory structure similarity and candidate grouping; merging and consolidated CSV export remain future sprints.</p>
 </div></section>
 <section class="panel data-input-panel">
   <form method="post">
@@ -21,7 +21,11 @@
       <label>Exclude glob <input type="text" name="exclude_glob" value="{{ exclude_glob }}" placeholder="*.backup.xml"></label>
       <label>Maximum XML files <input class="medium-input" type="number" name="max_files" min="1" max="100000" value="{{ max_files }}"></label>
     </div>
-    <button class="button" type="submit">Inventory XML collection</button>
+    <div class="form-row">
+      <label class="check"><input type="checkbox" name="compare" value="1" {% if compare %}checked{% endif %}> Compare XML structures (XML-C2; maximum 100 parsed sources)</label>
+      <label>Minimum similarity (0–1) <input class="medium-input" type="number" name="minimum_similarity" min="0.01" max="1" step="0.01" value="{{ minimum_similarity }}"></label>
+    </div>
+    <button class="button" type="submit">Inspect XML collection</button>
   </form>
 </section>
 {% if error %}<div class="alert data-alert">{{ error }}</div>{% endif %}
@@ -32,7 +36,7 @@
   <div class="metric"><strong>{{ summary.parsed_file_count }}</strong><span>Parsed</span></div>
   <div class="metric"><strong>{{ summary.failed_file_count }}</strong><span>Failed</span></div>
 </section>
-<div class="tip">This inventory does not yet decide which files are structurally compatible. Failed sources are not treated as empty datasets.</div>
+<div class="tip">The inventory alone does not assess structural compatibility. Comparison is opt-in; failed sources remain excluded rather than empty datasets.</div>
 <section class="panel inventory-panel">
   <h2>Discovered XML sources</h2>
   <div class="table-wrap"><table class="interactive-table" data-page-size="50">
@@ -50,5 +54,44 @@
   </table></div>
 </section>
 <details class="panel json-details"><summary><strong>Machine-readable collection inventory</strong></summary><pre>{{ inventory|tojson(indent=2) }}</pre></details>
+{% endif %}
+{% if comparison %}
+<section class="summary-grid">
+  <div class="metric"><strong>{{ comparison.summary.compared_source_count }}</strong><span>Compared XML sources</span></div>
+  <div class="metric"><strong>{{ comparison.summary.excluded_source_count }}</strong><span>Excluded / changed</span></div>
+  <div class="metric"><strong>{{ comparison.summary.group_count }}</strong><span>Candidate groups</span></div>
+</section>
+<div class="tip">Structure matches and compatible variants are advisory only. User-approved field mappings, record roots and consolidated export are not implemented in XML-C2.</div>
+<section class="panel inventory-panel">
+  <h2>Candidate structure groups</h2>
+  <div class="table-wrap"><table class="interactive-table" data-page-size="50">
+    <thead><tr><th>Group</th><th>Classification</th><th>Sources</th><th>Shared record roots</th><th>Action</th></tr></thead>
+    <tbody>{% for group in comparison.groups %}
+      <tr><td>{{ group.group_id }}</td><td>{{ group.classification }}</td>
+      <td>{{ group.members|join(', ') }}</td>
+      <td>{{ group.shared_record_root_candidates|join(', ') or 'Review needed' }}</td>
+      <td>Review only — no merge</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+<section class="panel inventory-panel">
+  <h2>Pairwise structural differences</h2>
+  <div class="table-wrap"><table class="interactive-table" data-page-size="50">
+    <thead><tr><th>Left file</th><th>Right file</th><th>Classification</th><th>Similarity</th><th>Reason</th><th>Differences</th></tr></thead>
+    <tbody>{% for pair in comparison.pairs %}
+      <tr><td>{{ pair.left }}</td><td>{{ pair.right }}</td><td>{{ pair.classification }}</td>
+      <td>{{ pair.similarity_score }}</td><td>{{ pair.reason }}</td>
+      <td>Paths: {{ pair.differences.left_only_path_count }} / {{ pair.differences.right_only_path_count }}; attributes: {{ pair.differences.attribute_change_count }}; cardinality: {{ pair.differences.cardinality_change_count }}; text: {{ pair.differences.text_shape_change_count }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% if comparison.summary.excluded_source_count %}
+<section class="panel inventory-panel"><h2>Excluded sources</h2>
+  {% for source in comparison.sources if source.status != 'compared' %}
+  <p><strong>{{ source.relative_path }}</strong> — {{ source.reason }}</p>
+  {% endfor %}
+</section>
+{% endif %}
+<details class="panel json-details"><summary><strong>Machine-readable XML-C2 similarity report</strong></summary><pre>{{ comparison|tojson(indent=2) }}</pre></details>
 {% endif %}
 {% endblock %}

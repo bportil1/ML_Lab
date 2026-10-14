@@ -878,3 +878,34 @@ The existing single-file XML structure and extraction workflows remain unchanged
 ## 0.30.0 — XML hardening and coverage
 
 XML ingestion now enforces explicit source-size, unique-path, namespace, element-count, and nesting-depth safety bounds. Structural analysis records mixed-content paths and the guided selector no longer offers mixed-content element text as a scalar field, avoiding silent loss of interleaved text during tabularization. Sprint 10 also expands regression coverage for malformed input, namespaces, sparse/variable records, deep trees, mixed content, large-input limits, provenance regeneration, and XML UI contracts.
+
+
+## 0.32.0 — XML-C2 structural similarity and advisory grouping
+
+XML-C2 extends the XML-C1 directory inventory with **opt-in, read-only**
+structure comparisons. Open **Data Lab → XML collection inventory** and enable
+**Compare XML structures**, or use:
+
+```bash
+ml-lab data xml-collection-compare ./xml_sources --minimum-similarity 0.80 --output analysis/data/xml_collection_similarity.json
+```
+
+Python callers may use `data.compare_xml_collection(data.inventory_xml_collection(directory))`
+and `data.save_xml_collection_comparison(...)`. XML-C1 inventory behavior is
+unchanged unless comparison is explicitly requested. Files are rechecked against
+their inventory fingerprints; stale, malformed, and unsafe inputs are excluded.
+
+The `ml-lab.xml-collection-similarity@1` report contains source structural
+fingerprints, namespace-aware canonical path/attribute comparisons, pairwise
+scores, bounded difference evidence, and deterministic **complete-link candidate
+groups** (every grouped pair must be compatible). Labels are `exact`,
+`compatible_variant_candidate`, `review_required`, and `incompatible`. Different
+namespace prefixes do not change identity; different expanded namespace URIs do.
+Repetition, optionality, text/mixed-content shape and shared record-root evidence
+are conservatively assessed. Type inference is **not** claimed from string values.
+
+All group/pair records say `merge_authorized: false`. The similarity report is
+**not a schema merge**, **not a CSV**, and **not authorization to extract**; explicit
+source inclusion, human compatibility review, extraction recipe validation and
+consolidation belong to later XML-C3–XML-C5 sprints. Single-XML extraction remains
+operational and unchanged.

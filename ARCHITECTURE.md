@@ -459,3 +459,16 @@ XML multi-extraction is modeled as a family of authoritative transformation even
 ## XML hardening boundary (0.30.0)
 
 The XML ingestion boundary remains local and non-mutating, but now rejects inputs that exceed configurable byte-size, element-count, nesting-depth, unique-path, or namespace limits before they can grow unbounded structural state. DTD/entity declarations remain prohibited. Structural artifacts record mixed-content paths explicitly; mixed-content element text is diagnostic rather than a selectable scalar because a scalar conversion would otherwise discard interleaved child/tail text. Leaf descendants and attributes remain available for guided extraction.
+
+
+### XML-C2 structural similarity boundary (0.32.0)
+
+`ml_lab.data.xml_similarity` consumes the versioned XML-C1 inventory, revalidates
+source hashes, and derives immutable per-source XML structural shapes from the
+existing bounded `xml_ingest` parser. It compares expanded-QName paths,
+attributes, optional/repeated branch evidence, text/mixed-content shape and
+record-root candidates; similarity is advisory. Greedy deterministic complete-link
+grouping avoids transitive "A similar B / B similar C" unsafe unions. No input
+mutation, implicit record-root choice, authoritative type inference, or dataset
+merging is allowed. The module supports standalone Python/CLI use; PAH does not
+access internal files or databases to build similarity evidence.

@@ -401,9 +401,65 @@ def create_ui_blueprint(
         include_glob = request.form.get("include_glob", "*.xml").strip() or "*.xml"
         exclude_glob = request.form.get("exclude_glob", "").strip()
         inventory = None
+        comparison = None
         error = None
+        compare = request.form.get("compare", "") == "1"
+        minimum_similarity = request.form.get("minimum_similarity", "0.80")
         if request.method == "POST":
             try:
+                if not directory:
+                    raise ValueError("Select a local XML directory.")
+                collection = data.inventory_xml_collection(
+                    directory, recursive=recursive, include_hidden=include_hidden,
+                    include_globs=(include_glob,),
+                    exclude_globs=(exclude_glob,) if exclude_glob else (),
+                    max_files=max_files,
+                )
+                inventory = collection.to_record()
+                if compare:
+                    comparison = data.compare_xml_collection(
+                        collection, minimum_similarity=float(minimum_similarity),
+                        max_sources=100,
+                    ).to_record()
+            except (OSError, TypeError, ValueError) as exc:
+                error = f"{type(exc).__name__}: {exc}"
+        return render_template(
+            "ml_lab_ui/xml_collection_inventory.html", version=__version__,
+            directory=directory, recursive=recursive, include_hidden=include_hidden,
+            include_glob=include_glob, exclude_glob=exclude_glob, max_files=max_files,
+            inventory=inventory, comparison=comparison, compare=compare,
+            minimum_similarity=minimum_similarity, error=error, xml_structure_url=xml_structure_url,
+        )
+
+    @blueprint.route("/data/xml/collection/review", methods=["GET", "POST"])
+    def xml_collection_review():
+        """Read-only C3 review: no persistent approval, materialization, or CSV."""
+        from ml_lab.data.xml_collection_review import review_xml_collection
+        directory = request.form.get("directory", "").strip()
+        recursive = request.form.get("recursive", "") == "1" if request.method == "POST" else True
+        include_hidden = request.form.get("include_hidden", "") == "1"
+        requested_max_files = _form_int("max_files", 40)
+        max_files = min(requested_max_files, 80)
+        review_limit_notice = ("Review is limited to 80 XML files per request. Narrow the include/exclude filters "
+                               "if the directory contains more than 80 matching files.") if requested_max_files > 80 else None
+        include_glob = request.form.get("include_glob", "*.xml").strip() or "*.xml"
+        exclude_glob = request.form.get("exclude_glob", "").strip()
+        fraction_raw = request.form.get("min_shared_fraction", "0.5")
+        selected = request.form.getlist("selected")
+        acknowledge_variants = request.form.get("acknowledge_variants", "") == "1"
+        mode = request.form.get("mode", "inspect")
+        report = None
+        review = None
+        structure_urls = {}
+        error = None
+        try:
+            min_shared_fraction = float(fraction_raw)
+            if not 0 <= min_shared_fraction <= 1:
+                raise ValueError("Minimum shared fraction must be between 0 and 1.")
+            # C2 emits all pair combinations; keep synchronous HTML work bounded.
+            if requested_max_files < 1:
+                raise ValueError("Review must allow at least one XML file.")
+            if request.method == "POST":
                 if not directory:
                     raise ValueError("Select a local XML directory.")
                 inventory = data.inventory_xml_collection(
@@ -411,15 +467,32 @@ def create_ui_blueprint(
                     include_globs=(include_glob,),
                     exclude_globs=(exclude_glob,) if exclude_glob else (),
                     max_files=max_files,
-                ).to_record()
-            except (OSError, TypeError, ValueError) as exc:
-                error = f"{type(exc).__name__}: {exc}"
+                )
+                report = data.compare_xml_collection(inventory, min_shared_fraction=min_shared_fraction)
+                structure_urls = {item.relative_path: xml_structure_url(item.path)
+                                  for item in inventory.files if item.status == "parsed"}
+                if mode in {"review", "export"}:
+                    review = review_xml_collection(report, selected, acknowledge_variants=acknowledge_variants)
+                    if mode == "export":
+                        if review["status"] != "ready_for_recipe_design":
+                            raise ValueError("Selection is blocked; resolve issues before exporting a review snapshot.")
+                        response = jsonify(review)
+                        response.headers["Content-Disposition"] = 'attachment; filename="xml_collection_review.json"'
+                        response.headers["Cache-Control"] = "no-store"
+                        return response
+                elif mode != "inspect":
+                    raise ValueError("Unknown XML collection review operation.")
+        except (OSError, TypeError, ValueError, KeyError) as exc:
+            error = f"{type(exc).__name__}: {exc}"
         return render_template(
-            "ml_lab_ui/xml_collection_inventory.html", version=__version__,
+            "ml_lab_ui/xml_collection_review.html", version=__version__,
             directory=directory, recursive=recursive, include_hidden=include_hidden,
             include_glob=include_glob, exclude_glob=exclude_glob, max_files=max_files,
-            inventory=inventory, error=error, xml_structure_url=xml_structure_url,
-        )
+            min_shared_fraction=fraction_raw, selected=selected,
+            acknowledge_variants=acknowledge_variants, report=report, review=review,
+            max_visible_pairs=200, structure_urls=structure_urls,
+            review_limit_notice=review_limit_notice, error=error,
+        ), (400 if error else 200)
 
     @blueprint.get("/data/xml/<token>")
     def xml_structure_view(token: str):
