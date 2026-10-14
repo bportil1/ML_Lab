@@ -1,0 +1,49 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}XML collection CSV export · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for(request.blueprint + '.xml_collection_recipe') }}">← Shared XML recipe</a>
+<section class="workspace-head"><div>
+  <p class="eyebrow">Data · XML-C5</p>
+  <h1>Consolidated XML collection export</h1>
+  <p class="lede">Paste the validated JSON from XML-C4. Preview sampled rows before explicitly authorizing a combined CSV/TSV. Source XML files remain unchanged.</p>
+</div></section>
+{% if error %}<div class="alert data-alert" role="alert">{{ error }}</div>{% endif %}
+<form method="post" action="{{ url_for(request.blueprint + '.xml_collection_export') }}">
+  <section class="panel">
+    <h2>1. Load validated XML-C4 recipe</h2>
+    <label for="xml-c5-recipe">Shared recipe JSON (exported from XML-C4)</label>
+    <textarea id="xml-c5-recipe" name="recipe_json" rows="12" required>{{ recipe_text }}</textarea>
+    <p class="muted">Only an approved recipe is accepted. Every selected XML source is rehashed and its extraction rules revalidated.</p>
+    <button class="button secondary" type="submit" name="mode" value="preview">Preview combined rows</button>
+  </section>
+  <section class="panel">
+    <h2>2. Export destination</h2>
+    <label for="xml-c5-output">Output CSV or TSV path</label>
+    <input id="xml-c5-output" name="output" value="{{ output }}" required>
+    <label class="check"><input type="checkbox" name="overwrite" value="1"> Replace existing output and related artifacts (rollback attempted on error)</label>
+    <label class="check"><input type="checkbox" name="confirm" value="1"> I approve creating the consolidated dataset and its descriptive manifest</label>
+    <button class="button" type="submit" name="mode" value="export">Generate consolidated dataset</button>
+  </section>
+</form>
+{% if preview %}
+<section class="panel">
+  <h2>Combined preview — {{ preview.sample_row_count }} sampled rows</h2>
+  <p class="muted">Source files: {{ preview.sources|length }} · Bounded preview only, not a complete extraction.</p>
+  <div class="table-wrap"><table class="interactive-table" data-page-size="25"><thead><tr>
+    {% for column in preview.columns %}<th>{{ column }}</th>{% endfor %}
+  </tr></thead><tbody>
+    {% for record in preview.rows %}<tr>{% for column in preview.columns %}<td>{{ record.get(column, '') }}</td>{% endfor %}</tr>{% endfor %}
+  </tbody></table></div>
+  {% for warning in preview.warnings %}<p class="muted">{{ warning }}</p>{% endfor %}
+  <details class="json-details"><summary>Supplemental child tables</summary><pre>{{ preview.child_tables|tojson(indent=2) }}</pre></details>
+</section>
+{% endif %}
+{% if result %}
+<section class="panel">
+  <h2>Consolidated dataset generated</h2>
+  <p>{{ result.main_dataset.row_count }} rows written to <code>{{ result.main_dataset.path }}</code></p>
+  <p class="muted">{{ result.child_datasets|length }} child tables · source hashes and output checksums recorded in <code>{{ result.main_dataset.path }}.collection.json</code>.</p>
+  <details class="json-details"><summary>Export manifest</summary><pre>{{ result|tojson(indent=2) }}</pre></details>
+</section>
+{% endif %}
+{% endblock %}

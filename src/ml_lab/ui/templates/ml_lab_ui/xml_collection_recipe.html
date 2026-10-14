@@ -90,6 +90,7 @@
     {% if recipe.blocking_reasons %}<div class="alert" role="alert">{% for reason in recipe.blocking_reasons %}<p>{{ reason }}</p>{% endfor %}</div>{% endif %}
     {% for warning in recipe.warnings %}<p class="muted">{{ warning }}</p>{% endfor %}
     <p class="muted">No merge authorized. XML-C5 will validate record values and generate any consolidated CSV.</p>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.xml_collection_export') }}">Open XML-C5 consolidated export</a>
     <details class="json-details"><summary>Recipe configuration and per-source diagnostics</summary><pre>{{ recipe|tojson(indent=2) }}</pre></details>
   </section>
   {% endif %}

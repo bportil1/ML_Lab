@@ -573,6 +573,42 @@ def create_ui_blueprint(
             strategy_catalog=data.xml_collection_strategy_catalog(),
         ), (400 if error else 200)
 
+    @blueprint.route("/data/xml/collection/export", methods=["GET", "POST"])
+    def xml_collection_export():
+        """C5 consolidated output: explicit review and confirmation, never implicit export."""
+        from ml_lab.data.xml_collection_export import (
+            preview_xml_collection_export, materialize_xml_collection,
+        )
+        recipe_text = request.form.get("recipe_json", "")
+        output = request.form.get("output", "analysis/data/xml_collection.csv").strip()
+        mode = request.form.get("mode", "preview")
+        preview = result = error = None
+        try:
+            if request.method == "POST":
+                if len(recipe_text) > 1_000_000:
+                    raise ValueError("Recipe JSON is too large")
+                recipe = json.loads(recipe_text)
+                if not isinstance(recipe, dict):
+                    raise ValueError("Recipe JSON must be an object")
+                if mode == "preview":
+                    preview = preview_xml_collection_export(recipe)
+                elif mode == "export":
+                    if request.form.get("confirm", "") != "1":
+                        raise ValueError("Confirm consolidated CSV generation explicitly")
+                    result = materialize_xml_collection(
+                        recipe, output, confirm=True,
+                        overwrite=request.form.get("overwrite", "") == "1",
+                    )
+                else:
+                    raise ValueError("Unsupported XML collection export action")
+        except (OSError, KeyError, TypeError, ValueError) as exc:
+            error = f"{type(exc).__name__}: {exc}"
+        return render_template(
+            "ml_lab_ui/xml_collection_export.html", version=__version__,
+            recipe_text=recipe_text, output=output, preview=preview,
+            result=result, error=error,
+        ), (400 if error else 200)
+
     @blueprint.get("/data/xml/<token>")
     def xml_structure_view(token: str):
         path = verify_path(token)
