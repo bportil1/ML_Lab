@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from .xml_collection import XmlCollectionInventory
-from .xml_collection_review import review_xml_collection
+from .xml_collection_review import _comparison_record, review_xml_collection
 from .xml_ingest import inspect_xml_structure
 from .xml_rules import build_xml_collection_plan
 from .xml_selection import build_xml_record_selection
@@ -26,6 +26,7 @@ class XmlCollectionRecipeError(ValueError):
 def _review_sources(inventory: XmlCollectionInventory, similarity: Mapping[str, Any],
                     selected_paths: Iterable[str], acknowledge_variants: bool,
                     *, max_source_bytes: int) -> tuple[dict[str, Any], dict[str, Any]]:
+    similarity = _comparison_record(similarity)
     if similarity.get("root_path") != inventory.root_path:
         raise XmlCollectionRecipeError("similarity report is for a different XML directory")
     review = review_xml_collection(similarity, selected_paths, acknowledge_variants=acknowledge_variants)
@@ -39,7 +40,7 @@ def _review_sources(inventory: XmlCollectionInventory, similarity: Mapping[str, 
         rel = selection["relative_path"]
         item = inventory_items.get(rel)
         evidence = similarity_items.get(rel)
-        if item is None or evidence is None or item.status != "parsed" or evidence["status"] != "analyzed":
+        if item is None or evidence is None or item.status != "parsed" or evidence.get("status") not in {"analyzed", "compared"}:
             raise XmlCollectionRecipeError(f"missing inspected source evidence: {rel}")
         if not item.sha256 or evidence.get("source_fingerprint") != f"sha256:{item.sha256}":
             raise XmlCollectionRecipeError(f"inventory and similarity fingerprint disagree: {rel}")

@@ -7,6 +7,7 @@ from urllib.request import urlopen
 
 import pytest
 
+from ml_lab import __version__
 from ml_lab.pah_integration import MLLabRuntimeAdapter, discover_artifacts, module_manifest
 
 
@@ -19,7 +20,7 @@ def _free_port() -> int:
 def test_manifest_exposes_ml_lab_capabilities_without_pah_dependency():
     manifest = module_manifest()
     assert manifest["module_id"] == "ml_lab"
-    assert manifest["version"] == "0.30.0"
+    assert manifest["version"] == __version__
     assert manifest["collections"] == ["ml_lab"]
     assert "data_provenance" in manifest["capabilities"]
     assert "embedded_ui" in manifest["interfaces"]

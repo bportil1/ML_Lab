@@ -4,8 +4,8 @@
 <a class="back" href="{{ url_for(request.blueprint + '.data_lab') }}">← Data Lab</a>
 <section class="workspace-head"><div>
   <p class="eyebrow">Data · XML-C1 / XML-C2</p>
-  <h1>XML collection inventory</h1>
-  <p class="lede">Read-only discovery and structural inspection of many XML files. XML-C2 adds advisory structure similarity and candidate grouping; merging and consolidated CSV export remain future sprints.</p>
+  <h1>XML collection analysis</h1>
+  <p class="lede">Analyze a directory of XML files as a collection. Discover sources, compare normalized structure, identify candidate groups, then continue through review, shared-recipe validation, combined preview, and consolidated CSV/TSV export.</p>
 </div></section>
 <section class="panel data-input-panel">
   <form method="post">
@@ -61,7 +61,7 @@
   <div class="metric"><strong>{{ comparison.summary.excluded_source_count }}</strong><span>Excluded / changed</span></div>
   <div class="metric"><strong>{{ comparison.summary.group_count }}</strong><span>Candidate groups</span></div>
 </section>
-<div class="tip">Structure matches and compatible variants are advisory only. User-approved field mappings, record roots and consolidated export are not implemented in XML-C2.</div>
+<div class="tip">Structure matches and compatible variants are advisory evidence. Continue to compatibility review before selecting a shared record root, fields, repeated-branch rules, or generating a consolidated dataset.</div>
 <section class="panel inventory-panel">
   <h2>Candidate structure groups</h2>
   <div class="table-wrap"><table class="interactive-table" data-page-size="50">
@@ -70,9 +70,10 @@
       <tr><td>{{ group.group_id }}</td><td>{{ group.classification }}</td>
       <td>{{ group.members|join(', ') }}</td>
       <td>{{ group.shared_record_root_candidates|join(', ') or 'Review needed' }}</td>
-      <td>Review only — no merge</td></tr>
+      <td><a class="button mini secondary" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=[max_files, 80]|min, min_shared_fraction=minimum_similarity) }}">Review collection</a></td></tr>
     {% endfor %}</tbody>
   </table></div>
+  <div class="button-row"><a class="button" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=[max_files, 80]|min, min_shared_fraction=minimum_similarity) }}">Continue to compatibility review</a></div>
 </section>
 <section class="panel inventory-panel">
   <h2>Pairwise structural differences</h2>

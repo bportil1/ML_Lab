@@ -5,7 +5,7 @@
 <section class="workspace-head"><div>
   <p class="eyebrow">Data · XML-C3</p>
   <h1>XML collection compatibility review</h1>
-  <p class="lede">Inspect exact structural groups, variant pairs, conflicting roots and failed files. Choose the sources for a future shared extraction recipe. This page does not merge, export CSV, or infer schema compatibility from similarity alone.</p>
+  <p class="lede">Inspect structural groups, variants, conflicts, and failed files, then choose the XML sources that should share one extraction recipe. A successful review can continue directly to shared-recipe design and consolidated export.</p>
 </div></section>
 <section class="panel data-input-panel">
   <form method="post" action="{{ url_for(request.blueprint + '.xml_collection_review') }}">
@@ -30,17 +30,17 @@
 {% if error %}<div class="alert data-alert" role="alert">{{ error }}</div>{% endif %}
 {% if report %}
 <section class="summary-grid">
-  <div class="metric"><strong>{{ report.summary.analyzed }}</strong><span>Analyzed XML files</span></div>
-  <div class="metric"><strong>{{ report.summary.excluded }}</strong><span>Excluded / failed</span></div>
-  <div class="metric"><strong>{{ report.summary.exact_groups }}</strong><span>Exact structural groups</span></div>
+  <div class="metric"><strong>{{ report.summary.compared_source_count }}</strong><span>Analyzed XML files</span></div>
+  <div class="metric"><strong>{{ report.summary.excluded_source_count }}</strong><span>Excluded / failed</span></div>
+  <div class="metric"><strong>{{ report.summary.group_count }}</strong><span>Candidate groups</span></div>
   <div class="metric"><strong>{{ report.summary.pair_count }}</strong><span>Compared pairs</span></div>
 </section>
 <section class="panel inventory-panel">
-  <h2>Exact structure groups</h2>
-  <p class="muted">Exact signatures form groups. Compatible variants are pairwise suggestions and are never automatically merged into transitive groups.</p>
+  <h2>Candidate structure groups</h2>
+  <p class="muted">Groups are conservative C2 candidates. Exact structures may group directly; compatible variants remain evidence that must be explicitly reviewed before one extraction recipe is applied.</p>
   <div class="table-wrap"><table class="interactive-table" data-page-size="25">
     <thead><tr><th>Group</th><th>Count</th><th>Members</th></tr></thead>
-    <tbody>{% for group in report.exact_groups %}
+    <tbody>{% for group in report.groups %}
     <tr><td>{{ group.group_id }}</td><td>{{ group.members|length }}</td><td>{{ group.members|join(', ') }}</td></tr>
     {% endfor %}</tbody>
   </table></div>
@@ -59,12 +59,12 @@
     <div class="table-wrap"><table class="interactive-table" data-page-size="50">
       <thead><tr><th>Include</th><th>Source</th><th>Analysis</th><th>Root</th><th>Record-root candidates</th><th>Fingerprint / problem</th></tr></thead>
       <tbody>{% for source in report.sources %}
-        <tr class="{{ 'row-ok' if source.status == 'analyzed' else 'row-error' }}">
-          <td>{% if source.status == 'analyzed' %}<input type="checkbox" name="selected" value="{{ source.relative_path }}" aria-label="Include {{ source.relative_path }}" {% if source.relative_path in selected %}checked{% endif %}>{% else %}—{% endif %}</td>
-          <td>{{ source.relative_path }}{% if source.status == 'analyzed' and source.relative_path in structure_urls %}<div><a class="button mini secondary" href="{{ structure_urls[source.relative_path] }}">Explore XML</a></div>{% endif %}</td>
+        <tr class="{{ 'row-ok' if source.status == 'compared' else 'row-error' }}">
+          <td>{% if source.status == 'compared' %}<input type="checkbox" name="selected" value="{{ source.relative_path }}" aria-label="Include {{ source.relative_path }}" {% if source.relative_path in selected %}checked{% endif %}>{% else %}—{% endif %}</td>
+          <td>{{ source.relative_path }}{% if source.status == 'compared' and source.relative_path in structure_urls %}<div><a class="button mini secondary" href="{{ structure_urls[source.relative_path] }}">Explore XML</a></div>{% endif %}</td>
           <td>{{ source.status }}</td>
-          <td>{{ source.root if source.root else '—' }}</td>
-          <td>{% if source.record_candidates %}<details><summary>{{ source.record_candidates|length }} candidate(s)</summary><pre>{{ source.record_candidates|tojson(indent=2) }}</pre></details>{% else %}—{% endif %}</td>
+          <td>{{ source.root_tag if source.root_tag else '—' }}</td>
+          <td>{% if source.record_root_candidates %}<details><summary>{{ source.record_root_candidates|length }} candidate(s)</summary><pre>{{ source.record_root_candidates|tojson(indent=2) }}</pre></details>{% else %}—{% endif %}</td>
           <td>{% if source.reason %}<span class="warning">{{ source.reason }}</span>{% else %}<code>{{ source.source_fingerprint }}</code>{% endif %}</td>
         </tr>
       {% endfor %}</tbody>
@@ -88,17 +88,17 @@
 {% endif %}
 <section class="panel inventory-panel">
   <h2>Pairwise structural evidence</h2>
-  <p class="muted">Similarity compares observed element paths; it does not validate field types or cardinality transformations. Showing up to {{ max_visible_pairs }} pairs of {{ report.pairwise|length }}; the selected-review contract includes all chosen pairs.</p>
+  <p class="muted">Similarity compares observed element paths; it does not validate field types or cardinality transformations. Showing up to {{ max_visible_pairs }} pairs of {{ report.pairs|length }}; the selected-review contract includes all chosen pairs.</p>
   <div class="table-wrap"><table class="interactive-table" data-page-size="25">
     <thead><tr><th>Left</th><th>Right</th><th>Classification</th><th>Path overlap</th><th>Differences / evidence</th></tr></thead>
-    <tbody>{% for pair in report.pairwise[:max_visible_pairs] %}
+    <tbody>{% for pair in report.pairs[:max_visible_pairs] %}
       <tr class="{{ 'row-error' if pair.classification == 'incompatible' else 'row-ok' }}">
         <td>{{ pair.left }}</td><td>{{ pair.right }}</td><td>{{ pair.classification|replace('_', ' ') }}</td>
         <td>{{ (pair.path_jaccard * 100)|round(1) }}%</td>
         <td><details><summary>Paths and reasons</summary>
-          <div><strong>Left only:</strong> {{ pair.left_only_paths|join(', ') if pair.left_only_paths else '—' }}</div>
-          <div><strong>Right only:</strong> {{ pair.right_only_paths|join(', ') if pair.right_only_paths else '—' }}</div>
-          <div><strong>Reasons:</strong> {{ pair.reasons|join('; ') }}</div>
+          <div><strong>Left only:</strong> {{ pair.differences.left_only_paths|join(', ') if pair.differences.left_only_paths else '—' }}</div>
+          <div><strong>Right only:</strong> {{ pair.differences.right_only_paths|join(', ') if pair.differences.right_only_paths else '—' }}</div>
+          <div><strong>Reasons:</strong> {{ pair.reason }}</div>
         </details></td>
       </tr>
     {% endfor %}</tbody>

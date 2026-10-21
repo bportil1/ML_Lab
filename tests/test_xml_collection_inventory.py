@@ -103,7 +103,9 @@ def test_xml_collection_ui_is_separate_from_single_file_processing(tmp_path: Pat
 
     _xml(tmp_path / "one.xml")
     client = create_app(config={"TESTING": True}).test_client()
-    assert b"XML collection inventory" in client.get("/data").data
+    data_page = client.get("/data")
+    assert b"XML collection analysis" in data_page.data
+    assert b"Analyze an XML directory" in data_page.data
     response = client.post("/data/xml/collection", data={"directory": str(tmp_path), "recursive": "1"})
     assert response.status_code == 200
     assert b"one.xml" in response.data

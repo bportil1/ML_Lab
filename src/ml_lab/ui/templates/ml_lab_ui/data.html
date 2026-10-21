@@ -12,7 +12,15 @@
 </section>
 
 <div class="tip">Inventory and profiling remain read-only. Transformations always create a derived dataset and never silently overwrite the raw source.</div>
-<div class="button-row action-strip"><a class="button secondary" href="{{ url_for(request.blueprint + '.xml_collection_inventory') }}">XML collection inventory</a><a class="button secondary" href="{{ url_for(request.blueprint + '.data_transform') }}">Transform a dataset</a><a class="button secondary" href="{{ url_for(request.blueprint + '.data_provenance') }}">Trace provenance</a></div>
+<section class="panel">
+  <h2>XML collection analysis</h2>
+  <p>Process a directory of XML files as one collection: inventory the files, compare structure, review compatible sources, configure one shared extraction recipe, preview combined rows, and generate a consolidated CSV or TSV.</p>
+  <div class="button-row">
+    <a class="button" href="{{ url_for(request.blueprint + '.xml_collection_inventory') }}">Analyze an XML directory</a>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.xml_collection_review') }}">Review an XML collection</a>
+  </div>
+</section>
+<div class="button-row action-strip"><a class="button secondary" href="{{ url_for(request.blueprint + '.data_transform') }}">Transform a dataset</a><a class="button secondary" href="{{ url_for(request.blueprint + '.data_provenance') }}">Trace provenance</a></div>
 
 <section class="panel data-input-panel">
   <form method="post" action="{{ url_for(request.blueprint + '.data_lab') }}">

@@ -435,19 +435,23 @@ def create_ui_blueprint(
     def xml_collection_review():
         """Read-only C3 review: no persistent approval, materialization, or CSV."""
         from ml_lab.data.xml_collection_review import review_xml_collection
-        directory = request.form.get("directory", "").strip()
-        recursive = request.form.get("recursive", "") == "1" if request.method == "POST" else True
-        include_hidden = request.form.get("include_hidden", "") == "1"
-        requested_max_files = _form_int("max_files", 40)
+        values = request.form if request.method == "POST" else request.args
+        directory = values.get("directory", "").strip()
+        recursive = values.get("recursive", "1") == "1"
+        include_hidden = values.get("include_hidden", "") == "1"
+        try:
+            requested_max_files = int(values.get("max_files", 40))
+        except (TypeError, ValueError):
+            requested_max_files = 40
         max_files = min(requested_max_files, 80)
         review_limit_notice = ("Review is limited to 80 XML files per request. Narrow the include/exclude filters "
                                "if the directory contains more than 80 matching files.") if requested_max_files > 80 else None
-        include_glob = request.form.get("include_glob", "*.xml").strip() or "*.xml"
-        exclude_glob = request.form.get("exclude_glob", "").strip()
-        fraction_raw = request.form.get("min_shared_fraction", "0.5")
-        selected = request.form.getlist("selected")
-        acknowledge_variants = request.form.get("acknowledge_variants", "") == "1"
-        mode = request.form.get("mode", "inspect")
+        include_glob = values.get("include_glob", "*.xml").strip() or "*.xml"
+        exclude_glob = values.get("exclude_glob", "").strip()
+        fraction_raw = values.get("min_shared_fraction", "0.5")
+        selected = request.form.getlist("selected") if request.method == "POST" else []
+        acknowledge_variants = values.get("acknowledge_variants", "") == "1"
+        mode = values.get("mode", "inspect")
         report = None
         review = None
         structure_urls = {}
@@ -468,7 +472,7 @@ def create_ui_blueprint(
                     exclude_globs=(exclude_glob,) if exclude_glob else (),
                     max_files=max_files,
                 )
-                report = data.compare_xml_collection(inventory, min_shared_fraction=min_shared_fraction)
+                report = data.compare_xml_collection(inventory, min_shared_fraction=min_shared_fraction).to_record()
                 structure_urls = {item.relative_path: xml_structure_url(item.path)
                                   for item in inventory.files if item.status == "parsed"}
                 if mode in {"review", "export"}:

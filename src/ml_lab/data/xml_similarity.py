@@ -13,7 +13,8 @@ import stat
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
+from collections.abc import Mapping
 
 from .xml_collection import XmlCollectionInventory
 from .xml_ingest import XmlSafetyError, inspect_xml_structure
@@ -126,7 +127,7 @@ def _pair(a: _Shape, b: _Shape, threshold: float, max_diff_paths: int) -> dict[s
 
 
 @dataclass(frozen=True)
-class XmlCollectionComparison:
+class XmlCollectionComparison(Mapping[str, Any]):
     root_path: str
     threshold: float
     sources: tuple[dict[str, Any], ...]
@@ -161,11 +162,25 @@ class XmlCollectionComparison:
             ],
         }
 
+    # C3-C7 historically consumed the comparison as a mapping while C2 now
+    # exposes a typed artifact. Preserve both interfaces at the boundary so
+    # collection review/recipe/export code can consume one authoritative C2
+    # representation without duplicating conversion logic.
+    def __getitem__(self, key: str) -> Any:
+        return self.to_record()[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.to_record())
+
+    def __len__(self) -> int:
+        return len(self.to_record())
+
 
 def compare_xml_collection(
     inventory: XmlCollectionInventory,
     *,
     minimum_similarity: float = 0.80,
+    min_shared_fraction: float | None = None,
     max_sources: int = 100,
     max_unique_paths: int = 5000,
     max_file_bytes: int = 512 * 1024 ** 2,
@@ -179,6 +194,10 @@ def compare_xml_collection(
     """
     if not isinstance(inventory, XmlCollectionInventory):
         raise TypeError("expected an XML-C1 collection inventory")
+    if min_shared_fraction is not None:
+        if minimum_similarity != 0.80 and minimum_similarity != min_shared_fraction:
+            raise ValueError("minimum_similarity and min_shared_fraction disagree")
+        minimum_similarity = min_shared_fraction
     if not 0.0 < minimum_similarity <= 1.0:
         raise ValueError("minimum_similarity must be in (0, 1]")
     if any(value < 1 for value in (max_sources, max_unique_paths, max_file_bytes, max_diff_paths)):
