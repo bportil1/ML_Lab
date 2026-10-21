@@ -503,6 +503,7 @@ def create_ui_blueprint(
         """C4 recipe design only: never extract rows or write tabular datasets."""
         from ml_lab.data.xml_collection_recipe import (
             inspect_xml_collection_recipe, build_xml_collection_recipe,
+            prepare_full_xml_collection_recipe,
         )
         directory = request.form.get("directory", "").strip()
         recursive = request.form.get("recursive", "") == "1"
@@ -517,6 +518,7 @@ def create_ui_blueprint(
         fields = request.form.getlist("field")
         allow_missing = request.form.get("allow_missing_fields", "") == "1"
         mode = request.form.get("mode", "inspect")
+        auto_all = mode == "auto_all" or request.form.get("auto_all", "") == "1"
         catalog = recipe = None
         error = None
         try:
@@ -532,38 +534,48 @@ def create_ui_blueprint(
                     max_files=max_files,
                 )
                 report = data.compare_xml_collection(inventory, min_shared_fraction=shared_fraction)
-                catalog = inspect_xml_collection_recipe(
-                    inventory, report, selected, acknowledge_variants=acknowledged,
-                    record_root_canonical_path=record_root or None,
-                )
-                if mode in {"branches", "validate", "export"}:
-                    paths = request.form.getlist("branch_path")
-                    rules = []
-                    for branch in paths:
-                        strategy = request.form.get(f"strategy::{branch}", "").strip()
-                        if strategy:
-                            rules.append({
-                                "branch_canonical_path": branch, "strategy": strategy,
-                                "join_delimiter": request.form.get(f"join_delimiter::{branch}", ""),
-                                "aggregate_operation": request.form.get(f"aggregate_operation::{branch}", ""),
-                                "pivot_key_field_id": request.form.get(f"pivot_key_field_id::{branch}", ""),
-                                "pivot_value_field_id": request.form.get(f"pivot_value_field_id::{branch}", ""),
-                                "separate_table_name": request.form.get(f"separate_table_name::{branch}", ""),
-                            })
-                    recipe = build_xml_collection_recipe(
-                        inventory, report, selected, record_root, fields,
-                        acknowledge_variants=acknowledged, allow_missing_fields=allow_missing,
-                        rules=rules,
+
+                if auto_all:
+                    catalog, recipe = prepare_full_xml_collection_recipe(
+                        inventory, report, selected,
                     )
-                    if mode == "export":
-                        if recipe["status"] != "ready_for_collection_preview":
-                            raise ValueError("Resolve the recipe's blocking issues before exporting.")
-                        response = jsonify(recipe)
-                        response.headers["Content-Disposition"] = 'attachment; filename="xml_collection_recipe.json"'
-                        response.headers["Cache-Control"] = "no-store"
-                        return response
-                elif mode not in {"inspect", "fields"}:
-                    raise ValueError("Unsupported XML recipe operation")
+                    acknowledged = True
+                    record_root = str(recipe["record_root_canonical_path"])
+                    fields = list(recipe["selected_field_ids"])
+                    allow_missing = True
+                else:
+                    catalog = inspect_xml_collection_recipe(
+                        inventory, report, selected, acknowledge_variants=acknowledged,
+                        record_root_canonical_path=record_root or None,
+                    )
+                    if mode in {"branches", "validate", "export"}:
+                        paths = request.form.getlist("branch_path")
+                        rules = []
+                        for branch in paths:
+                            strategy = request.form.get(f"strategy::{branch}", "").strip()
+                            if strategy:
+                                rules.append({
+                                    "branch_canonical_path": branch, "strategy": strategy,
+                                    "join_delimiter": request.form.get(f"join_delimiter::{branch}", ""),
+                                    "aggregate_operation": request.form.get(f"aggregate_operation::{branch}", ""),
+                                    "pivot_key_field_id": request.form.get(f"pivot_key_field_id::{branch}", ""),
+                                    "pivot_value_field_id": request.form.get(f"pivot_value_field_id::{branch}", ""),
+                                    "separate_table_name": request.form.get(f"separate_table_name::{branch}", ""),
+                                })
+                        recipe = build_xml_collection_recipe(
+                            inventory, report, selected, record_root, fields,
+                            acknowledge_variants=acknowledged, allow_missing_fields=allow_missing,
+                            rules=rules,
+                        )
+                        if mode == "export":
+                            if recipe["status"] != "ready_for_collection_preview":
+                                raise ValueError("Resolve the recipe's blocking issues before exporting.")
+                            response = jsonify(recipe)
+                            response.headers["Content-Disposition"] = 'attachment; filename="xml_collection_recipe.json"'
+                            response.headers["Cache-Control"] = "no-store"
+                            return response
+                    elif mode not in {"inspect", "fields"}:
+                        raise ValueError("Unsupported XML recipe operation")
         except (OSError, KeyError, LookupError, TypeError, ValueError) as exc:
             error = f"{type(exc).__name__}: {exc}"
         return render_template(
@@ -573,7 +585,7 @@ def create_ui_blueprint(
             max_files=max_files, min_shared_fraction=fraction,
             selected=selected, acknowledge_variants=acknowledged,
             record_root=record_root, fields=fields, allow_missing_fields=allow_missing,
-            catalog=catalog, recipe=recipe, error=error,
+            auto_all=auto_all, catalog=catalog, recipe=recipe, error=error,
             strategy_catalog=data.xml_collection_strategy_catalog(),
         ), (400 if error else 200)
 

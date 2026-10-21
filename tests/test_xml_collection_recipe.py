@@ -8,7 +8,8 @@ import pytest
 
 from ml_lab import data
 from ml_lab.data.xml_collection_recipe import (XmlCollectionRecipeError, inspect_xml_collection_recipe,
-                                               build_xml_collection_recipe, save_xml_collection_recipe, main)
+                                               build_xml_collection_recipe, prepare_full_xml_collection_recipe,
+                                               save_xml_collection_recipe, main)
 
 
 def _fixtures(root: Path):
@@ -133,3 +134,49 @@ def test_cli_inspect_and_validate(tmp_path: Path, capsys):
                            "--field", "text:/rows/item/tag", "--allow-missing-fields",
                            "--rules-json", str(rulefile), "--output", str(output)]) == 0
     assert json.loads(output.read_text())["structural_recipe_validated"] is True
+
+
+def test_prepare_full_group_recipe_selects_all_fields_and_logical_records(tmp_path: Path):
+    (tmp_path / "a.xml").write_text(
+        '<rows><item id="1"><name>A</name><tag>one</tag><tag>two</tag></item></rows>',
+        encoding="utf-8",
+    )
+    (tmp_path / "b.xml").write_text(
+        '<rows><item id="2"><name>B</name></item></rows>', encoding="utf-8",
+    )
+    inventory = data.inventory_xml_collection(tmp_path)
+    report = data.compare_xml_collection(inventory)
+    catalog, recipe = prepare_full_xml_collection_recipe(inventory, report, ["a.xml", "b.xml"])
+    assert recipe["status"] == "ready_for_collection_preview"
+    assert recipe["record_root_canonical_path"] == "/rows/item"
+    assert set(recipe["selected_field_ids"]) == {
+        "attribute:/rows/item@id", "text:/rows/item/name", "text:/rows/item/tag",
+    }
+    assert recipe["allow_missing_fields"] is True
+    assert recipe["rules"] == [{"branch_canonical_path": "/rows/item/tag", "strategy": "keep_nested"}]
+    assert catalog["record_root_canonical_path"] == "/rows/item"
+
+    from ml_lab.data.xml_collection_export import preview_xml_collection_export
+    preview = preview_xml_collection_export(recipe)
+    assert len(preview["sources"]) == 2
+    assert len(preview["rows"]) == 2
+    assert {row["__source_file"] for row in preview["rows"]} == {"a.xml", "b.xml"}
+    assert preview["rows"][0]["tag"] == [{"tag": "one"}, {"tag": "two"}]
+
+
+def test_prepare_full_group_recipe_preserves_multiple_records_per_source(tmp_path: Path):
+    (tmp_path / "a.xml").write_text(
+        '<rows><item id="1"><name>A</name></item><item id="2"><name>B</name></item></rows>',
+        encoding="utf-8",
+    )
+    (tmp_path / "b.xml").write_text(
+        '<rows><item id="3"><name>C</name></item><item id="4"><name>D</name></item></rows>',
+        encoding="utf-8",
+    )
+    inventory = data.inventory_xml_collection(tmp_path)
+    report = data.compare_xml_collection(inventory)
+    _, recipe = prepare_full_xml_collection_recipe(inventory, report, ["a.xml", "b.xml"])
+    assert recipe["record_root_canonical_path"] == "/rows/item"
+    from ml_lab.data.xml_collection_export import preview_xml_collection_export
+    preview = preview_xml_collection_export(recipe)
+    assert len(preview["rows"]) == 4

@@ -61,7 +61,7 @@
   <div class="metric"><strong>{{ comparison.summary.excluded_source_count }}</strong><span>Excluded / changed</span></div>
   <div class="metric"><strong>{{ comparison.summary.group_count }}</strong><span>Candidate groups</span></div>
 </section>
-<div class="tip">Structure matches and compatible variants are advisory evidence. Continue to compatibility review before selecting a shared record root, fields, repeated-branch rules, or generating a consolidated dataset.</div>
+<div class="tip">Structure matches and compatible variants are advisory evidence. Use <strong>Extract all group data</strong> to carry every member of one compatible group into a shared recipe automatically, or use compatibility review for manual membership control.</div>
 <section class="panel inventory-panel">
   <h2>Candidate structure groups</h2>
   <div class="table-wrap"><table class="interactive-table" data-page-size="50">
@@ -70,7 +70,24 @@
       <tr><td>{{ group.group_id }}</td><td>{{ group.classification }}</td>
       <td>{{ group.members|join(', ') }}</td>
       <td>{{ group.shared_record_root_candidates|join(', ') or 'Review needed' }}</td>
-      <td><a class="button mini secondary" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=[max_files, 80]|min, min_shared_fraction=minimum_similarity) }}">Review collection</a></td></tr>
+      <td>
+        <a class="button mini secondary" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=[max_files, 80]|min, min_shared_fraction=minimum_similarity) }}">Review collection</a>
+        {% if group.members|length > 1 %}
+        <form method="post" action="{{ url_for(request.blueprint + '.xml_collection_recipe') }}" class="inline-form">
+          <input type="hidden" name="directory" value="{{ directory }}">
+          <input type="hidden" name="include_glob" value="{{ include_glob }}">
+          <input type="hidden" name="exclude_glob" value="{{ exclude_glob }}">
+          <input type="hidden" name="max_files" value="{{ [max_files, 80]|min }}">
+          <input type="hidden" name="min_shared_fraction" value="{{ minimum_similarity }}">
+          <input type="hidden" name="mode" value="auto_all">
+          <input type="hidden" name="auto_all" value="1">
+          {% if recursive %}<input type="hidden" name="recursive" value="1">{% endif %}
+          {% if include_hidden %}<input type="hidden" name="include_hidden" value="1">{% endif %}
+          {% for member in group.members %}<input type="hidden" name="selected" value="{{ member }}">{% endfor %}
+          <button class="button mini" type="submit">Extract all group data</button>
+        </form>
+        {% endif %}
+      </td></tr>
     {% endfor %}</tbody>
   </table></div>
   <div class="button-row"><a class="button" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=[max_files, 80]|min, min_shared_fraction=minimum_similarity) }}">Continue to compatibility review</a></div>

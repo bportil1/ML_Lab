@@ -15,6 +15,7 @@
 <section class="panel">
   <h2>Reviewed collection</h2>
   <p>{{ catalog.selected_sources|length }} sources, with fingerprints checked against fresh inventory and comparison evidence.</p>
+  {% if auto_all %}<div class="tip"><strong>Full-group extraction prepared.</strong> All files in this structural group and all extractable fields are selected. Missing fields are aligned as empty values, and repeated branches default to <strong>Keep nested</strong> so repeated values are not silently discarded.</div>{% endif %}
   <div class="table-wrap"><table class="interactive-table" data-page-size="25"><thead><tr><th>Source</th><th>SHA-256 fingerprint</th></tr></thead>
   <tbody>{% for source in catalog.selected_sources %}<tr><td>{{ source }}</td><td><code>{{ catalog.source_fingerprints[source] }}</code></td></tr>{% endfor %}</tbody></table></div>
 </section>
@@ -34,7 +35,7 @@
     <select id="xml-c4-root" name="record_root" required>
       <option value="">Choose a root present in every selected source</option>
       {% for root in catalog.record_root_options %}
-        <option value="{{ root.canonical_path }}" {% if record_root == root.canonical_path %}selected{% endif %}>{{ root.display_path }} — min {{ root.min_records }} records; candidate score {{ root.candidate_score }}</option>
+        <option value="{{ root.canonical_path }}" {% if record_root == root.canonical_path %}selected{% endif %}>{{ root.display_path }} — min {{ root.min_records }} records; {{ root.field_count }} fields; candidate score {{ root.candidate_score }}</option>
       {% endfor %}
     </select>
     <button class="button secondary" type="submit" name="mode" value="fields">Inspect available fields</button>
@@ -89,7 +90,7 @@
     <h2>Validation: {{ recipe.status|replace('_', ' ') }}</h2>
     {% if recipe.blocking_reasons %}<div class="alert" role="alert">{% for reason in recipe.blocking_reasons %}<p>{{ reason }}</p>{% endfor %}</div>{% endif %}
     {% for warning in recipe.warnings %}<p class="muted">{{ warning }}</p>{% endfor %}
-    <p class="muted">A validated recipe can now be previewed across the selected XML files before any consolidated dataset is written.</p>
+    <p class="muted">A validated recipe can now be previewed across <strong>all {{ catalog.selected_sources|length }} selected XML files</strong> before one consolidated dataset is written.</p>
     {% if recipe.structural_recipe_validated %}
     <input type="hidden" name="recipe_json" value='{{ recipe|tojson }}'>
     <button class="button" type="submit" name="mode" value="preview" formaction="{{ url_for(request.blueprint + '.xml_collection_export') }}">Preview consolidated dataset</button>

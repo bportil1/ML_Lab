@@ -9,7 +9,10 @@
     <p class="lede">Explore the XML hierarchy before choosing a record root. This view preserves structure and does not flatten or transform the source.</p>
     <p class="tiny xml-source-path"><code>{{ source_path }}</code></p>
   </div>
-  <span class="badge ready">structure loaded</span>
+  <div>
+    <span class="badge ready">structure loaded</span>
+    <div class="button-row"><a class="button mini secondary" href="{{ url_for(request.blueprint + '.xml_collection_inventory') }}">Analyze a directory of XML files</a></div>
+  </div>
 </section>
 
 {% if error %}

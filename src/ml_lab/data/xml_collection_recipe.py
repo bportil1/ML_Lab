@@ -82,11 +82,15 @@ def _catalog_from_artifacts(inventory: XmlCollectionInventory, artifacts: Mappin
     options = []
     for path in shared_roots:
         profiles = [profiles[path] for profiles in all_profiles]
+        field_ids: set[str] = set()
+        for artifact in artifacts.values():
+            field_ids.update(field.field_id for field in build_xml_record_selection(artifact, path).fields)
         options.append({
             "canonical_path": path,
             "display_path": profiles[0].path,
             "min_records": min(p.occurrence_count for p in profiles),
             "candidate_score": round(sum(p.record_candidate_score for p in profiles) / len(profiles), 4),
+            "field_count": len(field_ids),
         })
     options.sort(key=lambda row: (-row["candidate_score"], -row["min_records"], row["canonical_path"]))
     chosen = (record_root_canonical_path or "").strip()
@@ -232,6 +236,100 @@ def build_xml_collection_recipe(
         "notes": ["Only structural and repeated-branch configuration is validated.",
                   "XML-C5 must confirm actual value/type behavior and output schema before CSV export."],
     }
+
+
+def prepare_full_xml_collection_recipe(
+    inventory: XmlCollectionInventory, similarity: Mapping[str, Any],
+    selected_paths: Iterable[str], *, max_source_bytes: int = 512 * 1024 ** 2,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Prepare a conservative all-fields recipe for one compatible XML group.
+
+    The helper keeps C2/C3 compatibility gates intact, automatically acknowledges
+    reviewed structural variants, chooses the strongest shared logical record root,
+    selects every scalar field observed under that root, allows missing variant fields,
+    and defaults repeated branches to ``keep_nested`` so no repeated values are
+    silently discarded. It prepares a recipe only; callers still preview and explicitly
+    confirm materialization through XML-C5/C7.
+    """
+    selected = list(dict.fromkeys(str(path) for path in selected_paths))
+    if len(selected) < 2:
+        raise XmlCollectionRecipeError("full-group extraction requires at least two XML sources")
+    catalog = inspect_xml_collection_recipe(
+        inventory, similarity, selected, acknowledge_variants=True,
+        max_source_bytes=max_source_bytes,
+    )
+    options = catalog.get("record_root_options") or []
+    if not options:
+        raise XmlCollectionRecipeError("no shared record root is available for this XML group")
+
+    report = _comparison_record(similarity)
+    selected_set = set(selected)
+    shared_candidates: set[str] = set()
+    for group in report.get("groups", []):
+        if set(group.get("members", [])) == selected_set:
+            shared_candidates.update(group.get("shared_record_root_candidates", []))
+            break
+
+    candidate_options = [
+        option for option in options
+        if option.get("canonical_path") in shared_candidates
+    ]
+    if candidate_options:
+        chosen = max(
+            candidate_options,
+            key=lambda option: (
+                float(option.get("candidate_score", 0.0)),
+                int(option.get("min_records", 0)),
+                int(option.get("field_count", 0)),
+                str(option.get("canonical_path", "")).count("/"),
+            ),
+        )
+    else:
+        max_field_count = max(int(option.get("field_count", 0)) for option in options)
+        threshold = max(1, int(max_field_count * 0.8))
+        broad_options = [
+            option for option in options
+            if int(option.get("field_count", 0)) >= threshold
+        ] or options
+        chosen = max(
+            broad_options,
+            key=lambda option: (
+                int(option.get("min_records", 0)),
+                float(option.get("candidate_score", 0.0)),
+                str(option.get("canonical_path", "")).count("/"),
+                int(option.get("field_count", 0)),
+            ),
+        )
+
+    record_root = str(chosen["canonical_path"])
+    catalog = inspect_xml_collection_recipe(
+        inventory, similarity, selected, acknowledge_variants=True,
+        record_root_canonical_path=record_root, max_source_bytes=max_source_bytes,
+    )
+    fields = [str(item["field_id"]) for item in catalog.get("fields", [])]
+    if not fields:
+        raise XmlCollectionRecipeError("no extractable scalar fields were found under the shared record root")
+
+    provisional = build_xml_collection_recipe(
+        inventory, similarity, selected, record_root, fields,
+        acknowledge_variants=True, allow_missing_fields=True, rules=(),
+        max_source_bytes=max_source_bytes,
+    )
+    rules = [
+        {"branch_canonical_path": branch, "strategy": "keep_nested"}
+        for branch in provisional.get("required_repeated_branches", [])
+    ]
+    recipe = build_xml_collection_recipe(
+        inventory, similarity, selected, record_root, fields,
+        acknowledge_variants=True, allow_missing_fields=True, rules=rules,
+        max_source_bytes=max_source_bytes,
+    )
+    if recipe.get("status") != "ready_for_collection_preview":
+        raise XmlCollectionRecipeError(
+            "automatic full-group recipe could not be validated: "
+            + "; ".join(recipe.get("blocking_reasons", []))
+        )
+    return catalog, recipe
 
 
 def save_xml_collection_recipe(recipe: Mapping[str, Any], destination: str | Path) -> Path:
