@@ -472,3 +472,39 @@ grouping avoids transitive "A similar B / B similar C" unsafe unions. No input
 mutation, implicit record-root choice, authoritative type inference, or dataset
 merging is allowed. The module supports standalone Python/CLI use; PAH does not
 access internal files or databases to build similarity evidence.
+
+
+## Unified experiment workflow (Sprint 0.1 design baseline)
+
+The proposed experiment-oriented workflow is documented in
+[`docs/UNIFIED_EXPERIMENT_S0_1_INVENTORY.md`](docs/UNIFIED_EXPERIMENT_S0_1_INVENTORY.md)
+and [`docs/UNIFIED_EXPERIMENT_S0_1_CONTRACT.md`](docs/UNIFIED_EXPERIMENT_S0_1_CONTRACT.md).
+These are documentation/architecture contracts only: existing tasks, CLI and UI
+remain unchanged until the subsequent sprints implement the contract.
+
+The Sprint 0.2 presentation and interaction agreements are specified in
+[`docs/UNIFIED_EXPERIMENT_S0_2_UI_CONVENTIONS.md`](docs/UNIFIED_EXPERIMENT_S0_2_UI_CONVENTIONS.md)
+and [`docs/UNIFIED_EXPERIMENT_S0_2_MATRIX_EDITOR.md`](docs/UNIFIED_EXPERIMENT_S0_2_MATRIX_EDITOR.md):
+PAH-compatible application chrome, independently functioning submodules,
+and deliberately neutral scientific matrix editors. No runtime CSS, markup,
+or JavaScript changes are made in Sprint 0.2.
+
+## Experiment artifact registry (Sprint 1.2)
+
+`ExperimentStore(project_root).artifacts` adds run-scoped file references and
+explicit source-artifact edges to the standalone, per-project experiment store.
+Schema v2 adds `artifacts` and `artifact_sources`, migrating S1.1 schema v1
+in place. Registration hashes existing project-local files and never rewrites
+or copies them; verification detects missing or changed content. Records are
+independent of PAH and do not supplant Data Lab's authoritative transformation
+and XML extraction lineage. See
+[`docs/UNIFIED_EXPERIMENT_S1_2_ARTIFACTS.md`](docs/UNIFIED_EXPERIMENT_S1_2_ARTIFACTS.md).
+
+### Sprint 1.3 — opt-in legacy task recording
+
+The `ml_lab.experiments.execute_recorded_task` API wraps the existing
+`ml_lab.application.execute_task` dispatcher without changing it. It captures
+project-local input/result JSON files, records run status in the ML_Lab-owned
+SQLite store, and registers typed artifacts. Known Data Lab transformation
+outputs are also indexed when project-local. See
+[the adapter contract](docs/UNIFIED_EXPERIMENT_S1_3_LEGACY_ADAPTER.md).

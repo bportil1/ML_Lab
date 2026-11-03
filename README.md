@@ -6,6 +6,38 @@ The classification engine reuses the strongest design ideas from the supplied Cl
 
 Regression is a parallel supervised subsystem with regression-specific metrics and single- or multi-output targets. Clustering remains a separate first-class subsystem with clustering-specific selection/evaluation semantics.
 
+## Planned unified experiment workspace (Sprint 0.1)
+
+The capability inventory and proposed standalone/PAH architecture contracts
+for the upcoming Data → Model → Training/Optimization → Evaluation → Results
+workflow are in [`docs/UNIFIED_EXPERIMENT_S0_1_INVENTORY.md`](docs/UNIFIED_EXPERIMENT_S0_1_INVENTORY.md)
+and [`docs/UNIFIED_EXPERIMENT_S0_1_CONTRACT.md`](docs/UNIFIED_EXPERIMENT_S0_1_CONTRACT.md).
+This sprint is planning-only; current model/task interfaces are unchanged.
+
+Sprint 0.2 specifies the shared application/workflow conventions and the
+minimal, pyPIQUE-inspired scientific matrix interaction model in
+[`docs/UNIFIED_EXPERIMENT_S0_2_UI_CONVENTIONS.md`](docs/UNIFIED_EXPERIMENT_S0_2_UI_CONVENTIONS.md)
+and [`docs/UNIFIED_EXPERIMENT_S0_2_MATRIX_EDITOR.md`](docs/UNIFIED_EXPERIMENT_S0_2_MATRIX_EDITOR.md).
+These are specifications only; no matrix editing or UI migration is introduced.
+
+## Unified experiment metadata (Sprint 1.1)
+
+An opt-in, per-project SQLite-backed experiment metadata API is available as
+`ml_lab.experiments.ExperimentStore`. It records versioned experiment specifications
+and run states without changing any existing model/task/UI behavior or requiring
+PAH. See [`docs/UNIFIED_EXPERIMENT_S1_1_STORAGE.md`](docs/UNIFIED_EXPERIMENT_S1_1_STORAGE.md).
+Artifact registration, dataset resolution, and task dispatch adapters are future
+sprints; this sprint does not execute models or jobs.
+
+## Experiment artifacts and run provenance (Sprint 1.2)
+
+The opt-in `ExperimentStore.artifacts` registry links existing project-local
+files to experiment runs with typed descriptions, streaming SHA-256 fingerprints,
+and explicit input/source relationships. Opening an S1.1 database migrates it
+in place from schema v1 to v2 without discarding runs. This does **not** alter
+existing model execution, Data Lab provenance sidecars, or PAH interfaces.
+See [`docs/UNIFIED_EXPERIMENT_S1_2_ARTIFACTS.md`](docs/UNIFIED_EXPERIMENT_S1_2_ARTIFACTS.md).
+
 ## Install
 
 ```bash
@@ -909,3 +941,11 @@ All group/pair records say `merge_authorized: false`. The similarity report is
 source inclusion, human compatibility review, extraction recipe validation and
 consolidation belong to later XML-C3–XML-C5 sprints. Single-XML extraction remains
 operational and unchanged.
+
+### Recorded legacy-task execution (Sprint 1.3)
+
+`ml_lab.experiments.execute_recorded_task(...)` is an **opt-in** adapter around
+`ml_lab.application.execute_task(...)`: it stores a project-local input snapshot,
+run metadata, the unchanged task response, and registered artifact provenance.
+Existing task callers, routes, and CLI commands are not redirected. See
+[the S1.3 legacy adapter contract](docs/UNIFIED_EXPERIMENT_S1_3_LEGACY_ADAPTER.md).
