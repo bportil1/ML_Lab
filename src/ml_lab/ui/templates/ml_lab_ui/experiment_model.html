@@ -1,0 +1,160 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Model workspace · ML Lab{% endblock %}
+{% macro render_fields(fields, prefix) %}
+  {% for field in fields %}
+    {% set key = prefix ~ '.' ~ field.name %}
+    {% set value = values.get(key, '') %}
+    {% if field.type == 'object' %}
+      <details class="model-nested-config">
+        <summary>{{ field.name.replace('_', ' ')|title }}</summary>
+        <div class="model-control-grid">{{ render_fields(field.fields, key) }}</div>
+      </details>
+    {% elif field.type == 'multi_select' %}
+      <fieldset class="model-multi-select">
+        <legend>{{ field.name.replace('_', ' ')|title }}</legend>
+        <div class="model-checkboxes">
+          {% for choice in field.choices %}
+          <label><input type="checkbox" name="ctl.{{ key }}" value="{{ choice }}" {% if (value is string and choice == value) or (value is not string and choice in value) %}checked{% endif %}> {{ choice.replace('_', ' ') }}</label>
+          {% endfor %}
+        </div>
+      </fieldset>
+    {% else %}
+      <label class="model-field">
+        <span>{{ field.name.replace('_', ' ')|title }}</span>
+        {% if field.type in ('enum', 'boolean') %}
+        <select name="ctl.{{ key }}" class="wide-input">
+          <option value="">Use engine default ({{ placeholder(field) }})</option>
+          {% if field.type == 'boolean' %}
+            {% for choice in ['true', 'false'] %}<option value="{{ choice }}" {% if value == choice %}selected{% endif %}>{{ choice|title }}</option>{% endfor %}
+          {% else %}
+            {% for choice in field.choices %}<option value="{{ choice }}" {% if value == choice %}selected{% endif %}>{{ choice }}</option>{% endfor %}
+          {% endif %}
+        </select>
+        {% else %}
+        <input class="wide-input" name="ctl.{{ key }}" type="{{ 'number' if field.type in ('integer', 'number') else 'text' }}" {% if field.type == 'number' %}step="any"{% elif field.type == 'integer' %}step="1"{% endif %} value="{{ value|join(', ') if value is sequence and value is not string else value }}" placeholder="{{ placeholder(field) }}" spellcheck="false">
+        {% if field.type == 'array' %}<small>Comma-separated values, or JSON array</small>{% elif field.type == 'union' %}<small>JSON scalar, e.g. 2 or 0.95</small>{% endif %}
+        {% endif %}
+      </label>
+    {% endif %}
+  {% endfor %}
+{% endmacro %}
+{% block content %}
+<section class="workspace-head">
+  <div><p class="eyebrow">Experiments → Model</p><h1>Model workspace</h1>
+    <p class="lede">Use a selected dataset to configure a stable model family. Saving records a new experiment revision; it does not train or optimize a model.</p>
+  </div>
+</section>
+{% if error %}<div class="alert data-alert" role="alert">{{ error }}</div>{% endif %}
+{% if saved %}<section class="status-card transform-success" role="status"><strong>Model configuration saved</strong><span>Experiment revision {{ experiment.revision }} is ready for a later training run. No model was executed.</span></section>{% endif %}
+<section class="panel model-workflow" aria-label="Experiment workflow">
+  <div class="model-workflow-stages">
+    <span class="done">1 · Data selected</span><span class="current">2 · Model configuration</span><span>3 · Training</span><span>4 · Evaluation and comparison</span>
+  </div>
+</section>
+{% if not experiments %}
+<section class="panel"><h2>No datasets selected yet</h2><p>Open a project-local CSV or TSV through Data Lab, then choose <strong>Use in experiment</strong> to select its feature and target columns.</p><a class="button secondary" href="{{ url_for(request.blueprint + '.data_lab') }}">Go to Data Lab</a></section>
+{% else %}
+<form class="panel model-picker" method="get" action="{{ url_for(request.blueprint + '.experiment_model') }}">
+  <div class="model-picker-fields">
+    <label>Experiment
+      <select class="wide-input" name="experiment_id" data-model-picker>
+        {% for item in experiments %}<option value="{{ item.experiment_id }}" {% if experiment and experiment.experiment_id == item.experiment_id %}selected{% endif %}>{{ item.name }} · rev {{ item.revision }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Model family
+      <select class="wide-input" name="family" data-model-picker>
+        {% for item in families %}<option value="{{ item.id }}" {% if family == item.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Method
+      <select class="wide-input" name="method" data-model-picker>
+        {% for item in methods %}<option value="{{ item.id }}" {% if method == item.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="button secondary" type="submit">Load configuration</button>
+  </div>
+</form>
+{% if experiment %}
+<p><a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_synthetic', experiment_id=experiment.experiment_id) }}">Generate synthetic dataset</a></p>
+<section class="panel model-dataset-summary">
+  <div class="model-summary-top"><h2>Selected dataset</h2><span class="badge">Revision {{ experiment.revision }}</span></div>
+  <p><code>{{ experiment.dataset_ref.path }}</code></p>
+  <p class="muted compact">{{ experiment.dataset_ref.rows }} rows · {{ experiment.dataset_ref.feature_columns|length }} features · {{ experiment.dataset_ref.target_columns|length }} targets · SHA-256 {{ experiment.dataset_ref.sha256[:16] }}…</p>
+  <div class="model-summary-columns"><div><strong>Features</strong><span>{{ experiment.dataset_ref.feature_columns|join(', ') }}</span></div><div><strong>Targets</strong><span>{{ experiment.dataset_ref.target_columns|join(', ') if experiment.dataset_ref.target_columns else 'None' }}</span></div></div>
+  {% if data_error %}<div class="alert" role="alert">{{ data_error }}</div>{% endif %}
+  <p class="muted compact">To change features, targets, or the source dataset, create an explicit new dataset revision in Data Lab.</p>
+</section>
+{% if schema and not data_error %}
+<form class="model-configuration" method="post" action="{{ url_for(request.blueprint + '.experiment_model') }}">
+  <input type="hidden" name="experiment_id" value="{{ experiment.experiment_id }}">
+  <input type="hidden" name="expected_revision" value="{{ experiment.revision }}">
+  <input type="hidden" name="family" value="{{ family }}">
+  <input type="hidden" name="method" value="{{ method }}">
+  <section class="panel"><h2>{{ method_name }}</h2>
+    <p class="muted compact">Only enter parameters you want to override. Empty fields use the model engine's authoritative defaults.</p>
+    {% for group, fields in controls.items() %}
+      <details class="model-parameter-group" {% if loop.first %}open{% endif %}>
+        <summary>{{ group.replace('_', ' ')|title }}</summary>
+        <div class="model-control-grid">{{ render_fields(fields, group) }}</div>
+      </details>
+    {% endfor %}
+  </section>
+  <section class="panel model-save-bar">
+    <div><strong>Revision-safe configuration</strong><p class="muted compact">A saved configuration creates a new immutable revision. Existing runs remain pinned to their prior versions.</p></div>
+    <button class="button" type="submit">Save model configuration</button>
+  </section>
+</form>
+{% endif %}
+{% if experiment.model_spec.schema == 'ml-lab.model-configuration@1' and not data_error %}
+<section class="panel model-training-launch">
+  <h2>Train saved configuration</h2>
+  <p class="muted compact">This launches the saved {{ experiment.model_spec.family }} / {{ experiment.model_spec.method }} model for revision {{ experiment.revision }}. Unsaved form edits are not included. Execution progress is stage-based; model epochs are not reported yet.</p>
+  <form method="post" action="{{ url_for(request.blueprint + '.experiment_model_run') }}" class="model-run-launch-form">
+    <input type="hidden" name="experiment_id" value="{{ experiment.experiment_id }}">
+    <input type="hidden" name="expected_revision" value="{{ experiment.revision }}">
+    <label>Seed (optional, recorded only; engine settings control randomness)
+      <input class="wide-input" name="seed" type="number" step="1" placeholder="Not set">
+    </label>
+    <button type="submit" class="button">Run configured model</button>
+  </form>
+</section>
+{% endif %}
+{% if experiment.model_spec.schema == 'ml-lab.model-configuration@1' and not data_error and optimization_controls and optimization_metrics %}
+<section class="panel model-optimization-launch">
+  <h2>Optimize saved configuration</h2>
+  <p class="muted compact">Firefly searches one numeric control at a time using the pinned dataset and existing model engine. Each candidate may retrain the model. A run records trials; it does not update or promote the saved model configuration.</p>
+  <form method="post" action="{{ url_for(request.blueprint + '.experiment_model_optimize') }}" class="model-configuration">
+    <input type="hidden" name="experiment_id" value="{{ experiment.experiment_id }}">
+    <input type="hidden" name="expected_revision" value="{{ experiment.revision }}">
+    <div class="model-control-grid">
+      <label class="model-field">Numeric control<select class="wide-input" name="parameter">{% for item in optimization_controls %}<option value="{{ item.path }}">{{ item.path }} ({{ item.kind }})</option>{% endfor %}</select></label>
+      <label class="model-field">Minimum<input class="wide-input" name="lower" type="number" step="any" required value="1"></label>
+      <label class="model-field">Maximum<input class="wide-input" name="upper" type="number" step="any" required value="2"></label>
+      <label class="model-field">Objective metric<select class="wide-input" name="metric">{% for value in optimization_metrics %}<option value="{{ value }}" {% if value == 'rmse' %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+      <label class="model-field">Goal<select class="wide-input" name="goal"><option value="minimize">Minimize</option><option value="maximize">Maximize</option></select></label>
+      <label class="model-field">Population (2–8)<input class="wide-input" name="population_size" type="number" min="2" max="8" value="2"></label>
+      <label class="model-field">Iterations (0–5)<input class="wide-input" name="iterations" type="number" min="0" max="5" value="1"></label>
+      <label class="model-field">Firefly seed<input class="wide-input" name="seed" type="number" min="0" max="4294967295" value="42"></label>
+    </div>
+    <p class="muted compact">Bounded to 32 candidate evaluations. Search controls and bounds must respect model-specific constraints; some candidates may fail. Candidate execution is serial and cannot be forcibly terminated midway.</p>
+    <button type="submit" class="button">Start optimization trial</button>
+  </form>
+</section>
+{% endif %}
+{% if recent_runs %}
+<section class="panel">
+  <h2>Recent runs</h2>
+  <p><a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_compare', experiment_id=experiment.experiment_id) }}">Compare experiment runs</a></p>
+  <div class="model-run-list">
+  {% for run in recent_runs %}
+    {% if run.environment.executor in ('ml_lab.experiments.training@1', 'ml_lab.experiments.optimization@1') %}
+      <div class="model-run-row"><a href="{{ url_for(request.blueprint + '.experiment_model_run_view', run_id=run.run_id) }}">{{ run.run_id[:12] }}…</a><span>Revision {{ run.revision }}</span><span>{{ run.status }}</span></div>
+    {% endif %}
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}
+{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_experiment_model.js') }}"></script>{% endblock %}

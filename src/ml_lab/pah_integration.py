@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sqlite3
 import threading
 from pathlib import Path
 from typing import Any, Mapping
@@ -41,6 +42,10 @@ def module_manifest() -> dict[str, Any]:
             "representation_learning",
             "energy_based_modeling",
             "generative_modeling",
+            "experiment_tracking",
+            "model_execution",
+            "synthetic_data_generation",
+            "run_comparison",
         ],
         "interfaces": ["callable_api", "standalone_ui", "embedded_ui", "detachable_ui"],
         "metadata": {
@@ -173,19 +178,88 @@ def _artifact_from_json(path: Path, payload: Mapping[str, Any], project: Path | 
     }
 
 
+def _registered_experiment_artifacts(project: Path) -> list[dict[str, Any]]:
+    """Expose only completed, verified ML_Lab outputs via the module's own API.
+
+    Existing projects without an experiment database are left untouched. The
+    published catalogue is bounded to avoid unbounded host status requests.
+    """
+    database = project / "analysis" / "ml_lab" / "experiments.sqlite3"
+    if not database.is_file() or database.is_symlink():
+        return []
+    from ml_lab.experiments import ExperimentStore, ExperimentStoreError
+
+    catalog: list[dict[str, Any]] = []
+    try:
+        store = ExperimentStore(project)
+    except (ExperimentStoreError, sqlite3.DatabaseError):
+        # Discovery must not make a future/unknown local schema unlaunchable.
+        return []
+    executors = {
+        "ml_lab.experiments.training@1": ("training", "model_execution"),
+        "ml_lab.experiments.optimization@1": ("optimization", "model_optimization"),
+        "ml_lab.experiments.synthetic@1": ("synthetic", "synthetic_data_generation"),
+    }
+    # Bound the amount of history offered through a synchronous host discovery.
+    for experiment in store.list_experiments(limit=500):
+        for run in store.list_runs(experiment["experiment_id"], limit=100):
+            if run["status"] != "succeeded":
+                continue
+            executor = run["environment"].get("executor")
+            if executor not in executors:
+                continue
+            family, capability = executors[executor]
+            for artifact in store.artifacts.list_for_run(run["run_id"], limit=100):
+                if artifact["role"] != "output" or artifact["kind"] not in {"result", "dataset", "history"}:
+                    continue
+                try:
+                    if store.artifacts.verify(artifact["artifact_id"])["status"] != "valid":
+                        continue
+                except (ExperimentStoreError, OSError):
+                    continue
+                location = (project / artifact["path"]).resolve()
+                catalog.append({
+                    "artifact_id": f"ml-lab-experiment-{artifact['artifact_id']}",
+                    "kind": ("synthetic_dataset" if family == "synthetic" and artifact["kind"] == "dataset"
+                             else f"{family}_{artifact['kind']}"),
+                    "producer_module": MODULE_ID,
+                    "location": str(location),
+                    "schema_id": "ml-lab.registered-experiment-output",
+                    "schema_version": "1",
+                    "media_type": artifact.get("media_type") or ("text/csv" if location.suffix == ".csv"
+                                                               else "application/json" if location.suffix == ".json"
+                                                               else "application/octet-stream"),
+                    "producer_version": __version__,
+                    "project_id": str(project),
+                    "capabilities": ["experiment_tracking", capability],
+                    "validation_state": "valid",
+                    "metadata": {"runtime_managed": True, "registry_alias": False,
+                                 "run_id": run["run_id"], "experiment_id": run["experiment_id"],
+                                 "revision": run["revision"], "sha256": artifact["sha256"],
+                                 "artifact_kind": artifact["kind"]},
+                    "provenance": {"run_id": run["run_id"], "revision": run["revision"]},
+                })
+                # Avoid hashing/discovering an unbounded archive on a host
+                # status call. Older history remains in the local store.
+                if len(catalog) >= 250:
+                    return catalog
+    return catalog
+
+
 def discover_artifacts(context: Any = None) -> tuple[dict[str, Any], ...]:
     """Discover ML Lab artifacts in the current PAH results tree.
 
-    Discovery is intentionally conservative: only JSON records carrying a known
-    ML Lab schema are registered. Arbitrary project JSON files are ignored.
+    Discover known Data Lab sidecars and completed, hash-verified experiment
+    outputs. Arbitrary project JSON files are ignored.
     """
     project, results = _roots(context)
     if not results.is_dir():
-        return ()
+        return tuple(_registered_experiment_artifacts(project)) if project is not None else ()
     discovered: list[dict[str, Any]] = []
     seen: set[str] = set()
+    allowed_roots = [results.resolve()] + ([project] if project is not None else [])
     for path in sorted(results.rglob("*.json")):
-        if not path.is_file():
+        if not path.is_file() or path.is_symlink():
             continue
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
@@ -196,8 +270,18 @@ def discover_artifacts(context: Any = None) -> tuple[dict[str, Any], ...]:
         artifact = _artifact_from_json(path, payload, project)
         if artifact is None or artifact["artifact_id"] in seen:
             continue
+        # A manifest is not permission to expose arbitrary local files. Only
+        # advertise regular files within the configured results/project roots.
+        location = Path(artifact["location"])
+        if location.is_symlink() or not location.is_file():
+            continue
+        resolved = location.resolve()
+        if not any(resolved.is_relative_to(root) for root in allowed_roots):
+            continue
         seen.add(artifact["artifact_id"])
         discovered.append(artifact)
+    if project is not None:
+        discovered.extend(_registered_experiment_artifacts(project))
     return tuple(discovered)
 
 
@@ -210,7 +294,7 @@ class MLLabRuntimeAdapter:
         self._server = None
         self._thread: threading.Thread | None = None
         self._url: str | None = None
-        self._binding: tuple[str, int, str] | None = None
+        self._binding: tuple[str, int, str, str] | None = None
         self._error: str | None = None
 
     def _running(self) -> bool:
@@ -225,18 +309,24 @@ class MLLabRuntimeAdapter:
         except ImportError:
             available = False
             message = "ML Lab UI requires the optional 'ui' extra. Run PAH setup after adding the ML_Lab submodule."
+        host = str(_context_value(context, "host", "127.0.0.1") or "127.0.0.1")
+        binding = (host, _port(context), str(project) if project else "", str(results))
+        running_for_context = self._running() and self._binding == binding
+        if self._running() and not running_for_context:
+            message = "ML Lab is running for another project or output root; relaunch to switch."
         return {
             "module_id": MODULE_ID,
             "available": available,
-            "running": self._running(),
+            "running": running_for_context,
             "launchable": available,
-            "url": self._url if self._running() else None,
+            "url": self._url if running_for_context else None,
             "presentation": "module_ui",
             "message": message,
             "metadata": {
                 "project_root": str(project) if project else None,
                 "results_root": str(results),
                 "bound_project": self._binding[2] if self._binding else None,
+                "bound_results_root": self._binding[3] if self._binding else None,
             },
         }
 
@@ -248,7 +338,7 @@ class MLLabRuntimeAdapter:
         host = str(_context_value(context, "host", "127.0.0.1") or "127.0.0.1")
         port = _port(context)
         project_key = str(project) if project else ""
-        binding = (host, port, project_key)
+        binding = (host, port, project_key, str(results))
 
         if self._running() and self._binding != binding:
             self.shutdown(context=context)
@@ -258,6 +348,11 @@ class MLLabRuntimeAdapter:
             app = create_app(config={
                 "ML_LAB_PROFILE_OUTPUT_ROOT": str(profile_root),
                 "ML_LAB_DERIVED_OUTPUT_ROOT": str(derived_root),
+                # A hosted experiment must never silently bind to PAH's cwd.
+                "ML_LAB_EXPERIMENT_PROJECT_ROOT": str(project) if project else None,
+                # Suggestions in a hosted UI should start inside the selected
+                # project, not PAH's cwd or the host account's home folder.
+                "ML_LAB_PATH_AUTOCOMPLETE_ROOTS": [str(project)] if project else None,
             })
             # Hosted requests stay scoped to their selected PAH workspace;
             # standalone ML Lab remains independent of the monitoring package.

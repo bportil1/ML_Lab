@@ -47,6 +47,10 @@ def _worker(evaluator, position, iteration, candidate_id, queue, failure_fitness
         queue.put((candidate_id, CandidateEvaluation(float(failure_fitness), {}, {}, status="error", error=repr(exc))))
 
 
+class OptimizationStopped(RuntimeError):
+    """A cooperating caller requested an optimizer stop at an evaluation boundary."""
+
+
 class Firefly(OptimizationAlgorithm):
     name = "firefly"
 
@@ -69,6 +73,7 @@ class Firefly(OptimizationAlgorithm):
         seed: int | None = None,
         scope: str = "model",
         metadata: dict[str, Any] | None = None,
+        should_stop=None,
     ):
         if population_size < 1:
             raise ValueError("Firefly population_size must be >= 1")
@@ -90,6 +95,7 @@ class Firefly(OptimizationAlgorithm):
         self.seed = seed
         self.scope = scope
         self.metadata = dict(metadata or {})
+        self.should_stop = should_stop
         self.bounds = list(search_space.bound_pairs)
         self.runtime.configure_torch()
         if seed is not None:
@@ -121,8 +127,13 @@ class Firefly(OptimizationAlgorithm):
             error=repr(exc),
         )
 
+    def _check_stop(self):
+        if self.should_stop is not None and self.should_stop():
+            raise OptimizationStopped("Optimizer stop requested")
+
     def _evaluate_serial(self, iteration: int):
         for idx, position in enumerate(self.positions):
+            self._check_stop()
             try:
                 evaluation = self.evaluator.evaluate(position, iteration=iteration, candidate_id=idx)
             except Exception as exc:
@@ -319,6 +330,7 @@ class Firefly(OptimizationAlgorithm):
         best_evaluation = self.evaluations[best_index]
 
         for iteration in range(self.iterations):
+            self._check_stop()
             self.move_population()
             self.evaluate_population(iteration=iteration)
             finite = np.isfinite(self.fitness) & (self.fitness < self.failure_fitness)
@@ -368,5 +380,6 @@ class Firefly(OptimizationAlgorithm):
             scope=self.scope,
             metadata={**dict(self.metadata), "runtime": self.runtime.metadata()},
         )
+        self._check_stop()
         self._save(result)
         return result

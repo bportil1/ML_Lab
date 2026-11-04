@@ -17,6 +17,7 @@ def create_app(*, enable_experimental: bool = False, config: dict[str, Any] | No
         "JSON_SORT_KEYS": False,
         "ML_LAB_PROFILE_OUTPUT_ROOT": "analysis/data/profile_runs",
         "ML_LAB_DERIVED_OUTPUT_ROOT": "analysis/data/derived",
+        "ML_LAB_EXPERIMENT_PROJECT_ROOT": None,
         "ML_LAB_PATH_AUTOCOMPLETE_ROOTS": None,
     })
     if config:
@@ -26,6 +27,7 @@ def create_app(*, enable_experimental: bool = False, config: dict[str, Any] | No
             enable_experimental=enable_experimental,
             profile_output_root=app.config["ML_LAB_PROFILE_OUTPUT_ROOT"],
             derived_output_root=app.config["ML_LAB_DERIVED_OUTPUT_ROOT"],
+            experiment_project_root=app.config["ML_LAB_EXPERIMENT_PROJECT_ROOT"],
             path_autocomplete_roots=app.config["ML_LAB_PATH_AUTOCOMPLETE_ROOTS"],
         ),
         url_prefix="/",

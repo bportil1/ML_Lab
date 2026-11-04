@@ -15,6 +15,7 @@ def create_ui_blueprint(
     enable_experimental: bool = False,
     profile_output_root: str = "analysis/data/profile_runs",
     derived_output_root: str = "analysis/data/derived",
+    experiment_project_root: str | None = None,
     path_autocomplete_roots=None,
 ):
     from .blueprint import create_ui_blueprint as _create_ui_blueprint
@@ -24,6 +25,7 @@ def create_ui_blueprint(
         enable_experimental=enable_experimental,
         profile_output_root=profile_output_root,
         derived_output_root=derived_output_root,
+        experiment_project_root=experiment_project_root,
         path_autocomplete_roots=path_autocomplete_roots,
     )
 

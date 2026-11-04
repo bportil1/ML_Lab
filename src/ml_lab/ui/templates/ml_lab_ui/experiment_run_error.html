@@ -1,0 +1,7 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Run could not start · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head"><div><p class="eyebrow">Experiments → Training</p><h1>Run not started</h1></div></section>
+<div class="alert data-alert" role="alert">{{ error }}</div>
+<a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_model', experiment_id=experiment_id) }}">Return to experiment</a>
+{% endblock %}

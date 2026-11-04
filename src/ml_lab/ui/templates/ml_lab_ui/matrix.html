@@ -1,0 +1,29 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Matrix draft · {{ source.relative_path }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ source_url }}">← Source table</a>
+<section class="workspace-head">
+  <div><p class="eyebrow">Data Lab · local derived dataset</p><h1>Matrix editor</h1>
+    <p class="lede">{{ source.relative_path }} — Edit a draft, then save to a new dataset. The source is never overwritten.</p></div>
+</section>
+<section id="matrix-draft" class="matrix-workspace" data-rows-url="{{ rows_url }}"
+  data-save-url="{{ save_url }}" data-dtypes='{{ source_dtypes|tojson }}' data-source-hash="{{ source.sha256 }}" data-row-count="{{ source.row_count }}">
+  <div class="matrix-toolbar">
+    <label for="matrix-page-size">Rows/page</label>
+    <select id="matrix-page-size"><option>25</option><option selected>50</option><option>100</option></select>
+    <button type="button" id="matrix-undo" disabled>Undo</button>
+    <button type="button" id="matrix-redo" disabled>Redo</button>
+    <button type="button" id="matrix-copy">Copy range</button>
+    <button type="button" id="matrix-save" disabled>Save derived dataset</button>
+    <span id="matrix-pending" class="matrix-subtle">No draft edits</span>
+  </div>
+  <div id="matrix-message" class="matrix-subtle" role="status" aria-live="polite">Loading matrix…</div>
+  <p class="matrix-note">Only unfiltered source rows are editable. Click, Shift-click or drag to select; double-click or type to edit; Enter to commit and Escape to cancel. Copy and paste tabular ranges with Ctrl/Cmd+C and Ctrl/Cmd+V. Stored text values are never rounded for display.</p>
+  <div class="matrix-scroll" id="matrix-scroll" role="region" aria-label="Editable dataset matrix" tabindex="0">
+    <table class="matrix-grid" aria-label="Dataset matrix"><thead id="matrix-head"></thead><tbody id="matrix-body"></tbody></table>
+  </div>
+  <div class="matrix-pagination"><button type="button" id="matrix-prev">Previous</button><span id="matrix-page-label">Page 1</span><button type="button" id="matrix-next">Next</button></div>
+  <div class="matrix-result" id="matrix-result" hidden></div>
+</section>
+{% endblock %}
+{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_matrix_editor.js') }}"></script>{% endblock %}

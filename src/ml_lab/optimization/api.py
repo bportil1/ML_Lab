@@ -16,6 +16,7 @@ def optimize(
     runtime: OptimizationRuntime | dict[str, Any] | None = None,
     output_path: str | None = None,
     metadata: dict[str, Any] | None = None,
+    should_stop=None,
 ):
     if config is None:
         config = FireflyConfig()
@@ -43,4 +44,5 @@ def optimize(
         seed=config.seed,
         scope=config.scope,
         metadata=metadata,
+        **({"should_stop": should_stop} if should_stop is not None else {}),
     ).optimize()

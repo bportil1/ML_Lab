@@ -458,3 +458,78 @@ th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spa
 .xml-history-compare-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
 .xml-history-compare-controls label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; min-width: 240px; }
 .xml-history-compare-controls select { min-width: 240px; }
+
+/* S2.2: conventional, neutral scientific matrix workspace (no PAH decoration). */
+.matrix-workspace { display: grid; gap: 9px; }
+.matrix-toolbar, .matrix-pagination { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.matrix-toolbar button, .matrix-pagination button, .matrix-toolbar select { border: 1px solid var(--line, #b8bec6); border-radius: 4px; padding: 5px 9px; background: var(--surface, #fff); color: var(--text, #222); cursor: pointer; }
+.matrix-toolbar button:disabled, .matrix-pagination button:disabled { opacity: .5; cursor: not-allowed; }
+.matrix-subtle, .matrix-note { font-size: 12px; color: var(--muted, #656565); }
+.matrix-note { margin: 0; }
+.matrix-scroll { overflow: auto; max-height: 550px; border: 1px solid var(--line, #ddd); background: var(--surface, #fff); }
+.matrix-grid { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-variant-numeric: tabular-nums; }
+.matrix-grid th, .matrix-grid td { border-right: 1px solid var(--line, #ddd); border-bottom: 1px solid var(--line, #ddd); padding: 4px 8px; min-width: 95px; max-width: 260px; font-size: 12px; font-weight: 400; line-height: 1.4; white-space: nowrap; text-align: left; }
+.matrix-grid th { position: sticky; top: 0; z-index: 2; background: var(--surface-2, #f5f5f5); font-weight: 600; }
+.matrix-grid .matrix-row-index { position: sticky; left: 0; z-index: 1; min-width: 52px; text-align: right; color: var(--muted, #555); background: var(--surface-2, #f5f5f5); }
+.matrix-grid thead .matrix-row-index { z-index: 3; }
+.matrix-grid td { cursor: cell; overflow: hidden; text-overflow: ellipsis; }
+.matrix-grid td:focus-visible, .matrix-grid td.matrix-active { outline: 2px solid #3779c4; outline-offset: -2px; }
+.matrix-grid td.matrix-selected { background: color-mix(in srgb, #3779c4 12%, var(--surface, #fff)); }
+.matrix-grid td.matrix-changed { font-weight: 600; }
+.matrix-grid td.matrix-missing { color: var(--muted, #777); }
+.matrix-grid td input { width: 100%; min-width: 85px; border: 1px solid #3779c4; background: var(--surface, #fff); color: var(--text, #111); font: inherit; padding: 2px; }
+.matrix-result { padding: 9px; border: 1px solid var(--line, #ddd); overflow-wrap: anywhere; }
+
+/* S3.2: experiment workflow chrome, not a branded scientific grid. */
+.model-workflow { margin-bottom: 14px; }
+.model-workflow-stages { display: flex; flex-wrap: wrap; gap: 9px; }
+.model-workflow-stages span { color: var(--muted); padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
+.model-workflow-stages .done { color: var(--good); }
+.model-workflow-stages .current { color: var(--text); border-color: var(--accent); font-weight: 700; }
+.model-picker { margin: 12px 0 16px; }
+.model-picker-fields { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)) auto; align-items: end; gap: 12px; }
+.model-picker-fields label, .model-field { display: grid; gap: 5px; min-width: 0; color: var(--muted); font-size: 13px; }
+.model-dataset-summary code { overflow-wrap: anywhere; }
+.model-summary-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.model-summary-top h2 { margin: 0; }
+.model-summary-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 12px; }
+.model-summary-columns > div { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.model-configuration { display: grid; gap: 16px; }
+.model-parameter-group, .model-nested-config { border-top: 1px solid var(--line); padding: 12px 0; }
+.model-parameter-group > summary, .model-nested-config > summary { cursor: pointer; font-weight: 650; }
+.model-nested-config { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: 7px; padding: 12px; }
+.model-control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: start; gap: 13px 17px; margin-top: 14px; }
+.model-field small { color: var(--muted); font-size: 11px; }
+.model-multi-select { grid-column: 1 / -1; min-width: 0; margin: 0; border: 1px solid var(--line); border-radius: 7px; }
+.model-multi-select legend { font-size: 13px; font-weight: 650; }
+.model-checkboxes { display: flex; flex-wrap: wrap; gap: 10px 16px; }
+.model-checkboxes label { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
+.model-save-bar { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.model-save-bar p { margin: 6px 0 0; }
+@media (max-width: 900px) { .model-picker-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .model-picker-fields, .model-summary-columns { grid-template-columns: 1fr; } .model-save-bar { flex-wrap: wrap; } }
+
+/* S4.1 — training lifecycle controls; matrices intentionally unchanged. */
+.model-run-launch-form { display: flex; align-items: end; flex-wrap: wrap; gap: .8rem; }
+.model-run-launch-form label { flex: 1 1 16rem; max-width: 28rem; }
+.model-run-list { display: grid; gap: .35rem; }
+.model-run-row { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: .4rem 0; border-bottom: 1px solid var(--border, #ddd); }
+.training-run-panel .summary-grid { margin-block: 1rem; }
+
+/* S5.1 experiment comparison: plain numeric matrix, no branded cell chrome. */
+.comparison-run-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: .5rem; margin: 1rem 0; }
+.comparison-run-picker label { font-size: .88rem; display: flex; gap: .45rem; align-items: center; }
+.comparison-table-scroll { width: 100%; overflow-x: auto; }
+.comparison-matrix { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .875rem; }
+.comparison-matrix th, .comparison-matrix td { padding: .5rem .65rem; border: 1px solid var(--border, #ddd); text-align: left; white-space: nowrap; }
+.comparison-matrix thead th { background: var(--surface, #f7f7f7); font-weight: 600; }
+.comparison-matrix tbody th { font-weight: 500; }
+.comparison-matrix .comparison-number { text-align: right; }
+.comparison-details { padding: .6rem 0; border-bottom: 1px solid var(--border, #ddd); }
+
+/* S5.2: neutral scientific charts; PAH style remains outside the plots. */
+.experiment-chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 1rem; }
+.experiment-chart { margin: 0; min-width: 0; border: 1px solid var(--border, #d6d6d6); border-radius: 5px; padding: .65rem; background: #fff; color: #222; }
+.experiment-chart img { width: 100%; height: auto; display: block; }
+.experiment-chart figcaption { display: grid; gap: .2rem; font-size: .88rem; overflow-wrap: anywhere; }
+.experiment-chart .button-row { gap: 1rem; margin-top: .5rem; font-size: .85rem; }

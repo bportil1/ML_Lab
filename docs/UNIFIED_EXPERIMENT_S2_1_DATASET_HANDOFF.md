@@ -36,7 +36,7 @@ handoff = prepare_model_handoff(
     settings={"estimators": ["ridge"], "config": {"cv_folds": 2}},
 )
 # handoff["payload"] is compatible with ml_lab.application.execute_task.
-# S3 will connect this handoff to recorded execution on this same experiment.
+# S3.1 attaches a validated model configuration; S4 will add recorded execution on the configured experiment.
 ```
 
 The API also selects transformed CSV/TSV outputs, including a Data Lab
@@ -102,7 +102,7 @@ to model execution.
   runtime memory, not in SQLite.
 - S2.2 adds pyPIQUE-style generic matrix editing with derived revisions.
   S2.3 integrates selected transformed outputs into the visible handoff.
-  S3 wires the model configuration UI to this API and records model runs.
+  S3.1 adds headless validated model configuration; S3.2 adds the UI; S4 records model runs.
 - PAH remains a mediator, not a code/database dependency; HSQA_DBN retains
   ownership of its tangent-manifold research implementation.
 

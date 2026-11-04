@@ -13,6 +13,12 @@
   </div>
 </section>
 
+<section class="panel">
+  <h2>Unified experiment workspace</h2>
+  <p>Select a project-local dataset in Data Lab, then configure a model using typed scientific controls. Existing JSON task workbenches remain available as advanced legacy tools.</p>
+  <a class="button" href="{{ url_for(request.blueprint + '.experiment_model') }}">Open experiments</a>
+</section>
+
 {% for group in groups %}
 <section class="capability-section">
   <h2>{{ group.name }}</h2>

@@ -959,3 +959,111 @@ revision. `preview_experiment_dataset` exposes a source-order table viewport;
 into the existing numeric model task input format after rechecking content and
 lineage. The existing UI and dispatch behavior are unchanged. See
 [the S2.1 dataset handoff contract](docs/UNIFIED_EXPERIMENT_S2_1_DATASET_HANDOFF.md).
+
+### Scientific matrix drafts (Sprint 2.2)
+
+Data Lab source pages offer a minimal, non-destructive **Edit a copy as matrix**
+workspace for headed CSV/TSV datasets. Saves create a new derived dataset and
+Data Lab provenance, never overwriting source bytes. See
+[the matrix draft guide](docs/UNIFIED_EXPERIMENT_S2_2_MATRIX_DRAFT.md).
+
+### Derived dataset → experiment selection (Sprint 2.3)
+
+A saved matrix draft or applied Data Lab transformation can now be selected
+with **Use in experiment**. The explicit selection page creates a project-local
+experiment or publishes an immutable new dataset revision, with feature/target
+column mapping, source hashes, and Data Lab provenance. It never launches
+training or silently replaces a running experiment's dataset. Standalone use
+selects the current directory by default; PAH should pass its selected project
+through `experiment_project_root`. See
+[the S2.3 handoff guide](docs/UNIFIED_EXPERIMENT_S2_3_DERIVED_DATASET_HANDOFF.md).
+
+### Stable model-family configuration (Sprint 3.1)
+
+The opt-in `ml_lab.experiments` model registry lists stable classification,
+regression, clustering, representation, GAN and RBM methods and exposes typed
+configuration controls derived from the existing scientific engines. A selected
+Data Lab dataset can be paired with a validated model configuration, published
+as an immutable experiment revision, and materialized into a compatible
+`execute_task` payload. This does **not** start training or replace the legacy
+JSON task UI. See [the Sprint 3.1 model configuration guide](docs/UNIFIED_EXPERIMENT_S3_1_MODEL_CONFIGURATION.md).
+
+### Unified model workspace (Sprint 3.2)
+
+The first-party UI includes an **Experiments** workspace: after selecting a
+project-local Data Lab dataset, choose a model family/method, configure typed
+(including nested) options, and save the configuration as an immutable
+experiment revision. The original JSON task workbenches remain available;
+no model training is started. See
+[the Sprint 3.2 model workspace guide](docs/UNIFIED_EXPERIMENT_S3_2_MODEL_WORKSPACE.md).
+
+### Run configured experiments (Sprint 4.1)
+
+The **Experiments → Model workspace** now has **Run configured model** for a
+saved, current experiment revision. Training uses the original ML_Lab model
+engines, records project-local input and result artifacts, and shows run status
+on a separate page. Model execution is opt-in; saving a configuration still does
+not execute anything. The launch seed is **recorded only**, not imposed on
+individual engines. Training remains stage-based (no per-epoch feedback yet).
+
+Standalone Python usage:
+
+```python
+from ml_lab.experiments import ExperimentStore, run_configured_experiment
+
+store = ExperimentStore("/path/to/local/project")
+run = run_configured_experiment(store, "existing-configured-experiment-id")
+print(run["run_id"], run["status"])
+```
+
+See [S4.1 training lifecycle](docs/UNIFIED_EXPERIMENT_S4_1_TRAINING_LIFECYCLE.md)
+for worker limitations, project isolation, and artifact semantics.
+
+### Optional optimization trials and run control (Sprint 4.2)
+
+The **Experiments → Model workspace** offers bounded Firefly tuning for saved
+classification, regression, clustering and representation model revisions.
+Each candidate is recorded as a trial with project-local history and result
+artifacts; the current model configuration remains unchanged. Queued runs can
+be cancelled immediately; running cancellation is cooperative and cannot
+preempt a scientific engine already executing. See
+[the S4.2 optimization/run-control contract](docs/UNIFIED_EXPERIMENT_S4_2_OPTIMIZATION_RUN_CONTROL.md).
+
+### Evaluation and experiment comparison (Sprint 5.1)
+
+The Experiments workspace now exposes a read-only **Compare experiment runs**
+view for up to 25 recorded training and optimization runs. It displays finite,
+recorded scalar model metrics or Firefly's observed best objective (never
+optimization fitness as a substituted model metric), pinned revisions, and
+artifact-integrity status. A plain CSV export preserves the same selection;
+different model/dataset cohorts are explicitly marked as non-comparable.
+Runs with no supported metrics remain visible without invented scores. See
+[the S5.1 comparison contract](docs/UNIFIED_EXPERIMENT_S5_1_EVALUATION_COMPARISON.md).
+
+### Sprint 5.2: Visualization and export
+
+The Experiments → Compare runs workspace can now render static, neutral charts
+of comparable scalar metrics, recorded model training histories, and verified
+Firefly candidate objective traces. Per-chart SVG and CSV downloads and a
+portable JSON data/provenance export are available. No external chart library,
+PAH runtime, or new scientific scores are required. See
+[`docs/UNIFIED_EXPERIMENT_S5_2_VISUALIZATION_EXPORTS.md`](docs/UNIFIED_EXPERIMENT_S5_2_VISUALIZATION_EXPORTS.md).
+
+### Synthetic datasets from experiments (Sprint 6.1)
+
+The **Experiments → Generate synthetic dataset** action creates a new,
+project-local CSV from a selected Data Lab dataset: bootstrap, independent or
+correlated Gaussian, correlated Student-t, or (for a saved matching model)
+GAN/RBM sampling. Every dataset has a verified run record and Data Lab lineage.
+GAN/RBM generation trains anew; prior run JSON results are not model weights.
+See [the Sprint 6.1 synthetic data contract](docs/UNIFIED_EXPERIMENT_S6_1_SYNTHETIC_DATA.md).
+
+### PAH-hosted experiment isolation and artifact discovery (Sprint 7.1)
+
+PAH now passes the selected project root into the hosted Experiments UI,
+so its SQLite catalog and generated outputs stay with that project rather than
+the PAH server working directory. Runtime status tracks the bound project and
+results root. PAH discovery exposes completed, hash-verified training,
+optimization, and synthetic artifacts through ML_Lab's own registry.
+Standalone operation and existing Data Lab routes are preserved. See
+[the S7.1 integration/hardening guide](docs/UNIFIED_EXPERIMENT_S7_1_INTEGRATION_HARDENING.md).

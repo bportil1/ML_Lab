@@ -38,6 +38,7 @@ from .provenance import (
 from .reporting import save_inventory, save_profile, save_xml_structure
 from .transform import apply_transformation, load_recipe, preview_transformation, transform_dataframe
 from .table import read_table_page
+from .matrix_edits import MatrixDraftError, commit_matrix_draft
 from .types import (
     ColumnProfile,
     DataFileRecord,
@@ -64,6 +65,8 @@ from .types import (
 )
 
 __all__ = [
+    "MatrixDraftError",
+    "commit_matrix_draft",
     "ColumnProfile",
     "compare_files",
     "compare_paths",

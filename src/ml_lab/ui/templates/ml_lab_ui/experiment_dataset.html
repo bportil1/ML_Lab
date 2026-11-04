@@ -1,0 +1,53 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Select experiment dataset · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ source_url if preview else url_for(request.blueprint + '.data_lab') }}">← Source table</a>
+<section class="workspace-head"><div>
+  <p class="eyebrow">Data Lab → Experiments</p><h1>Use dataset in experiment</h1>
+  <p class="lede">Explicitly select a project-local dataset and its columns. Existing experiment runs keep their original revision.</p>
+</div></section>
+{% if error %}<div class="alert data-alert" role="alert">{{ error }}</div>{% endif %}
+{% if preview %}
+<section class="panel">
+  <h2>Dataset</h2>
+  <p><code>{{ preview.path }}</code></p>
+  <p class="muted compact">{{ preview.rows }} rows · {{ preview.columns }} columns · SHA-256 {{ preview.sha256[:16] }}…
+  {% if preview.provenance %} · Data Lab provenance {{ preview.provenance.event_id }}{% endif %}</p>
+</section>
+<section class="panel">
+  <h2>Destination</h2>
+  <div class="button-row">
+    <a class="button mini secondary" href="{{ url_for(request.blueprint + '.experiment_dataset', source_token=source_token) }}">New experiment</a>
+    {% for item in experiments %}
+    <a class="button mini secondary" href="{{ url_for(request.blueprint + '.experiment_dataset', source_token=source_token, experiment_id=item.experiment_id) }}">{{ item.name }} (revision {{ item.revision }})</a>
+    {% endfor %}
+  </div>
+  <p class="muted compact">{% if experiment %}Updating <strong>{{ experiment.name }}</strong>, revision {{ experiment.revision }}. A different dataset or mapping creates a new revision and clears its old model/evaluation setup.{% else %}Create a new experiment using this dataset.{% endif %}</p>
+</section>
+<form data-experiment-dataset-form method="post" action="{{ url_for(request.blueprint + '.experiment_dataset') }}" class="panel">
+  <input type="hidden" name="source_token" value="{{ source_token }}">
+  <input type="hidden" name="source_sha256" value="{{ preview.sha256 }}">
+  <input type="hidden" name="provenance_sha256" value="{{ preview.provenance.sha256 if preview.provenance else '' }}">
+  {% if experiment %}
+  <input type="hidden" name="experiment_id" value="{{ experiment.experiment_id }}">
+  <input type="hidden" name="expected_revision" value="{{ experiment.revision }}">
+  {% else %}<label>Experiment name <input name="experiment_name" value="Dataset: {{ preview.path.split('/')[-1] }}"></label>{% endif %}
+  <h2>Column mapping</h2>
+  <p class="muted compact">Choose one or more features; optional targets are reserved for supervised tasks. Feature and target selections cannot overlap.</p>
+  <div class="table-wrap"><table><thead><tr><th>Column</th><th>Inferred dtype</th><th>Feature</th><th>Target</th></tr></thead><tbody>
+  {% for col in preview.column_names %}
+  <tr><td>{{ col }}</td><td><code>{{ preview.dtypes[loop.index0] }}</code></td>
+    <td><input type="checkbox" name="features" value="{{ col }}" aria-label="{{ col }} feature" {% if col in default_features %}checked{% endif %}></td>
+    <td><input type="checkbox" name="targets" value="{{ col }}" aria-label="{{ col }} target" {% if col in default_targets %}checked{% endif %}></td>
+  </tr>{% endfor %}</tbody></table></div>
+  <div class="button-row"><button class="button" type="submit">{% if experiment %}Use selected dataset in new revision{% else %}Create experiment with dataset{% endif %}</button></div>
+</form>
+{% if selected %}<section class="status-card transform-success" role="status">
+  <strong>Dataset selected for {{ selected.name }}</strong>
+  <span>Experiment {{ selected.experiment_id }} · revision {{ selected.revision }}</span>
+  <span>No existing run was changed.</span>
+  <a class="button mini secondary" href="{{ url_for(request.blueprint + '.experiment_model', experiment_id=selected.experiment_id) }}">Configure model →</a>
+</section>{% endif %}
+{% endif %}
+{% endblock %}
+{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_experiment_dataset.js') }}"></script>{% endblock %}

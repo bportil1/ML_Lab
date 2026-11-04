@@ -516,3 +516,113 @@ identity/provenance records into `ExperimentStore.dataset_ref` and optionally
 materialize validated numeric feature/target payloads for the existing model
 tasks. It is an opt-in headless API, not a new runner or visual matrix editor.
 See [the dataset selection contract](docs/UNIFIED_EXPERIMENT_S2_1_DATASET_HANDOFF.md).
+
+### S2.2 Matrix drafts
+
+`ml_lab.data.matrix_edits` provides source-hash-pinned edits to a new derived
+CSV/TSV with a Data Lab transformation provenance event. The independent
+`/data/source/<token>/matrix` interface uses a neutral, bounded, unfiltered
+grid and does not write to experiment revisions. See
+[the S2.2 guide](docs/UNIFIED_EXPERIMENT_S2_2_MATRIX_DRAFT.md).
+
+### S2.3 — Explicit Data Lab → experiment handoff
+
+The `Use in experiment` action on source/transform/matrix-save result pages
+opens a project-local selection form. It verifies source/provenance fingerprints,
+requires feature/target mapping, and publishes dataset changes only on user
+submission. Existing experiments use an optimistic `expected_revision` guard
+implemented inside the local SQLite write transaction. No legacy dispatcher,
+scientific algorithm, or PAH mediator is changed. See
+[the S2.3 guide](docs/UNIFIED_EXPERIMENT_S2_3_DERIVED_DATASET_HANDOFF.md).
+
+### S3.1 — Model-family registration and typed configuration
+
+`ml_lab.experiments.models` provides stable model-family/method discovery,
+JSON-compatible typed-control metadata and validated project-local model
+revisions. It uses the existing scientific config classes and estimator/family
+registries; no algorithms or task envelopes change. A configured experiment
+can be materialized into the existing S2.1 legacy task payload without running
+training. Source/provenance verification, immutable revisions, explicit
+compare-and-swap, standalone operation and PAH/HSQA_DBN/pyPIQUE boundaries are
+preserved. The unified visual model workspace is Sprint 3.2. See
+[the S3.1 guide](docs/UNIFIED_EXPERIMENT_S3_1_MODEL_CONFIGURATION.md).
+
+### S3.2 — Unified model configuration UI
+
+`/experiments/models` uses Sprint 3.1's registry as its only scientific
+configuration source. The typed form adapter is importable without Flask,
+and the existing mountable Blueprint supplies experiment navigation,
+feature/target suitability notices, and revision-checked configuration saves.
+The original JSON task workbenches remain unchanged. No training, model
+engine rewrites, PAH mediator changes, database migration, or scientific
+matrix-editor changes occur here. See
+[the Sprint 3.2 workspace guide](docs/UNIFIED_EXPERIMENT_S3_2_MODEL_WORKSPACE.md).
+
+### S4.1 — Configured training lifecycle and run status
+
+`ml_lab.experiments.training` connects immutable S3 model revisions to the
+existing `execute_task()` scientific engines. A project-local SQLite run is
+queued, atomically claimed for execution, and finalized as succeeded/failed.
+Its original CSV/TSV dataset and optional Data Lab sidecar are reverified and
+registered as inputs, alongside a JSON configuration manifest. Strict JSON
+results are recorded as content-hashed output artifacts with provenance edges.
+
+The mountable UI starts runs through a bounded in-process daemon-thread worker,
+then polls durable run metadata and a coarse-grained progress sidecar. This is
+**stage-level observability, not epoch-level progress** and is not a durable
+external worker: server interruption may leave a run marked queued/running.
+S4.2 is responsible for durable interruption handling, cancellation, and
+optimizer trials. See [the S4.1 run contract](docs/UNIFIED_EXPERIMENT_S4_1_TRAINING_LIFECYCLE.md).
+
+### S4.2 — Opt-in optimization trials and conservative run control
+
+`ml_lab.experiments.optimization` reuses the existing Firefly engine and
+model dispatch for serial, revision-pinned hyperparameter trials. All inputs,
+trial summaries, search histories, and outcomes are project-local artifacts.
+`ml_lab.experiments.run_control` adds queued cancellation, cooperative running
+requests, and explicit conservative Linux dead-worker detection. None of these
+functions requires PAH or changes any sibling repository. See
+[S4.2 optimization and control](docs/UNIFIED_EXPERIMENT_S4_2_OPTIMIZATION_RUN_CONTROL.md).
+
+### S5.1 — Read-only model evaluation and run comparison
+
+`ml_lab.experiments.comparison` joins immutable experiment revisions, existing
+run states, and integrity-checked registered result artifacts into a typed
+comparison table. Only explicitly recorded finite scalar metrics are shown;
+Firefly's observed objective is not equated with its signed fitness. The
+optional Flask workspace adds an experiment-scoped comparison and CSV export.
+No metric calculation, score promotion, experiment mutation, schema migration,
+PAH coupling, or scientific engine changes are introduced. See
+[S5.1 evaluation and run comparison](docs/UNIFIED_EXPERIMENT_S5_1_EVALUATION_COMPARISON.md).
+
+### Sprint 5.2: Verified visualization boundary
+
+The pure-Python `ml_lab.experiments.visualizations` module translates the S5.1
+experiment-scoped run selection and registered result/history artifacts into
+read-only chart records and neutral SVG/CSV renderings. Browser routes only
+serve those records and a portable JSON view, with no persistent state changes.
+Charts are bounded, do not infer training histories from lifecycle stages, and
+never merge incomparable datasets/model families. See
+[`docs/UNIFIED_EXPERIMENT_S5_2_VISUALIZATION_EXPORTS.md`](docs/UNIFIED_EXPERIMENT_S5_2_VISUALIZATION_EXPORTS.md).
+
+### S6.1 project-local synthetic dataset output
+
+`ml_lab.experiments.synthetic` runs bounded statistical generation or existing
+GAN/RBM training-and-sampling methods from a pinned Data Lab dataset. It uses
+the experiment artifact registry and Data Lab's authoritative transformation
+provenance event. Synthetic outputs remain independent files in ML_Lab's
+project, with optional explicit re-selection; neither PAH nor pyPIQUE is a
+runtime dependency. See
+[the S6.1 contract](docs/UNIFIED_EXPERIMENT_S6_1_SYNTHETIC_DATA.md).
+
+### S7.1 — Host boundary and artifact-discovery hardening
+
+`ml_lab.pah_integration` binds the hosted experiment store explicitly to the
+selected PAH project and limits path suggestions to that project. The runtime
+status is contextual to its host/port/project/results-root binding, avoiding
+false running state across project switches. Discovery continues to expose
+known Data Lab manifests and now includes only completed, integrity-verified
+experiment outputs from the project-local artifact registry. This is a
+read-only module API: PAH never opens ML_Lab's SQLite database or imports its
+scientific engines directly. Existing standalone modes and algorithms remain
+unchanged. See [S7.1 integration and hardening](docs/UNIFIED_EXPERIMENT_S7_1_INTEGRATION_HARDENING.md).

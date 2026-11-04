@@ -275,12 +275,15 @@ class ExperimentStore:
         model_spec: Mapping[str, Any] | None = None,
         evaluation_plan: Mapping[str, Any] | None = None,
         metadata: Mapping[str, Any] | None = None,
+        expected_revision: int | None = None,
     ) -> dict[str, Any]:
         """Publish a complete immutable snapshot (not a partial field merge).
 
         Callers must supply the intended entire revision; omitted fields are
         empty dictionaries. Completed runs retain links to prior revisions.
         """
+        if expected_revision is not None and (type(expected_revision) is not int or expected_revision < 1):
+            raise ExperimentStoreError("expected_revision must be a positive integer")
         fields = tuple(_json_object(value, key) for key, value in (
             ("dataset_ref", dataset_ref), ("model_spec", model_spec),
             ("evaluation_plan", evaluation_plan), ("metadata", metadata),
@@ -293,6 +296,8 @@ class ExperimentStore:
             ).fetchone()
             if current is None:
                 raise ExperimentNotFound(f"Unknown experiment: {experiment_id}")
+            if expected_revision is not None and current["current_revision"] != expected_revision:
+                raise ExperimentStoreError("Experiment revision changed; reload before selecting a dataset")
             revision = current["current_revision"] + 1
             db.execute(
                 "INSERT INTO experiment_revisions VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -346,7 +351,10 @@ class ExperimentStore:
         revision: int | None = None,
         seed: int | None = None,
         environment: Mapping[str, Any] | None = None,
+        expected_current_revision: int | None = None,
     ) -> dict[str, Any]:
+        if expected_current_revision is not None and (type(expected_current_revision) is not int or expected_current_revision < 1):
+            raise ExperimentStoreError("expected_current_revision must be a positive integer")
         if seed is not None and (not isinstance(seed, int) or isinstance(seed, bool) or not -(2**63) <= seed < 2**63):
             raise ExperimentStoreError("seed must be a signed 64-bit integer or None")
         environment_json = _json_object(environment, "environment")
@@ -359,6 +367,8 @@ class ExperimentStore:
             ).fetchone()
             if experiment is None:
                 raise ExperimentNotFound(f"Unknown experiment: {experiment_id}")
+            if expected_current_revision is not None and experiment["current_revision"] != expected_current_revision:
+                raise ExperimentStoreError("Experiment revision changed; reload before starting training")
             chosen = experiment["current_revision"] if revision is None else revision
             valid = db.execute(
                 "SELECT 1 FROM experiment_revisions WHERE experiment_id = ? AND revision = ?",

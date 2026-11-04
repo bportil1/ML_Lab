@@ -1,0 +1,37 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Model run · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head">
+  <div><p class="eyebrow">Experiments → Training</p><h1>{{ "Synthetic dataset run" if status.run.environment.executor == "ml_lab.experiments.synthetic@1" else ("Optimization run" if status.run.environment.executor == "ml_lab.experiments.optimization@1" else "Model run") }}</h1>
+  <p class="lede">{{ experiment.name }} · revision {{ status.run.revision }} · {% if status.run.environment.executor == 'ml_lab.experiments.synthetic@1' %}{{ status.run.environment.plan.method }}{% else %}{{ experiment.model_spec.family }} / {{ experiment.model_spec.method }}{% endif %}</p></div>
+  <span class="badge" id="training-run-state">{{ status.run.status }}</span>
+</section>
+<section class="panel training-run-panel" data-status-url="{{ status_url }}" data-result-url="{{ results_url }}">
+  <h2 id="training-run-stage" role="status">{{ status.stage }}</h2>
+  <p class="muted compact">Progress is reported at execution boundaries, not within model epochs. Cancellation is cooperative: an active scientific kernel is not interrupted. Jobs interrupted by a server restart cannot be resumed in place.</p>
+  <div class="summary-grid compact-grid">
+    <div class="metric"><strong>{{ status.run.run_id[:12] }}…</strong><span>Run identifier</span></div>
+    <div class="metric"><strong>{{ status.run.revision }}</strong><span>Experiment revision</span></div>
+    <div class="metric"><strong id="training-run-step">{{ status.step }} / {{ status.steps }}</strong><span>Lifecycle stage</span></div>
+  </div>
+  <div id="training-run-error" role="alert" class="alert {% if not status.run.error %}hidden{% endif %}">{{ status.run.error or '' }}</div>
+  <div class="button-row">
+    {% if status.run.environment.executor != 'ml_lab.experiments.synthetic@1' %}
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_model', experiment_id=experiment.experiment_id) }}">Back to model configuration</a>
+    {% endif %}
+    {% if status.run.environment.executor != 'ml_lab.experiments.synthetic@1' %}
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_compare', experiment_id=experiment.experiment_id) }}">Compare runs</a>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_compare', experiment_id=experiment.experiment_id, run_id=status.run.run_id) }}">Visualize this run</a>
+    {% else %}<a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_synthetic', experiment_id=experiment.experiment_id) }}">Back to synthetic data</a>{% endif %}
+    {% if status.run.status in ('queued', 'running') %}<form method="post" action="{{ cancel_url }}"><button class="button secondary" type="submit">Request cancellation</button></form>{% endif %}
+    {% if synthetic_dataset_url %}<a class="button secondary" href="{{ synthetic_dataset_url }}">Download synthetic CSV</a>{% endif %}
+    {% if synthetic_select_url %}<a class="button secondary" href="{{ synthetic_select_url }}">Use generated data in an experiment</a>{% endif %}
+    <a id="training-run-results" class="button {% if status.run.status != 'succeeded' %}hidden{% endif %}" href="{{ results_url }}">View result JSON</a>
+  </div>
+  <h3>Recorded artifacts</h3>
+  <ul id="training-run-artifacts">
+    {% for artifact in status.artifacts %}<li><code>{{ artifact.kind }}</code> · {{ artifact.path }}</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}
+{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_experiment_run.js') }}"></script>{% endblock %}

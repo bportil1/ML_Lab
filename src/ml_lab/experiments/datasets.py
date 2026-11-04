@@ -164,12 +164,15 @@ def select_experiment_dataset(
     experiment_name: str | None = None,
     feature_columns: Sequence[str] | None = None,
     target_columns: Sequence[str] = (),
+    expected_revision: int | None = None,
 ) -> dict[str, Any]:
     """Create an experiment selection or publish a new immutable revision.
 
     Changing data invalidates the earlier model/evaluation configuration by
     making a new revision with those fields empty; historical runs remain.
     """
+    if experiment_id is None and expected_revision is not None:
+        raise DatasetSelectionError("expected_revision is only valid when revising an experiment")
     selected = describe_selection(store, path, feature_columns=feature_columns, target_columns=target_columns)
     if experiment_id is None:
         return store.create_experiment(
@@ -178,6 +181,8 @@ def select_experiment_dataset(
             metadata={"workflow": "ml-lab.dataset-selection@1", "model_status": "needs_configuration"},
         )
     current = store.get_experiment(experiment_id)
+    if expected_revision is not None and current["revision"] != expected_revision:
+        raise DatasetSelectionError("Experiment revision changed; reload before selecting a dataset")
     if current["metadata"].get("adapter") == "ml-lab.recorded-legacy-task@1":
         raise DatasetSelectionError("Cannot revise a legacy-recorded task into a dataset-selection experiment")
     if current["dataset_ref"] == selected:
@@ -188,6 +193,7 @@ def select_experiment_dataset(
         model_spec={},
         evaluation_plan={},
         metadata={"workflow": "ml-lab.dataset-selection@1", "model_status": "needs_configuration"},
+        expected_revision=expected_revision,
     )
 
 

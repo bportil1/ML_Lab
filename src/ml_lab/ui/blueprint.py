@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 try:
-    from flask import Blueprint, abort, jsonify, redirect, render_template, request, send_file, url_for
+    from flask import Blueprint, Response, abort, jsonify, redirect, render_template, request, send_file, url_for
 except ImportError as exc:  # pragma: no cover
     raise RuntimeError("ML Lab UI requires: pip install 'ml-lab[ui]'") from exc
 
@@ -18,6 +18,7 @@ from ml_lab.application import PayloadError, execute_task
 from ml_lab.core.serialization import to_jsonable
 
 from .jobs import ProfileJobManager
+from .training_jobs import TrainingJobManager
 from .service import capability_groups, capability_records, get_capability
 
 
@@ -248,6 +249,7 @@ def create_ui_blueprint(
     enable_experimental: bool = False,
     profile_output_root: str | Path = "analysis/data/profile_runs",
     derived_output_root: str | Path = "analysis/data/derived",
+    experiment_project_root: str | Path | None = None,
     path_autocomplete_roots: Iterable[str | Path] | None = None,
 ) -> Blueprint:
     """Create ML Lab's mountable first-party UI Blueprint.
@@ -265,6 +267,10 @@ def create_ui_blueprint(
     )
     jobs = ProfileJobManager(output_root=profile_output_root)
     token_secret = secrets.token_bytes(32)
+    # The selected project is explicit when hosted by PAH. Standalone defaults
+    # to the process working directory, matching ExperimentStore's headless API.
+    project_root = Path(experiment_project_root if experiment_project_root is not None else Path.cwd()).expanduser().resolve()
+    training_jobs = TrainingJobManager(project_root)
 
     raw_path_roots = list(path_autocomplete_roots) if path_autocomplete_roots is not None else [Path.cwd(), Path.home()]
     path_roots: list[Path] = []
@@ -321,6 +327,14 @@ def create_ui_blueprint(
 
     def transform_url(path: str) -> str:
         return url_for(request.blueprint + ".data_transform", source_token=sign_path(path))
+
+    def experiment_dataset_url(path: str) -> str | None:
+        # Browsing arbitrary local files must not expose them as cross-project
+        # experiment inputs; selection will independently validate containment.
+        resolved = Path(path).expanduser().resolve()
+        if not resolved.is_relative_to(project_root):
+            return None
+        return url_for(request.blueprint + ".experiment_dataset", source_token=sign_path(str(resolved)))
 
     def provenance_url(path: str) -> str:
         return url_for(request.blueprint + ".data_provenance", source_token=sign_path(path))
@@ -1121,6 +1135,7 @@ def create_ui_blueprint(
             source_table=source_table,
             source_table_error=source_table_error,
             provenance_url=(provenance_url(result["derived"]["path"]) if applied and result else None),
+            experiment_url=(experiment_dataset_url(result["derived"]["path"]) if applied and result else None),
             data_url=url_for(request.blueprint + ".data_lab"),
         )
 
@@ -1226,6 +1241,472 @@ def create_ui_blueprint(
             abort(404)
         return send_file(path, mimetype="application/json", as_attachment=False)
 
+    @blueprint.route("/data/experiment/selection", methods=["GET", "POST"])
+    def experiment_dataset():
+        """Explicit Data Lab -> experiment handoff; no automatic dataset switch."""
+        from ml_lab.experiments import (
+            DatasetSelectionError, ExperimentStore, ExperimentStoreError,
+            describe_selection, select_experiment_dataset,
+        )
+
+        token = (request.form if request.method == "POST" else request.args).get("source_token", "")
+        source_path = verify_path(token)
+        try:
+            store = ExperimentStore(project_root)
+            preview = describe_selection(store, source_path)
+        except (ExperimentStoreError, OSError, ValueError) as exc:
+            return render_template("ml_lab_ui/experiment_dataset.html", version=__version__,
+                                   error=str(exc), preview=None, experiment=None,
+                                   experiments=[], source_token=token, selected=None), 400
+
+        identifier = (request.form if request.method == "POST" else request.args).get("experiment_id", "").strip()
+        selected = None
+        error = None
+        try:
+            experiment = store.get_experiment(identifier) if identifier else None
+            if experiment is not None and experiment["metadata"].get("adapter") == "ml-lab.recorded-legacy-task@1":
+                raise DatasetSelectionError("Legacy task experiments cannot be changed from Data Lab")
+            if request.method == "POST":
+                # Pin what the user saw, including the Data Lab provenance sidecar.
+                if (request.form.get("source_sha256") != preview["sha256"]
+                        or request.form.get("provenance_sha256", "") !=
+                        ((preview["provenance"] or {}).get("sha256") or "")):
+                    raise DatasetSelectionError("Dataset or provenance changed; reload the selection form")
+                expected = None
+                if experiment is not None:
+                    raw = request.form.get("expected_revision", "")
+                    if not raw.isdecimal() or int(raw) < 1:
+                        raise DatasetSelectionError("Current experiment revision is required")
+                    expected = int(raw)
+                features = request.form.getlist("features")
+                targets = request.form.getlist("targets")
+                selected = select_experiment_dataset(
+                    store, source_path, experiment_id=identifier or None,
+                    experiment_name=request.form.get("experiment_name", "").strip() or None,
+                    feature_columns=features, target_columns=targets,
+                    expected_revision=expected,
+                )
+                experiment = selected
+        except (ExperimentStoreError, OSError, ValueError) as exc:
+            error = str(exc)
+            selected = None
+            # Show latest revision on stale POST; an invalid ID must produce a
+            # controlled form error rather than a second uncaught lookup.
+            try:
+                experiment = store.get_experiment(identifier) if identifier else None
+            except ExperimentStoreError:
+                experiment = None
+
+        current_ref = experiment["dataset_ref"] if experiment is not None else {}
+        available_columns = set(preview["column_names"])
+        previous_features = current_ref.get("feature_columns", [])
+        previous_targets = current_ref.get("target_columns", [])
+        default_targets = [col for col in previous_targets if col in available_columns]
+        default_features = ([col for col in previous_features if col in available_columns]
+                            if experiment is not None else list(preview["column_names"]))
+        choices = [entry for entry in store.list_experiments(limit=100)
+                   if entry["metadata"].get("adapter") != "ml-lab.recorded-legacy-task@1"]
+        return render_template(
+            "ml_lab_ui/experiment_dataset.html", version=__version__,
+            error=error, preview=preview, source_token=token,
+            experiment=experiment, experiments=choices, selected=selected,
+            default_features=default_features, default_targets=default_targets,
+            source_url=source_url(str(source_path)),
+        ), (400 if error else 200)
+
+    @blueprint.route("/experiments/models", methods=["GET", "POST"])
+    def experiment_model():
+        """S3.2 typed model workspace (configuration only; no training)."""
+        from ml_lab.experiments import (
+            ExperimentStore, ExperimentStoreError, ModelConfigurationError,
+            configure_experiment_model, describe_model_method,
+            list_model_families, list_model_methods, verify_selection,
+        )
+        from .model_forms import (
+            ModelFormError, control_placeholder, model_form_values,
+            read_model_form, submitted_form_values, visible_controls,
+        )
+
+        store = ExperimentStore(project_root)
+        experiments = [row for row in store.list_experiments(limit=100)
+                       if row["dataset_ref"].get("schema") == "ml-lab.experiment-dataset@1"
+                       and row["metadata"].get("adapter") != "ml-lab.recorded-legacy-task@1"]
+        params = request.form if request.method == "POST" else request.args
+        identifier = params.get("experiment_id", "").strip()
+        family = params.get("family", "").strip()
+        method = params.get("method", "").strip()
+        error = None
+        data_error = None
+        experiment = None
+        saved = False
+        families = list_model_families()
+        if family not in {row["id"] for row in families}:
+            if request.method == "POST":
+                error = "Unsupported model family; reload the model workspace"
+            family = "classification"  # Adjusted below for unsupervised datasets.
+        try:
+            if identifier:
+                experiment = store.get_experiment(identifier)
+                if not any(row["experiment_id"] == experiment["experiment_id"] for row in experiments):
+                    raise ModelConfigurationError("Selected experiment has no Data Lab dataset")
+            elif experiments and request.method == "GET":
+                experiment = store.get_experiment(experiments[0]["experiment_id"])
+            elif request.method == "POST":
+                raise ModelFormError("Select an experiment before saving a model")
+        except (ExperimentStoreError, ModelFormError) as exc:
+            error = str(exc)
+
+        if experiment and not params.get("family"):
+            spec = experiment["model_spec"]
+            if spec.get("schema") == "ml-lab.model-configuration@1":
+                family = spec["family"]
+            elif not experiment["dataset_ref"]["target_columns"]:
+                family = "representation"
+        methods = list_model_methods(family)
+        valid_methods = {row["id"] for row in methods}
+        if not method or method not in valid_methods:
+            if request.method == "POST":
+                error = "Unsupported model method; reload the model workspace"
+            stored_spec = experiment["model_spec"] if experiment else {}
+            if stored_spec.get("family") == family and stored_spec.get("method") in valid_methods:
+                method = stored_spec["method"]
+            else:
+                method = next((row["id"] for row in methods if row["id"] != "suite"), methods[0]["id"])
+        method_name = next(row["name"] for row in methods if row["id"] == method)
+        schema = describe_model_method(family, method) if experiment else None
+
+        if experiment is not None:
+            try:
+                verify_selection(store, experiment["dataset_ref"])
+                targets = len(experiment["dataset_ref"]["target_columns"])
+                if family in ("classification", "regression") and targets != 1:
+                    data_error = f"{family.title()} requires exactly one target column. Update the selection in Data Lab."
+                elif family in ("representation", "gan", "rbm") and targets:
+                    data_error = f"{family.title()} requires feature-only data. Update the selection in Data Lab."
+            except ExperimentStoreError as exc:
+                data_error = str(exc)
+
+        if request.method == "POST" and experiment is not None and error is None:
+            try:
+                if data_error:
+                    raise ModelFormError(data_error)
+                expected = params.get("expected_revision", "")
+                if not expected.isdecimal() or int(expected) < 1:
+                    raise ModelFormError("Expected experiment revision is required")
+                settings = read_model_form(request.form, schema)
+                configured = configure_experiment_model(
+                    store, experiment["experiment_id"], family=family, method=method,
+                    settings=settings, expected_revision=int(expected),
+                )
+                return redirect(url_for(
+                    request.blueprint + ".experiment_model",
+                    experiment_id=configured["experiment_id"], family=family, method=method,
+                    saved="1",
+                ))
+            except (ExperimentStoreError, ModelFormError, ValueError) as exc:
+                error = str(exc)
+                # Always expose the latest revision in the selection summary.
+                experiment = store.get_experiment(experiment["experiment_id"])
+        from ml_lab.experiments import list_optimization_controls, optimization_metrics
+        stored = experiment["model_spec"] if experiment else {}
+        if request.method == "POST":
+            values = submitted_form_values(request.form)
+        elif stored.get("schema") == "ml-lab.model-configuration@1" and stored.get("family") == family and stored.get("method") == method:
+            values = model_form_values(stored.get("settings"))
+        else:
+            values = {}
+        saved = (request.method == "GET" and params.get("saved") == "1"
+                 and stored.get("schema") == "ml-lab.model-configuration@1"
+                 and stored.get("family") == family and stored.get("method") == method)
+        return render_template(
+            "ml_lab_ui/experiment_model.html", version=__version__,
+            experiments=experiments, experiment=experiment, families=families,
+            methods=methods, method=method, family=family, method_name=method_name,
+            schema=schema, controls=visible_controls(schema) if schema else {},
+            values=values, placeholder=control_placeholder,
+            saved=saved, data_error=data_error, error=error,
+            recent_runs=(store.list_runs(experiment["experiment_id"], limit=10) if experiment else []),
+            optimization_controls=(list_optimization_controls(stored["family"], stored["method"])
+                                   if stored.get("schema") == "ml-lab.model-configuration@1" else []),
+            optimization_metrics=(optimization_metrics(stored["family"])
+                                  if stored.get("schema") == "ml-lab.model-configuration@1" else []),
+        ), (400 if error else 200)
+
+    @blueprint.get("/experiments/synthetic")
+    def experiment_synthetic():
+        """Synthetic-data creation remains a separate operation from model training."""
+        from ml_lab.experiments import ExperimentStore, ExperimentStoreError
+        store = ExperimentStore(project_root)
+        experiments = [row for row in store.list_experiments(limit=100)
+                       if row["dataset_ref"].get("schema") == "ml-lab.experiment-dataset@1"]
+        identifier = request.args.get("experiment_id", "").strip()
+        try:
+            experiment = (store.get_experiment(identifier) if identifier else
+                          store.get_experiment(experiments[0]["experiment_id"]) if experiments else None)
+            if experiment is not None and experiment["dataset_ref"].get("schema") != "ml-lab.experiment-dataset@1":
+                raise ExperimentStoreError("Select an experiment with a Data Lab dataset")
+        except ExperimentStoreError:
+            abort(404)
+        return render_template("ml_lab_ui/experiment_synthetic.html", version=__version__,
+                               experiments=experiments, experiment=experiment)
+
+    @blueprint.post("/experiments/synthetic/run")
+    def experiment_synthetic_run():
+        from ml_lab.experiments import ExperimentStoreError
+        identifier = request.form.get("experiment_id", "").strip()
+        try:
+            revision = int(request.form.get("expected_revision", ""))
+            plan = {"method": request.form.get("method", "").strip(),
+                    "count": int(request.form.get("count", "")),
+                    "seed": int(request.form.get("seed", "")),
+                    "degrees_of_freedom": float(request.form.get("degrees_of_freedom", "5"))}
+            run_id = training_jobs.start_synthetic(identifier, expected_revision=revision, plan=plan)
+        except (ValueError, ExperimentStoreError) as exc:
+            return render_template("ml_lab_ui/experiment_run_error.html", version=__version__,
+                                   error=str(exc), experiment_id=identifier), 400
+        return redirect(url_for(request.blueprint + ".experiment_model_run_view", run_id=run_id))
+
+    @blueprint.get("/experiments/runs/<run_id>/synthetic.csv")
+    def experiment_synthetic_download(run_id: str):
+        from ml_lab.experiments import ExperimentStore, ExperimentStoreError, SYNTHETIC_EXECUTOR
+        store = ExperimentStore(project_root)
+        try:
+            run = store.get_run(run_id)
+            if run["status"] != "succeeded" or run["environment"].get("executor") != SYNTHETIC_EXECUTOR:
+                abort(404)
+            artifact = next((entry for entry in store.artifacts.list_for_run(run_id)
+                             if entry["role"] == "output" and entry["kind"] == "dataset"), None)
+            if artifact is None or store.artifacts.verify(artifact["artifact_id"])["status"] != "valid":
+                abort(404)
+        except ExperimentStoreError:
+            abort(404)
+        return send_file(store.project_root / artifact["path"], mimetype="text/csv",
+                         as_attachment=True, download_name=f"ml_lab_synthetic_{run_id[:12]}.csv")
+
+    @blueprint.post("/experiments/models/run")
+    def experiment_model_run():
+        """Start a pinned configured model run without blocking the UI request."""
+        from ml_lab.experiments import ExperimentStoreError
+
+        identifier = request.form.get("experiment_id", "").strip()
+        revision_text = request.form.get("expected_revision", "")
+        seed_text = request.form.get("seed", "").strip()
+        try:
+            if not revision_text.isdecimal() or int(revision_text) < 1:
+                raise ExperimentStoreError("Choose a current saved experiment revision")
+            seed = int(seed_text) if seed_text else None
+            run_id = training_jobs.start(identifier, expected_revision=int(revision_text), seed=seed)
+        except (ValueError, ExperimentStoreError) as exc:
+            return render_template("ml_lab_ui/experiment_run_error.html", version=__version__,
+                                   error=str(exc), experiment_id=identifier), 400
+        return redirect(url_for(request.blueprint + ".experiment_model_run_view", run_id=run_id))
+
+    @blueprint.post("/experiments/models/optimize")
+    def experiment_model_optimize():
+        from ml_lab.experiments import ExperimentStoreError
+        identifier = request.form.get("experiment_id", "").strip()
+        try:
+            revision = int(request.form.get("expected_revision", ""))
+            plan = {
+                "parameter": request.form.get("parameter", "").strip(),
+                "lower": float(request.form.get("lower", "")),
+                "upper": float(request.form.get("upper", "")),
+                "metric": request.form.get("metric", "").strip(),
+                "goal": request.form.get("goal", "minimize"),
+                "population_size": int(request.form.get("population_size", "2")),
+                "iterations": int(request.form.get("iterations", "1")),
+                "seed": int(request.form.get("seed", "42")),
+            }
+            run_id = training_jobs.start_optimization(identifier, expected_revision=revision, plan=plan)
+        except (ValueError, ExperimentStoreError) as exc:
+            return render_template("ml_lab_ui/experiment_run_error.html", version=__version__,
+                                   error=str(exc), experiment_id=identifier), 400
+        return redirect(url_for(request.blueprint + ".experiment_model_run_view", run_id=run_id))
+
+    @blueprint.post("/experiments/runs/<run_id>/cancel")
+    def experiment_model_run_cancel(run_id: str):
+        from ml_lab.experiments import (ExperimentStore, ExperimentStoreError,
+                                        OPTIMIZER_EXECUTOR, request_run_cancellation)
+        try:
+            store = ExperimentStore(project_root)
+            run = store.get_run(run_id)
+            if run["environment"].get("executor") not in {"ml_lab.experiments.training@1", OPTIMIZER_EXECUTOR, "ml_lab.experiments.synthetic@1"}:
+                abort(404)
+            request_run_cancellation(store, run_id)
+        except ExperimentStoreError:
+            abort(404)
+        return redirect(url_for(request.blueprint + ".experiment_model_run_view", run_id=run_id))
+
+    @blueprint.get("/experiments/runs/<run_id>")
+    def experiment_model_run_view(run_id: str):
+        from ml_lab.experiments import ExperimentStore, ExperimentStoreError, get_configured_run_status, OPTIMIZER_EXECUTOR
+        store = ExperimentStore(project_root)
+        try:
+            status = get_configured_run_status(store, run_id)
+            if status["run"]["environment"].get("executor") not in {"ml_lab.experiments.training@1", OPTIMIZER_EXECUTOR, "ml_lab.experiments.synthetic@1"}:
+                abort(404)
+            experiment = store.get_experiment(status["run"]["experiment_id"], revision=status["run"]["revision"])
+        except ExperimentStoreError:
+            abort(404)
+        synthetic_dataset_url = None
+        synthetic_select_url = None
+        if status["run"]["environment"].get("executor") == "ml_lab.experiments.synthetic@1" and status["run"]["status"] == "succeeded":
+            dataset_artifact = next((item for item in status["artifacts"]
+                                     if item["role"] == "output" and item["kind"] == "dataset"), None)
+            if dataset_artifact and store.artifacts.verify(dataset_artifact["artifact_id"])["status"] == "valid":
+                synthetic_dataset_url = url_for(request.blueprint + ".experiment_synthetic_download", run_id=run_id)
+                synthetic_select_url = experiment_dataset_url(str(store.project_root / dataset_artifact["path"]))
+        return render_template(
+            "ml_lab_ui/experiment_run.html", version=__version__, status=status,
+            synthetic_dataset_url=synthetic_dataset_url, synthetic_select_url=synthetic_select_url,
+            experiment=experiment,
+            status_url=url_for(request.blueprint + ".experiment_model_run_status", run_id=run_id),
+            cancel_url=url_for(request.blueprint + ".experiment_model_run_cancel", run_id=run_id),
+            results_url=url_for(request.blueprint + ".experiment_model_run_result", run_id=run_id),
+        )
+
+    @blueprint.get("/experiments/runs/<run_id>/status")
+    def experiment_model_run_status(run_id: str):
+        from ml_lab.experiments import ExperimentStore, ExperimentStoreError, get_configured_run_status, OPTIMIZER_EXECUTOR
+        try:
+            status = get_configured_run_status(ExperimentStore(project_root), run_id)
+            if status["run"]["environment"].get("executor") not in {"ml_lab.experiments.training@1", OPTIMIZER_EXECUTOR, "ml_lab.experiments.synthetic@1"}:
+                abort(404)
+        except ExperimentStoreError:
+            abort(404)
+        return jsonify(status)
+
+    @blueprint.get("/experiments/runs/<run_id>/result")
+    def experiment_model_run_result(run_id: str):
+        from ml_lab.experiments import ExperimentStore, ExperimentStoreError, get_configured_run_status, OPTIMIZER_EXECUTOR
+        try:
+            store = ExperimentStore(project_root)
+            status = get_configured_run_status(store, run_id)
+            if (status["run"]["environment"].get("executor") not in {"ml_lab.experiments.training@1", OPTIMIZER_EXECUTOR, "ml_lab.experiments.synthetic@1"}
+                    or status["run"]["status"] != "succeeded"):
+                abort(404)
+            result = next((artifact for artifact in status["artifacts"]
+                           if artifact["role"] == "output" and artifact["kind"] == "result"), None)
+            if result is None or store.artifacts.verify(result["artifact_id"])["status"] != "valid":
+                abort(404)
+        except ExperimentStoreError:
+            abort(404)
+        return send_file(store.project_root / result["path"], mimetype="application/json")
+
+    @blueprint.get("/experiments/compare")
+    def experiment_compare():
+        """S5.1 experiment-scoped, read-only run metrics comparison."""
+        from ml_lab.experiments import (ExperimentStore, ExperimentStoreError,
+                                        compare_experiment_runs, OPTIMIZER_EXECUTOR)
+        store = ExperimentStore(project_root)
+        experiment_id = request.args.get("experiment_id", "").strip()
+        selected = request.args.getlist("run_id")
+        try:
+            report = compare_experiment_runs(store, experiment_id,
+                                             run_ids=selected if selected else None)
+            candidates = [row for row in store.list_runs(experiment_id, limit=100)
+                          if row["environment"].get("executor") in
+                          {"ml_lab.experiments.training@1", OPTIMIZER_EXECUTOR}][:25]
+        except ExperimentStoreError:
+            abort(404)
+        from ml_lab.experiments import build_visualization_report
+        from urllib.parse import urlencode
+        # Explicitly pin the chart links to the selection shown in this page,
+        # even if new runs are registered before the user opens an image.
+        chosen = selected if selected else [r["run_id"] for r in report["runs"]]
+        params = [("experiment_id", experiment_id)] + [("run_id", rid) for rid in chosen]
+        query = urlencode(params)
+        visualizations = build_visualization_report(store, experiment_id,
+                                                     run_ids=chosen if chosen else None)
+        charts = []
+        for chart in visualizations["charts"]:
+            charts.append({
+                "data": chart,
+                "svg_url": url_for(request.blueprint + ".experiment_chart_svg", chart_id=chart["id"]) + "?" + query,
+                "csv_url": url_for(request.blueprint + ".experiment_chart_csv", chart_id=chart["id"]) + "?" + query,
+            })
+        return render_template(
+            "ml_lab_ui/experiment_compare.html", version=__version__,
+            report=report, candidates=candidates, charts=charts,
+            visualization_notes=visualizations["notes"],
+            selected_ids=set(chosen),
+            csv_url=url_for(request.blueprint + ".experiment_compare_csv") + "?" + query,
+            visualization_json_url=url_for(request.blueprint + ".experiment_visualizations_json") + "?" + query,
+        )
+
+    @blueprint.get("/experiments/compare.csv")
+    def experiment_compare_csv():
+        """Export exactly the same verified comparison selection as the page."""
+        from ml_lab.experiments import (ExperimentStore, ExperimentStoreError,
+                                        compare_experiment_runs, comparison_csv)
+        selected = request.args.getlist("run_id")
+        try:
+            report = compare_experiment_runs(
+                ExperimentStore(project_root), request.args.get("experiment_id", "").strip(),
+                run_ids=selected if selected else None,
+            )
+        except ExperimentStoreError:
+            abort(404)
+        return Response(comparison_csv(report), mimetype="text/csv",
+                        headers={"Content-Disposition": "attachment; filename=ml_lab_run_comparison.csv",
+                                 "Cache-Control": "no-store"})
+
+    def _selected_visualization():
+        """Resolve only experiment-scoped, registered artifacts; never paths."""
+        from ml_lab.experiments import (ExperimentStore, ExperimentStoreError,
+                                        build_visualization_report)
+        selected = request.args.getlist("run_id")
+        report = build_visualization_report(
+            ExperimentStore(project_root), request.args.get("experiment_id", "").strip(),
+            run_ids=selected if selected else None,
+        )
+        return report
+
+    @blueprint.get("/experiments/visualizations.json")
+    def experiment_visualizations_json():
+        """Portable data: measured values, selected IDs and artifact hashes."""
+        from ml_lab.experiments import ExperimentStoreError
+        try:
+            report = _selected_visualization()
+        except ExperimentStoreError:
+            abort(404)
+        response = jsonify(report)
+        response.headers["Content-Disposition"] = 'attachment; filename="ml_lab_visualizations.json"'
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    def _selected_chart(chart_id: str):
+        from ml_lab.experiments import ExperimentStoreError
+        if len(chart_id) > 140:
+            abort(404)
+        try:
+            report = _selected_visualization()
+        except ExperimentStoreError:
+            abort(404)
+        chart = next((item for item in report["charts"] if item["id"] == chart_id), None)
+        if chart is None:
+            abort(404)
+        return chart
+
+    @blueprint.get("/experiments/charts/<chart_id>.svg")
+    def experiment_chart_svg(chart_id: str):
+        from ml_lab.experiments import chart_svg
+        chart = _selected_chart(chart_id)
+        response = Response(chart_svg(chart), mimetype="image/svg+xml")
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'none'; sandbox"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    @blueprint.get("/experiments/charts/<chart_id>.csv")
+    def experiment_chart_csv(chart_id: str):
+        from ml_lab.experiments import chart_csv
+        chart = _selected_chart(chart_id)
+        response = Response(chart_csv(chart), mimetype="text/csv")
+        response.headers["Content-Disposition"] = 'attachment; filename="ml_lab_chart.csv"'
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @blueprint.get("/data/source/<token>")
     def source_view(token: str):
         path = verify_path(token)
@@ -1243,8 +1724,50 @@ def create_ui_blueprint(
             raw_url=url_for(request.blueprint + ".source_raw", token=token),
             transform_url=url_for(request.blueprint + ".data_transform", source_token=token),
             provenance_url=url_for(request.blueprint + ".data_provenance", source_token=token),
+            experiment_url=(experiment_dataset_url(str(path)) if record.format == "delimited_text"
+                            and record.parse_status == "parsed" and record.has_header
+                            and not record.malformed_row_count else None),
             data_url=url_for(request.blueprint + ".data_lab"),
+            matrix_url=(url_for(request.blueprint + ".matrix_editor", token=token)
+                        if record.format == "delimited_text" and record.parse_status == "parsed"
+                        and record.has_header and not record.malformed_row_count else None),
         )
+
+    @blueprint.get("/data/source/<token>/matrix")
+    def matrix_editor(token: str):
+        path = verify_path(token)
+        record = data.inspect_file(path)
+        if (record.format != "delimited_text" or record.parse_status != "parsed"
+                or record.malformed_row_count or not record.has_header):
+            abort(400)
+        return render_template(
+            "ml_lab_ui/matrix.html", version=__version__, source=record.to_record(),
+            source_dtypes=data.describe_dataset(path)["dtypes"],
+            rows_url=url_for(request.blueprint + ".source_rows", token=token),
+            save_url=url_for(request.blueprint + ".save_matrix_draft", token=token),
+            source_url=url_for(request.blueprint + ".source_view", token=token),
+        )
+
+    @blueprint.post("/data/source/<token>/matrix/save")
+    def save_matrix_draft(token: str):
+        path = verify_path(token)
+        if request.content_length is not None and request.content_length > 2_000_000:
+            return jsonify({"error": "Matrix draft request is too large"}), 413
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Expected JSON object"}), 400
+        try:
+            result = data.commit_matrix_draft(
+                path, output_root=derived_output_root,
+                expected_sha256=payload.get("source_sha256"),
+                edits=payload.get("edits"),
+            )
+        except (OSError, UnicodeError, ValueError, TypeError) as exc:
+            return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 400
+        result["source_url"] = source_url(result["path"])
+        result["provenance_url"] = provenance_url(result["path"])
+        result["experiment_url"] = experiment_dataset_url(result["path"])
+        return jsonify(result), 201
 
     @blueprint.get("/data/source/<token>/rows")
     def source_rows(token: str):

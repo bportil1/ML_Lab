@@ -292,7 +292,7 @@
   <div class="metric"><strong>{{ summary.operation_count }}</strong><span>Operations</span></div>
   <div class="metric"><strong>{{ summary.coercion_failures }}</strong><span>Coercion failures</span></div>
 </section>
-{% if applied %}<div class="status-card transform-success"><strong>Derived dataset written</strong><code>{{ result.derived.path }}</code><span>Manifest: {{ result.manifest_path }}</span><span>Recipe: {{ result.recipe_path }}</span><span>Provenance: {{ result.provenance.path }}</span>{% if provenance_url %}<a class="button mini secondary" href="{{ provenance_url }}">Open lineage</a>{% endif %}</div>{% endif %}
+{% if applied %}<div class="status-card transform-success"><strong>Derived dataset written</strong><code>{{ result.derived.path }}</code><span>Manifest: {{ result.manifest_path }}</span><span>Recipe: {{ result.recipe_path }}</span><span>Provenance: {{ result.provenance.path }}</span>{% if provenance_url %}<a class="button mini secondary" href="{{ provenance_url }}">Open lineage</a>{% endif %}{% if experiment_url %}<a class="button mini secondary" href="{{ experiment_url }}">Use in experiment</a>{% endif %}</div>{% endif %}
 {% if result.warnings %}
 <section class="panel transform-preview-warnings">
   <h2>Preview warnings</h2>

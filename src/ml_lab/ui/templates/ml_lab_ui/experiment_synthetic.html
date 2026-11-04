@@ -1,0 +1,49 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Synthetic data · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head">
+  <div><p class="eyebrow">Experiments → Synthetic data</p><h1>Synthetic data</h1>
+    <p class="lede">Generate a new dataset using statistical sampling or the existing GAN/RBM engines. This never replaces the selected dataset or changes its model configuration.</p>
+  </div>
+</section>
+{% if not experiments %}
+<section class="panel"><p>Select a project-local dataset through Data Lab first.</p>
+  <a class="button secondary" href="{{ url_for(request.blueprint + '.data_lab') }}">Open Data Lab</a></section>
+{% else %}
+<section class="panel">
+  <form method="get" action="{{ url_for(request.blueprint + '.experiment_synthetic') }}">
+    <label>Experiment<select name="experiment_id" class="wide-input">
+      {% for item in experiments %}<option value="{{ item.experiment_id }}" {% if experiment and experiment.experiment_id == item.experiment_id %}selected{% endif %}>{{ item.name }} · revision {{ item.revision }}</option>{% endfor %}
+    </select></label>
+    <button class="button secondary" type="submit">Select experiment</button>
+  </form>
+</section>
+{% if experiment %}
+<section class="panel">
+  <h2>Generate from revision {{ experiment.revision }}</h2>
+  <p class="muted compact">Source: <code>{{ experiment.dataset_ref.path }}</code> · {{ experiment.dataset_ref.feature_columns|length }} features</p>
+  <form method="post" action="{{ url_for(request.blueprint + '.experiment_synthetic_run') }}">
+    <input type="hidden" name="experiment_id" value="{{ experiment.experiment_id }}">
+    <input type="hidden" name="expected_revision" value="{{ experiment.revision }}">
+    <div class="model-control-grid">
+      <label class="model-field">Generation method
+        <select name="method" class="wide-input">
+          <option value="bootstrap">Bootstrap rows</option>
+          <option value="gaussian_independent">Independent Gaussian</option>
+          <option value="gaussian_correlated">Correlated Gaussian</option>
+          <option value="student_t">Correlated Student-t</option>
+          {% if experiment.model_spec.family == 'gan' %}<option value="gan">Configured GAN (train now)</option>{% endif %}
+          {% if experiment.model_spec.family == 'rbm' %}<option value="rbm">Configured RBM (train now)</option>{% endif %}
+        </select>
+      </label>
+      <label class="model-field">Generated rows (2–5000)<input class="wide-input" name="count" type="number" min="2" max="5000" value="100" required></label>
+      <label class="model-field">Seed<input class="wide-input" name="seed" type="number" min="0" max="4294967294" value="42" required></label>
+      <label class="model-field">Student-t degrees of freedom (>2)<input class="wide-input" name="degrees_of_freedom" type="number" step="any" min="2.001" value="5"></label>
+    </div>
+    <p class="muted compact">Statistical generators use numerical feature columns. GAN/RBM methods retrain the saved model configuration for each generation run; earlier training-run weights are not reused. All methods save a new CSV with Data Lab provenance and a separate experiment-run record.</p>
+    <button class="button" type="submit">Generate dataset</button>
+  </form>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

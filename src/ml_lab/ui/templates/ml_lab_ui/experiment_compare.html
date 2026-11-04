@@ -1,0 +1,84 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Run comparison · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head">
+  <div><p class="eyebrow">Experiments → Evaluation</p><h1>Compare experiment runs</h1>
+    <p class="lede">{{ report.experiment_name }} · read-only results from pinned revisions and verified local artifacts.</p>
+  </div>
+</section>
+<section class="panel">
+  <div class="button-row">
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_model', experiment_id=report.experiment_id) }}">Model workspace</a>
+    {% if report.runs %}
+    <a class="button secondary" href="{{ csv_url }}">Export comparison (CSV)</a>
+    <a class="button secondary" href="{{ visualization_json_url }}">Export chart data + provenance (JSON)</a>
+    {% endif %}
+  </div>
+  <p class="muted compact">Metrics are extracted only from successful, integrity-verified result files. Unavailable values are blank. Different datasets, model methods, and optimization objectives are not interchangeable. No ranking or synthetic score is calculated.</p>
+</section>
+{% if report.warning %}<div class="alert data-alert" role="status">{{ report.warning }}</div>{% endif %}
+{% if candidates %}
+<form class="panel" method="get" action="{{ url_for(request.blueprint + '.experiment_compare') }}">
+  <input type="hidden" name="experiment_id" value="{{ report.experiment_id }}">
+  <h2>Select runs</h2>
+  <p class="muted compact">Choose up to 25 runs from this experiment. Comparison does not change their status or experiment revisions.</p>
+  <div class="comparison-run-picker">
+  {% for run in candidates %}
+    <label><input type="checkbox" name="run_id" value="{{ run.run_id }}" {% if run.run_id in selected_ids %}checked{% endif %}>
+      <code>{{ run.run_id[:10] }}</code> · rev {{ run.revision }} · {{ run.status }} · {{ 'optimization' if run.environment.executor == 'ml_lab.experiments.optimization@1' else 'model' }}</label>
+  {% endfor %}
+  </div>
+  <button class="button" type="submit">Compare selected runs</button>
+</form>
+{% endif %}
+<section class="panel">
+  <h2>Run comparison</h2>
+  {% if not report.runs %}<p class="muted">No configured training or optimization runs are recorded for this experiment yet.</p>
+  {% else %}
+  <div class="comparison-table-scroll" role="region" aria-label="Run metrics comparison" tabindex="0">
+    <table class="comparison-matrix">
+      <thead><tr><th scope="col">Run</th><th scope="col">Rev.</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Family / method</th><th scope="col">Dataset hash</th>{% for metric in report.metric_columns %}<th scope="col">{{ metric }}</th>{% endfor %}<th scope="col">Result</th></tr></thead>
+      <tbody>{% for run in report.runs %}
+      <tr><th scope="row"><a href="{{ url_for(request.blueprint + '.experiment_model_run_view', run_id=run.run_id) }}"><code>{{ run.run_id[:10] }}</code></a></th>
+        <td>{{ run.revision }}</td><td>{{ run.type }}</td><td>{{ run.status }}</td>
+        <td>{{ run.family }} / {{ run.method }}</td><td title="{{ run.dataset_sha256 }}"><code>{{ run.dataset_sha256[:12] }}</code></td>
+        {% for metric in report.metric_columns %}<td class="comparison-number">{{ run.metrics[metric] if metric in run.metrics else '—' }}</td>{% endfor %}
+        <td>{{ run.result_note }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>
+{% if charts or visualization_notes %}
+<section class="panel">
+  <h2>Scientific visualizations</h2>
+  <p class="muted compact">Read-only graphs of measured values from integrity-verified run artifacts. No fitted trends, cross-family ranking, or inferred training epochs. Each graph exports as a standalone SVG and as its plotted numerical CSV.</p>
+  {% for note in visualization_notes %}<p class="muted compact" role="status">{{ note }}</p>{% endfor %}
+  <div class="experiment-chart-grid">
+    {% for chart in charts %}
+    <figure class="experiment-chart">
+      <img src="{{ chart.svg_url }}" alt="{{ chart.data.title }}. {{ chart.data.note }}" loading="lazy" width="900" height="340">
+      <figcaption><strong>{{ chart.data.title }}</strong> <span class="muted">{{ chart.data.note }}</span></figcaption>
+      <div class="button-row"><a href="{{ chart.svg_url }}" download="ml_lab_chart.svg">SVG</a><a href="{{ chart.csv_url }}">Export points (CSV)</a></div>
+    </figure>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% if report.runs %}
+<section class="panel">
+  <h2>Optimization details and provenance</h2>
+  {% for run in report.runs %}
+  <details class="comparison-details"><summary><code>{{ run.run_id[:12] }}</code> · revision {{ run.revision }} · {{ run.type }}</summary>
+    <p class="muted compact">Dataset SHA-256: <code>{{ run.dataset_sha256 }}</code></p>
+    <p class="muted compact">Features: {{ run.feature_columns | join(', ') }} · Targets: {{ run.target_columns | join(', ') if run.target_columns else '(none)' }}</p>
+    {% if run.optimization %}
+      <p class="muted compact">Objective: {{ run.optimization.goal }} {{ run.optimization.metric }} · evaluations: {{ run.optimization.evaluations if run.optimization.evaluations is not none else 'unknown' }}</p>
+      <p class="muted compact">Best candidate: <code>{{ run.optimization.best_parameters | tojson }}</code></p>
+    {% endif %}
+    {% if run.error %}<p class="muted compact">Execution error: {{ run.error }}</p>{% endif %}
+  </details>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}
