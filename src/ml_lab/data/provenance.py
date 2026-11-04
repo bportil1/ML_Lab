@@ -107,6 +107,16 @@ def _read_frame(path: Path) -> tuple[pd.DataFrame, Any]:
     return frame, record
 
 
+def read_dataset_frame(path: str | Path) -> pd.DataFrame:
+    """Read an entire delimited dataset using Data Lab provenance parsing.
+
+    This is an explicit full-table operation for a model handoff, not a bounded
+    matrix viewport. Callers enforce their own malformed-row policy.
+    """
+    frame, _ = _read_frame(Path(path).expanduser().resolve())
+    return frame
+
+
 def describe_dataset(
     path: str | Path,
     *,

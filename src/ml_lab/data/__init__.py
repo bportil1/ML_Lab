@@ -28,6 +28,7 @@ from .xml_provenance import build_xml_extraction_recipe, persist_xml_extraction_
 from .profiling import profile_file, profile_paths
 from .provenance import (
     describe_dataset,
+    read_dataset_frame,
     load_provenance_event,
     logical_table_sha256,
     provenance_sidecar_path,
@@ -72,6 +73,7 @@ __all__ = [
     "DataProfileCollection",
     "DataQualityIssue",
     "describe_dataset",
+    "read_dataset_frame",
     "MalformedRow",
     "XmlAttributeProfile",
     "XmlElementProfile",

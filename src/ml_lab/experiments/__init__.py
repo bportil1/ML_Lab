@@ -1,6 +1,14 @@
 """Project-local experiment storage and opt-in task recording."""
 
 from .artifacts import ArtifactError, ArtifactNotFound, ArtifactRegistry
+from .datasets import (
+    DatasetSelectionError,
+    describe_selection,
+    prepare_model_handoff,
+    preview_experiment_dataset,
+    select_experiment_dataset,
+    verify_selection,
+)
 from .legacy import RecordedTaskError, execute_recorded_task
 from .store import (
     ExperimentNotFound,
@@ -11,6 +19,12 @@ from .store import (
 )
 
 __all__ = [
+    "DatasetSelectionError",
+    "describe_selection",
+    "prepare_model_handoff",
+    "preview_experiment_dataset",
+    "select_experiment_dataset",
+    "verify_selection",
     "ArtifactError",
     "ArtifactNotFound",
     "ArtifactRegistry",

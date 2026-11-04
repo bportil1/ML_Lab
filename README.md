@@ -949,3 +949,13 @@ operational and unchanged.
 run metadata, the unchanged task response, and registered artifact provenance.
 Existing task callers, routes, and CLI commands are not redirected. See
 [the S1.3 legacy adapter contract](docs/UNIFIED_EXPERIMENT_S1_3_LEGACY_ADAPTER.md).
+
+### Experiment dataset handoff (Sprint 2.1)
+
+The opt-in `ml_lab.experiments.select_experiment_dataset` API pins a Data Lab
+CSV/TSV source or derived dataset to an immutable project-local experiment
+revision. `preview_experiment_dataset` exposes a source-order table viewport;
+`prepare_model_handoff` converts explicitly selected feature/target columns
+into the existing numeric model task input format after rechecking content and
+lineage. The existing UI and dispatch behavior are unchanged. See
+[the S2.1 dataset handoff contract](docs/UNIFIED_EXPERIMENT_S2_1_DATASET_HANDOFF.md).

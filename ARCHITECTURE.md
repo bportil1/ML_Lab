@@ -508,3 +508,11 @@ project-local input/result JSON files, records run status in the ML_Lab-owned
 SQLite store, and registers typed artifacts. Known Data Lab transformation
 outputs are also indexed when project-local. See
 [the adapter contract](docs/UNIFIED_EXPERIMENT_S1_3_LEGACY_ADAPTER.md).
+
+### Sprint 2.1 — Data Lab dataset selection
+
+Project-local, pinned CSV/TSV selections now bridge Data Lab's existing
+identity/provenance records into `ExperimentStore.dataset_ref` and optionally
+materialize validated numeric feature/target payloads for the existing model
+tasks. It is an opt-in headless API, not a new runner or visual matrix editor.
+See [the dataset selection contract](docs/UNIFIED_EXPERIMENT_S2_1_DATASET_HANDOFF.md).
