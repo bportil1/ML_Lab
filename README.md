@@ -1067,3 +1067,24 @@ results root. PAH discovery exposes completed, hash-verified training,
 optimization, and synthetic artifacts through ML_Lab's own registry.
 Standalone operation and existing Data Lab routes are preserved. See
 [the S7.1 integration/hardening guide](docs/UNIFIED_EXPERIMENT_S7_1_INTEGRATION_HARDENING.md).
+
+### PAH_Shared editable matrix adoption (P5-04)
+
+Data Lab's matrix draft uses the generic `pah-shared>=0.3,<0.4` UI, installed
+locally via `ml-lab[ui]`. ML_Lab only supplies project-local paged source
+reads, dtype validation and the original SHA-256-guarded derived-dataset save
+endpoint. No source file is edited in place. All selection, keyboard, paste,
+undo/redo, grid DOM, and navigation live in PAH_Shared; this is intentionally
+not a separate ML_Lab matrix implementation. Other legacy read-only tables
+are not retired until their shared replacements have been checked.
+
+### Optional free-navigation scientific workspace (P5-13)
+
+Open **Workspace** or `/workspace` for one-click tool navigation across Data,
+Models, Representation, EBM, Optimization, Generative, XML, and Results.
+These are independent tools; a saved experiment can be selected as an optional
+navigation context without running or changing a model. The selected experiment,
+run, and last tool are remembered in a browser/project-scoped preference only;
+ML_Lab's existing experiment SQLite database and artifacts remain authoritative.
+Existing JSON task routes and Data Lab navigation remain available. See
+[the P5-13 workspace contract](docs/PAH_P5_13_FREE_NAVIGATION_WORKSPACE.md).

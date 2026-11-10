@@ -9,8 +9,10 @@
   <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_pah_compat.css') }}">
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_tables.js') }}"></script>
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_path_input.js') }}"></script>
+  <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_workspace.js') }}"></script>
+  {% block styles %}{% endblock %}
 </head>
-<body class="pah-module" data-pah-module-root>
+<body class="pah-module" data-pah-module-root data-workspace-scope="{{ workspace_scope }}" data-workspace-current="{{ workspace_active_tool }}" data-workspace-context-url="{{ url_for(request.blueprint + '.workspace_context') }}">
   <header class="topbar pah-module-header">
     <div class="brand-group">
       <a class="brand" href="{{ url_for(request.blueprint + '.index') }}">ML Lab</a>
@@ -18,6 +20,7 @@
     </div>
     <nav class="module-nav pah-tool-nav" data-pah-tool-nav aria-label="ML Lab">
       <a href="{{ url_for(request.blueprint + '.index') }}" class="nav-link {% if request.endpoint == request.blueprint + ".index" %}active{% endif %}">Overview</a>
+      <a href="{{ url_for(request.blueprint + '.workspace') }}" class="nav-link {% if request.endpoint == request.blueprint + '.workspace' %}active{% endif %}">Workspace</a>
       <a href="{{ url_for(request.blueprint + '.data_lab') }}" class="nav-link {% if request.endpoint == request.blueprint + ".data_lab" %}active{% endif %}">Data</a>
       <a href="{{ url_for(request.blueprint + '.experiment_model') }}" class="nav-link {% if request.endpoint == request.blueprint + ".experiment_model" %}active{% endif %}">Experiments</a>
       <a href="{{ url_for(request.blueprint + '.data_compare') }}" class="nav-link {% if request.endpoint == request.blueprint + ".data_compare" %}active{% endif %}">Compare</a>
@@ -26,9 +29,24 @@
     </nav>
     <span class="mode">local · optional UI</span>
   </header>
-  <main class="shell">
-    {% block content %}{% endblock %}
-  </main>
+  <div class="scientific-workspace-layout">
+    <aside class="scientific-tool-palette" aria-label="Scientific tools">
+      <div class="scientific-tool-palette-heading">Tools <span class="muted">· any order</span></div>
+      <nav class="scientific-tool-list" aria-label="Scientific tool palette">
+        {% for tool in workspace_tools %}
+        <a class="scientific-tool-link {% if workspace_active_tool == tool.id %}active{% endif %}"
+           data-workspace-tool="{{ tool.id }}" data-workspace-target="{{ tool.endpoint }}"
+           {% if workspace_active_tool == tool.id %}aria-current="page"{% endif %}
+           href="{{ url_for(request.blueprint + '.' + tool.endpoint, **tool.query) }}{% if tool.anchor %}#{{ tool.anchor }}{% endif %}">{{ tool.title }}</a>
+        {% endfor %}
+      </nav>
+      <a class="scientific-palette-home" href="{{ url_for(request.blueprint + '.workspace') }}">Selected context &amp; all tools</a>
+      <small>Choose a tool directly. No stage must be completed first.</small>
+    </aside>
+    <main class="shell scientific-workspace-main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
   {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,28 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Results · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head"><div>
+  <p class="eyebrow">Results · independent tool</p><h1>Recorded results</h1>
+  <p class="lede">Browse saved run records without configuring or training a new model. Comparisons use the existing integrity-verified result artifacts.</p>
+</div></section>
+<form class="panel" action="{{ url_for(request.blueprint + '.workspace_results') }}" method="get">
+  <label>Experiment
+    <select class="wide-input" name="experiment_id" data-workspace-exp-picker>
+      <option value="">Choose an experiment</option>
+      {% for item in experiments %}<option value="{{ item.experiment_id }}" {% if experiment and experiment.experiment_id == item.experiment_id %}selected{% endif %}>{{ item.name }} · revision {{ item.revision }}</option>{% endfor %}
+    </select>
+  </label>
+  <button class="button secondary" type="submit">Show recorded runs</button>
+</form>
+{% if experiment %}
+<section class="panel">
+  <h2>{{ experiment.name }} · revision {{ experiment.revision }}</h2>
+  <p><a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_compare', experiment_id=experiment.experiment_id) }}">Compare and visualize verified runs</a></p>
+  {% if runs %}
+  <div class="table-wrap"><table><thead><tr><th>Run</th><th>Revision</th><th>Status</th><th>Details</th></tr></thead><tbody>
+    {% for item in runs %}<tr><td><code>{{ item.run_id[:16] }}</code></td><td>{{ item.revision }}</td><td>{{ item.status }}</td><td>{% if item.environment.executor in ('ml_lab.experiments.training@1', 'ml_lab.experiments.optimization@1', 'ml_lab.experiments.synthetic@1') %}<a data-workspace-run-id="{{ item.run_id }}" data-workspace-experiment-id="{{ experiment.experiment_id }}" href="{{ url_for(request.blueprint + '.experiment_model_run_view', run_id=item.run_id) }}">Inspect run</a>{% else %}<span class="muted">Recorded metadata only</span>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}<p class="muted">No runs are recorded for this experiment. You can still open any other tool.</p>{% endif %}
+</section>
+{% else %}<section class="panel"><p class="muted">No experiment is selected. Other tools remain available, including Data, XML, and advanced tasks.</p></section>{% endif %}
+{% endblock %}

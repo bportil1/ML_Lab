@@ -6,7 +6,7 @@
   <p class="lede">{{ experiment.name }} · revision {{ status.run.revision }} · {% if status.run.environment.executor == 'ml_lab.experiments.synthetic@1' %}{{ status.run.environment.plan.method }}{% else %}{{ experiment.model_spec.family }} / {{ experiment.model_spec.method }}{% endif %}</p></div>
   <span class="badge" id="training-run-state">{{ status.run.status }}</span>
 </section>
-<section class="panel training-run-panel" data-status-url="{{ status_url }}" data-result-url="{{ results_url }}">
+<section class="panel training-run-panel" data-workspace-current-experiment-id="{{ experiment.experiment_id }}" data-workspace-current-run-id="{{ status.run.run_id }}" data-status-url="{{ status_url }}" data-result-url="{{ results_url }}">
   <h2 id="training-run-stage" role="status">{{ status.stage }}</h2>
   <p class="muted compact">Progress is reported at execution boundaries, not within model epochs. Cancellation is cooperative: an active scientific kernel is not interrupted. Jobs interrupted by a server restart cannot be resumed in place.</p>
   <div class="summary-grid compact-grid">

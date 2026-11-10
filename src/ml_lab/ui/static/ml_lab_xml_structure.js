@@ -19,6 +19,11 @@
   const search = explorer.querySelector("[data-xml-tree-search]");
   const candidatesOnly = explorer.querySelector("[data-xml-candidates-only]");
   const status = explorer.querySelector("[data-xml-tree-status]");
+  const ancestry = explorer.querySelector("[data-xml-ancestry]");
+  const parentButton = explorer.querySelector("[data-xml-go-parent]");
+  const previousButton = explorer.querySelector("[data-xml-go-previous]");
+  const nextButton = explorer.querySelector("[data-xml-go-next]");
+  const siblingPosition = explorer.querySelector("[data-xml-sibling-position]");
 
   const parentCanonicalPath = (canonicalPath) => {
     const index = canonicalPath.lastIndexOf("/");
@@ -60,6 +65,7 @@
     li.dataset.xmlCanonicalPath = profile.canonical_path;
     li.dataset.xmlSearchText = `${profile.path} ${profile.local_name} ${profile.prefix || ""}`.toLowerCase();
     li.setAttribute("role", "treeitem");
+    li.setAttribute("aria-label", `${labelFor(profile)}, ${profile.occurrence_count} occurrences`);
 
     const row = document.createElement("div");
     row.className = "xml-tree-row";
@@ -83,6 +89,7 @@
     select.type = "button";
     select.className = "xml-tree-select";
     select.dataset.xmlSelectPath = profile.canonical_path;
+    select.setAttribute("aria-label", `Inspect ${profile.canonical_path}`);
     const name = document.createElement("span");
     name.className = "xml-node-name";
     name.textContent = labelFor(profile);
@@ -93,7 +100,10 @@
     select.appendChild(count);
     row.appendChild(select);
 
-    if (profile.cardinality && profile.cardinality.repeated) appendBadge(row, "repeated", "is-repeated");
+    if (profile.cardinality && profile.cardinality.repeated) {
+      const cardinality = profile.cardinality;
+      appendBadge(row, `repeated ${formatNumber(cardinality.min_per_parent)}–${formatNumber(cardinality.max_per_parent)} / parent`, "is-repeated");
+    }
     if (profile.cardinality && profile.cardinality.optional) appendBadge(row, "optional", "is-optional");
     if (candidatePaths.has(profile.canonical_path)) appendBadge(row, "record candidate", "is-candidate");
     li.appendChild(row);
@@ -142,6 +152,49 @@
   const inspectorContent = inspector.querySelector("[data-xml-inspector-content]");
   let selectedPath = null;
 
+  const siblingPaths = (canonicalPath) =>
+    (childrenByParent.get(parentCanonicalPath(canonicalPath)) || []).map((profile) => profile.canonical_path);
+
+  const renderNavigation = (canonicalPath) => {
+    const ancestors = [];
+    let current = canonicalPath;
+    while (current && profileByPath.has(current)) {
+      ancestors.unshift(current);
+      current = parentCanonicalPath(current);
+    }
+    ancestry.replaceChildren();
+    ancestors.forEach((path, index) => {
+      if (index) {
+        const separator = document.createElement("span");
+        separator.className = "xml-ancestry-separator";
+        separator.textContent = "/";
+        separator.setAttribute("aria-hidden", "true");
+        ancestry.appendChild(separator);
+      }
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "xml-ancestry-link";
+      button.dataset.xmlSelectPath = path;
+      button.textContent = labelFor(profileByPath.get(path));
+      if (path === canonicalPath) {
+        button.setAttribute("aria-current", "location");
+        button.disabled = true;
+      }
+      ancestry.appendChild(button);
+    });
+    const parent = parentCanonicalPath(canonicalPath);
+    const siblings = siblingPaths(canonicalPath);
+    const index = siblings.indexOf(canonicalPath);
+    parentButton.disabled = !parent || !profileByPath.has(parent);
+    previousButton.disabled = index <= 0;
+    nextButton.disabled = index < 0 || index >= siblings.length - 1;
+    parentButton.dataset.xmlSelectPath = parent || "";
+    previousButton.dataset.xmlSelectPath = siblings[index - 1] || "";
+    nextButton.dataset.xmlSelectPath = siblings[index + 1] || "";
+    siblingPosition.textContent = `${Math.max(0, index + 1)} of ${siblings.length} sibling paths`;
+    return {parent, siblings};
+  };
+
   const setText = (selector, value) => {
     const node = inspector.querySelector(selector);
     if (node) node.textContent = value;
@@ -151,6 +204,7 @@
     const profile = profileByPath.get(canonicalPath);
     if (!profile) return;
     selectedPath = canonicalPath;
+    const navigation = renderNavigation(canonicalPath);
     nodeElements.forEach(({row}, path) => row.classList.toggle("is-selected", path === canonicalPath));
     expandAncestors(canonicalPath);
 
@@ -162,6 +216,8 @@
     setText("[data-xml-inspector-namespace]", profile.namespace_uri || "none");
     setText("[data-xml-inspector-depth]", String(profile.depth));
     setText("[data-xml-inspector-occurrences]", String(profile.occurrence_count));
+    setText("[data-xml-inspector-parent]", navigation.parent || "document root");
+    setText("[data-xml-inspector-siblings]", String(navigation.siblings.length));
 
     const cardinality = profile.cardinality || {};
     setText("[data-xml-card-min]", formatNumber(cardinality.min_per_parent));
@@ -235,6 +291,32 @@
     inspectPath(canonicalPath, {scroll: !explorer.contains(target)});
   });
 
+  tree.addEventListener("keydown", (event) => {
+    const target = event.target.closest("[data-xml-select-path]");
+    if (!target || !tree.contains(target)) return;
+    const path = target.dataset.xmlSelectPath;
+    const parts = nodeElements.get(path);
+    if (!parts) return;
+    const siblings = siblingPaths(path);
+    const index = siblings.indexOf(path);
+    let destination = null;
+    if (event.key === "ArrowUp" && index > 0) destination = siblings[index - 1];
+    if (event.key === "ArrowDown" && index + 1 < siblings.length) destination = siblings[index + 1];
+    if (event.key === "ArrowLeft") {
+      if (parts.childList && !parts.childList.hidden) parts.toggle.click();
+      else destination = parentCanonicalPath(path);
+    }
+    if (event.key === "ArrowRight" && parts.childList) {
+      if (parts.childList.hidden) parts.toggle.click();
+      else destination = (childrenByParent.get(path) || [])[0]?.canonical_path || null;
+    }
+    if (destination && profileByPath.has(destination)) {
+      inspectPath(destination, {scroll: true});
+      nodeElements.get(destination)?.row.querySelector("[data-xml-select-path]")?.focus();
+    }
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) event.preventDefault();
+  });
+
   const setExpanded = (expanded) => {
     nodeElements.forEach(({toggle, childList}) => {
       if (!childList) return;
@@ -255,7 +337,10 @@
     const selfMatchesQuery = !query || parts.li.dataset.xmlSearchText.includes(query);
     const selfMatchesCandidate = !candidatesMode || candidatePaths.has(profile.canonical_path);
     const children = childrenByParent.get(profile.canonical_path) || [];
-    const childMatch = children.some((child) => descendantMatches(child, query, candidatesMode));
+    // Evaluate every child: Array.some short-circuits and leaves stale visibility
+    // state on subsequent siblings after a matching descendant.
+    let childMatch = false;
+    children.forEach((child) => { if (descendantMatches(child, query, candidatesMode)) childMatch = true; });
     const visible = (selfMatchesQuery && selfMatchesCandidate) || childMatch;
     parts.li.hidden = !visible;
     if (childMatch && parts.childList) {
@@ -275,7 +360,10 @@
     });
     const visibleCount = [...nodeElements.values()].filter(({li}) => !li.hidden).length;
     if (status) status.textContent = `${visibleCount} of ${profiles.length} paths visible${candidatesMode ? " · candidate branches" : ""}${query ? ` · filter: ${query}` : ""}`;
-    if (!query && !candidatesMode && rootsVisible) setExpanded(false);
+    if (!query && !candidatesMode && rootsVisible) {
+      setExpanded(false);
+      if (selectedPath) expandAncestors(selectedPath);
+    }
   };
 
   search?.addEventListener("input", applyFilter);

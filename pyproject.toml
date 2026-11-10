@@ -18,7 +18,7 @@ dependencies = [
 [project.optional-dependencies]
 test = ["pytest>=7"]
 flask = ["Flask>=3.0"]
-ui = ["Flask>=3.0"]
+ui = ["Flask>=3.0", "pah-shared>=0.3,<0.4"]
 neural = ["torch>=2.0"]
 energy = ["torch>=2.0"]
 experimental-neural = ["torch>=2.0"]

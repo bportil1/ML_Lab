@@ -1,0 +1,9 @@
+# P5-15 — Immutable project-local typed XML preview snapshots
+
+This is an explicit, opt-in persistence mechanism for **bounded preview artifacts**, not a full source-to-dataset materializer. The original XML is authoritative; the XML structure inspection and fingerprint check are performed by `preview_typed_xml_records` before snapshot creation. The caller must supply that checked preview and its versioned typed recipe. `persist_typed_preview` never reads the source XML, changes C1–C7 recipes, or registers a training dataset.
+
+Snapshots live under the caller-provided ML_Lab project's `artifacts/xml_typed_previews/` directory. The artifact ID is the SHA-256 of the canonical JSON bytes. Existing snapshots are verified, never overwritten; readback rejects invalid IDs, symlinks, oversized artifacts and hash mismatch. The payload includes source fingerprint, recipe, bounded record values, missingness, occurrence addresses, `source_record_count` and `truncated`. A snapshot is explicitly marked `registered_dataset: false`, `scope: bounded_snapshot`, and `encoding: none`.
+
+**Limitations:** The preview record ordinal and child occurrence addresses are preserved as recorded but are not durable global source byte offsets or a complete document-level lineage map. Very large previews over 8 MiB are rejected. This increment deliberately does not create HTTP routes, XML UI save controls, a database registry, scientific encoders, or background jobs. Consumers must not treat a truncated snapshot as a complete extraction. Follow-up requires a reviewed full-materialization and lineage contract before any promotion to training datasets.
+
+Rollback: remove this new module, tests, and document; existing snapshot files may be retained offline or manually discarded by the project owner. Existing XML extraction is unaffected.

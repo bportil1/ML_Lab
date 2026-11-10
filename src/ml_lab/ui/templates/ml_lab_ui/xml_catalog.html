@@ -1,0 +1,84 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}XML Catalog · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for(request.blueprint + '.data_lab') }}">← Data Lab</a>
+<section class="panel">
+  <h1>XML collection catalog</h1>
+  <p class="muted">Read-only metadata from the last explicitly rebuilt, project-local index. Original sources, recipes, and artifacts remain authoritative. Entries may be stale until rebuilt.</p>
+  <nav aria-label="Catalog sections" class="module-nav">
+    {% for name in ['collections', 'sources', 'recipes', 'artifacts'] %}
+      <a class="nav-link {% if section == name %}active{% endif %}" href="{{ url_for(request.blueprint + '.xml_catalog_browser', section=name) }}">{{ name|capitalize }}</a>
+    {% endfor %}
+  </nav>
+  <form method="post" action="{{ url_for(request.blueprint + '.xml_catalog_browser', section=section) }}">
+    <label>Rebuild index from verified project artifacts
+      <select name="scope">
+        <option value="all">All index sections</option>
+        <option value="sources">Collections and sources</option>
+        <option value="recipes">Recipes and source links</option>
+        <option value="artifacts">Typed artifacts</option>
+      </select>
+    </label>
+    <input type="hidden" name="confirm" value="rebuild">
+    <button class="button mini secondary" type="submit">Rebuild selected index</button>
+    <p class="muted">Rebuilds indexes from existing immutable snapshots; does not rescan XML files or execute extraction. Index sections are updated separately.</p>
+  </form>
+  {% if refresh_report %}
+  <section aria-label="Index rebuild result" role="status">
+    <h2>Index rebuild result: {{ 'Complete' if refresh_report.complete else ('Partially complete' if refresh_report.partial else 'Failed') }}</h2>
+    <p>{{ refresh_report.note }}</p>
+    <ul>
+      {% for name, result in refresh_report.sections.items() %}
+      <li><strong>{{ name }}</strong>: {{ result.status }}
+        {% if result.status == 'rebuilt' %}
+          {% for key, value in result.counts.items() %}{{ key }}={{ value }}{% if not loop.last %}, {% endif %}{% endfor %}
+        {% else %}{{ result.error }}{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+  {% if error %}<p role="alert">{{ error }}</p>{% endif %}
+  {% if page %}
+    <form method="get" action="{{ url_for(request.blueprint + '.xml_catalog_browser') }}">
+      <input type="hidden" name="section" value="{{ section }}">
+      {% if section in ['sources', 'recipes', 'artifacts'] %}
+        <label>Source SHA-256 <input name="sha256" value="{{ source_sha or '' }}" maxlength="64" placeholder="64 hexadecimal characters"></label>
+      {% endif %}
+      {% if section in ['sources', 'recipes'] %}
+        <label>Inventory ID <input name="inventory" value="{{ inventory_id or '' }}" maxlength="64" placeholder="64 hexadecimal characters"></label>
+      {% endif %}
+      {% if section == 'artifacts' %}
+        <label>Type <select name="kind"><option value="">Any</option><option value="preview" {% if artifact_kind == 'preview' %}selected{% endif %}>Preview</option><option value="materialization" {% if artifact_kind == 'materialization' %}selected{% endif %}>Materialization</option></select></label>
+      {% endif %}
+      <label>Page size <select name="limit"><option value="25" {% if page.limit == 25 %}selected{% endif %}>25</option><option value="50" {% if page.limit == 50 %}selected{% endif %}>50</option><option value="100" {% if page.limit == 100 %}selected{% endif %}>100</option></select></label>
+      <button class="button mini" type="submit">Filter</button>
+    </form>
+    <p role="status">{{ page.total }} indexed {{ section }}; showing {{ page.items|length }} (offset {{ page.offset }}). Index may be stale.</p>
+    <div class="table-wrap"><table><thead><tr>
+      {% if section == 'collections' %}<th>Inventory ID</th><th>Root</th><th>Files</th><th>Parsed</th><th>Failed</th>
+      {% elif section == 'sources' %}<th>Inventory</th><th>Source path</th><th>Status</th><th>SHA-256</th><th>Size</th>
+      {% elif section == 'recipes' %}<th>Recipe ID</th><th>Inventory</th><th>Record root</th><th>Sources</th><th>Fields</th>
+      {% else %}<th>Artifact ID</th><th>Type</th><th>Record root</th><th>Records</th><th>Complete</th>{% endif %}
+    </tr></thead><tbody>
+      {% for item in page.items %}
+      <tr>
+        {% if section == 'collections' %}<td><code>{{ item.snapshot_id }}</code></td><td>{{ item.root_path }}</td><td>{{ item.file_count }}</td><td>{{ item.parsed_count }}</td><td>{{ item.failed_count }}</td>
+        {% elif section == 'sources' %}<td><code>{{ item.snapshot_id }}</code></td><td>{{ item.relative_path }}</td><td>{{ item.status }}</td><td><code>{{ item.sha256 }}</code></td><td>{{ item.size_bytes }}</td>
+        {% elif section == 'recipes' %}<td><code>{{ item.snapshot_id }}</code></td><td><code>{{ item.inventory_snapshot_id or '—' }}</code></td><td>{{ item.record_root }}</td><td>{{ item.source_count }}</td><td>{{ item.field_count }}</td>
+        {% else %}<td><code>{{ item.artifact_id }}</code></td><td>{{ item.kind }}</td><td>{{ item.record_root }}</td><td>{{ item.record_count }}</td><td>{{ 'yes' if item.complete else 'no' }}</td>{% endif %}
+      </tr>
+      {% else %}<tr><td colspan="5">No entries in this indexed view. Catalog updates require an explicit index rebuild.</td></tr>{% endfor %}
+    </tbody></table></div>
+    <nav aria-label="Catalog pagination">
+      {% set filter_args = {'section': section, 'limit': page.limit} %}
+      {% if source_sha %}{% set _ = filter_args.update({'sha256': source_sha}) %}{% endif %}
+      {% if inventory_id %}{% set _ = filter_args.update({'inventory': inventory_id}) %}{% endif %}
+      {% if artifact_kind %}{% set _ = filter_args.update({'kind': artifact_kind}) %}{% endif %}
+      {% if page.offset > 0 %}<a class="button mini secondary" href="{{ url_for(request.blueprint + '.xml_catalog_browser', offset=[0, page.offset - page.limit]|max, **filter_args) }}">Previous</a>{% endif %}
+      {% if page.offset + page.limit < page.total %}<a class="button mini secondary" href="{{ url_for(request.blueprint + '.xml_catalog_browser', offset=page.offset + page.limit, **filter_args) }}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+  <p><a href="{{ url_for(request.blueprint + '.xml_collection_inventory') }}">Open XML collection inspection</a> · <a href="{{ url_for(request.blueprint + '.xml_collection_recipe') }}">Open XML recipe workspace</a> · <a href="{{ url_for(request.blueprint + '.data_lab') }}">Open Data Lab</a></p>
+</section>
+{% endblock %}

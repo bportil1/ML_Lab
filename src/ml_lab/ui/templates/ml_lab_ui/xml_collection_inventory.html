@@ -1,6 +1,7 @@
 {% extends "ml_lab_ui/base.html" %}
 {% block title %}XML collection inventory · ML Lab{% endblock %}
 {% block content %}
+<p><a href="{{ url_for(request.blueprint + '.xml_catalog_browser') }}">Browse indexed XML catalog</a></p>
 <a class="back" href="{{ url_for(request.blueprint + '.data_lab') }}">← Data Lab</a>
 <section class="workspace-head"><div>
   <p class="eyebrow">Data · XML-C1 / XML-C2</p>

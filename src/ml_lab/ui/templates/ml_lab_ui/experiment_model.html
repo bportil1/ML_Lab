@@ -46,11 +46,15 @@
 </section>
 {% if error %}<div class="alert data-alert" role="alert">{{ error }}</div>{% endif %}
 {% if saved %}<section class="status-card transform-success" role="status"><strong>Model configuration saved</strong><span>Experiment revision {{ experiment.revision }} is ready for a later training run. No model was executed.</span></section>{% endif %}
-<section class="panel model-workflow" aria-label="Experiment workflow">
+<nav class="panel model-workflow" aria-label="Optional scientific tools">
   <div class="model-workflow-stages">
-    <span class="done">1 · Data selected</span><span class="current">2 · Model configuration</span><span>3 · Training</span><span>4 · Evaluation and comparison</span>
+    <a href="{{ url_for(request.blueprint + '.data_lab') }}">Data</a>
+    <a href="{{ url_for(request.blueprint + '.experiment_model', experiment_id=experiment.experiment_id if experiment else '') }}">Models</a>
+    <a href="#model-optimization">Optimization</a>
+    <a href="{{ url_for(request.blueprint + '.workspace_results', experiment_id=experiment.experiment_id if experiment else '') }}">Results</a>
   </div>
-</section>
+  <small class="muted">Tools are independent. A compatible selected dataset is needed only to run a dataset-based model.</small>
+</nav>
 {% if not experiments %}
 <section class="panel"><h2>No datasets selected yet</h2><p>Open a project-local CSV or TSV through Data Lab, then choose <strong>Use in experiment</strong> to select its feature and target columns.</p><a class="button secondary" href="{{ url_for(request.blueprint + '.data_lab') }}">Go to Data Lab</a></section>
 {% else %}
@@ -120,7 +124,7 @@
 </section>
 {% endif %}
 {% if experiment.model_spec.schema == 'ml-lab.model-configuration@1' and not data_error and optimization_controls and optimization_metrics %}
-<section class="panel model-optimization-launch">
+<section class="panel model-optimization-launch" id="model-optimization">
   <h2>Optimize saved configuration</h2>
   <p class="muted compact">Firefly searches one numeric control at a time using the pinned dataset and existing model engine. Each candidate may retrain the model. A run records trials; it does not update or promote the saved model configuration.</p>
   <form method="post" action="{{ url_for(request.blueprint + '.experiment_model_optimize') }}" class="model-configuration">

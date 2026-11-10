@@ -1,0 +1,42 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Scientific workspace · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head"><div>
+  <p class="eyebrow">Optional tools · project-local context</p>
+  <h1>Scientific workspace</h1>
+  <p class="lede">Choose tools in any order. The selected experiment and run are navigation context, not an instruction to execute or modify them.</p>
+</div></section>
+<section class="panel scientific-context-panel" aria-label="Selected project artifacts" data-workspace-picker>
+  <h2>Selected artifacts</h2>
+  <div class="scientific-context-fields">
+    <label>Experiment
+      <select class="wide-input" data-workspace-experiment-select>
+        <option value="">No experiment selected</option>
+        {% for item in experiments %}
+        <option value="{{ item.experiment_id }}">{{ item.name }} · revision {{ item.revision }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Run
+      <select class="wide-input" data-workspace-run-select disabled>
+        <option value="">No run selected</option>
+      </select>
+    </label>
+  </div>
+  <p class="muted compact" role="status" data-workspace-summary>Choose an experiment to see its saved dataset, model configuration, and recorded runs.</p>
+  <p class="muted compact">Preferences stay in this browser and are isolated by selected project and ML_Lab mount. Files, model weights, and run revisions remain in ML_Lab's existing project-owned storage.</p>
+</section>
+<section class="scientific-workspace-tools" aria-label="Tools available without prerequisites">
+  {% for tool in workspace_tools %}
+  <article class="panel scientific-workspace-tool">
+    <h2>{{ tool.title }}</h2>
+    <p>{{ tool.description }}</p>
+    <a class="button secondary" data-workspace-tool="{{ tool.id }}" href="{{ url_for(request.blueprint + '.' + tool.endpoint, **tool.query) }}{% if tool.anchor %}#{{ tool.anchor }}{% endif %}">Open {{ tool.title }}</a>
+  </article>
+  {% endfor %}
+</section>
+<section class="panel"><h2>Advanced application tasks</h2>
+  <p>Existing JSON task interfaces remain available for direct, independent use.</p>
+  <a class="button secondary" href="{{ url_for(request.blueprint + '.index') }}">Browse all capabilities</a>
+</section>
+{% endblock %}

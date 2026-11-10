@@ -20,6 +20,7 @@ from ml_lab.core.serialization import to_jsonable
 from .jobs import ProfileJobManager
 from .training_jobs import TrainingJobManager
 from .service import capability_groups, capability_records, get_capability
+from .workspace import active_tool, project_scope, tool_records
 
 
 def _pretty(value: Any) -> str:
@@ -272,6 +273,18 @@ def create_ui_blueprint(
     project_root = Path(experiment_project_root if experiment_project_root is not None else Path.cwd()).expanduser().resolve()
     training_jobs = TrainingJobManager(project_root)
 
+    @blueprint.context_processor
+    def _scientific_workspace_context():
+        # Present on every old and new UI route without modifying service APIs.
+        # Browser preferences never authorize access to a different project.
+        endpoint = request.endpoint or ""
+        own_endpoint = endpoint.removeprefix(blueprint.name + ".")
+        return {
+            "workspace_tools": tool_records(),
+            "workspace_scope": project_scope(project_root, blueprint.name),
+            "workspace_active_tool": active_tool(own_endpoint, request.args.get("family")),
+        }
+
     raw_path_roots = list(path_autocomplete_roots) if path_autocomplete_roots is not None else [Path.cwd(), Path.home()]
     path_roots: list[Path] = []
     for raw_root in raw_path_roots:
@@ -342,6 +355,89 @@ def create_ui_blueprint(
     def xml_structure_url(path: str) -> str:
         return url_for(request.blueprint + ".xml_structure_view", token=sign_path(path))
 
+    @blueprint.get("/pah-shared/<asset>")
+    def pah_shared_asset(asset: str):
+        """Serve exact, packaged offline presentation assets; no copied UI engine."""
+        if asset not in {"matrix_editor.mjs", "matrix.css"}:
+            abort(404)
+        from pah_shared import static_asset
+        mime = "text/javascript" if asset.endswith(".mjs") else "text/css"
+        return Response(static_asset(asset).read_bytes(), mimetype=mime,
+                        headers={"Cache-Control": "private, max-age=3600"})
+
+    @blueprint.get("/workspace")
+    def workspace():
+        """Free-navigation launcher. Selection is optional and non-mutating."""
+        from ml_lab.experiments import ExperimentStore
+        store = ExperimentStore(project_root)
+        experiments = [row for row in store.list_experiments(limit=100)
+                       if row["dataset_ref"].get("schema") == "ml-lab.experiment-dataset@1"]
+        # Never silently default to a different experiment after project switch.
+        return render_template("ml_lab_ui/workspace.html", version=__version__,
+                               experiments=experiments, workspace_mode="workspace")
+
+    @blueprint.get("/workspace/context")
+    def workspace_context():
+        """Read-only metadata lookup; never accepts filesystem paths or actions."""
+        from ml_lab.experiments import ExperimentNotFound, ExperimentStore
+        experiment_id = request.args.get("experiment_id", "").strip()
+        run_id = request.args.get("run_id", "").strip()
+        if not experiment_id or len(experiment_id) > 128 or len(run_id) > 128:
+            abort(400)
+        store = ExperimentStore(project_root)
+        try:
+            experiment = store.get_experiment(experiment_id)
+            if experiment["dataset_ref"].get("schema") != "ml-lab.experiment-dataset@1":
+                abort(404)
+            runs = store.list_runs(experiment_id, limit=75)
+            selected_run = None
+            if run_id:
+                selected_run = store.get_run(run_id)
+                if selected_run["experiment_id"] != experiment_id:
+                    abort(404)
+        except ExperimentNotFound:
+            abort(404)
+        model = experiment["model_spec"]
+        # The dataset path is a display label from an already authorized local
+        # experiment, not an input to a file-read endpoint.
+        payload = {
+            "experiment_id": experiment["experiment_id"],
+            "name": experiment["name"],
+            "revision": experiment["revision"],
+            "dataset": experiment["dataset_ref"].get("path", ""),
+            "model_family": model.get("family", ""),
+            "model_method": model.get("method", ""),
+            "run_id": selected_run["run_id"] if selected_run else None,
+            "runs": [{"run_id": row["run_id"], "revision": row["revision"],
+                      "status": row["status"]} for row in runs],
+        }
+        response = jsonify(payload)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @blueprint.get("/workspace/results")
+    def workspace_results():
+        """Run browser without requiring the user to finish a model workflow."""
+        from ml_lab.experiments import ExperimentNotFound, ExperimentStore
+        store = ExperimentStore(project_root)
+        experiments = [row for row in store.list_experiments(limit=100)
+                       if row["dataset_ref"].get("schema") == "ml-lab.experiment-dataset@1"]
+        experiment_id = request.args.get("experiment_id", "").strip()
+        if len(experiment_id) > 128:
+            abort(400)
+        experiment = None
+        runs = []
+        if experiment_id:
+            try:
+                experiment = store.get_experiment(experiment_id)
+                if experiment["dataset_ref"].get("schema") != "ml-lab.experiment-dataset@1":
+                    abort(404)
+                runs = store.list_runs(experiment_id, limit=100)
+            except ExperimentNotFound:
+                abort(404)
+        return render_template("ml_lab_ui/workspace_results.html", version=__version__,
+                               experiments=experiments, experiment=experiment, runs=runs)
+
     @blueprint.get("/")
     def index():
         return render_template(
@@ -405,6 +501,56 @@ def create_ui_blueprint(
             experimental_enabled=enable_experimental,
         )
 
+
+    @blueprint.route("/data/xml/catalog", methods=["GET", "POST"])
+    def xml_catalog_browser():
+        """Read-only indexed metadata; no implicit filesystem scan or rebuild."""
+        from ml_lab.data.xml_catalog_browser import browse_xml_catalog, SECTIONS
+
+        # POST is explicit; GET never scans snapshots or rebuilds an index.
+        refresh_report = None
+        if request.method == "POST":
+            from ml_lab.data.xml_catalog_refresh import refresh_xml_catalog
+            from urllib.parse import urlsplit
+            origin = request.headers.get("Origin")
+            # Reject an explicitly foreign Origin, without depending on proxies
+            # setting one for same-origin form submissions.
+            if origin:
+                observed = urlsplit(origin)
+                if observed.scheme != request.scheme or observed.netloc != request.host:
+                    return ("Cross-origin catalog refresh denied", 403)
+            if request.form.get("confirm") != "rebuild":
+                return ("Catalog refresh requires explicit confirmation", 400)
+            try:
+                refresh_report = refresh_xml_catalog(project_root, scope=request.form.get("scope", "all"))
+            except (ValueError, OSError) as exc:
+                return ("Invalid catalog refresh request: " + str(exc), 400)
+        section = request.args.get("section", "collections")
+        source_sha = request.args.get("sha256", "").strip() or None
+        inventory_id = request.args.get("inventory", "").strip() or None
+        artifact_kind = request.args.get("kind", "").strip() or None
+        try:
+            limit = int(request.args.get("limit", "25"))
+            offset = int(request.args.get("offset", "0"))
+            if section not in SECTIONS:
+                raise ValueError("Unknown section")
+            filters = {"section": section, "limit": limit, "offset": offset}
+            if section in ("sources", "recipes", "artifacts"):
+                filters["source_sha256"] = source_sha
+            if section in ("sources", "recipes"):
+                filters["inventory_snapshot_id"] = inventory_id
+            if section == "artifacts":
+                filters["artifact_kind"] = artifact_kind
+            page = browse_xml_catalog(project_root, **filters)
+        except (ValueError, TypeError, OSError) as exc:
+            return render_template("ml_lab_ui/xml_catalog.html", version=__version__,
+                                   page=None, section=section, source_sha=source_sha,
+                                   inventory_id=inventory_id, artifact_kind=artifact_kind,
+                                   error=str(exc), refresh_report=refresh_report), 400
+        return render_template("ml_lab_ui/xml_catalog.html", version=__version__,
+                               page=page, section=section, source_sha=source_sha,
+                               inventory_id=inventory_id, artifact_kind=artifact_kind,
+                               error=None, refresh_report=refresh_report)
 
     @blueprint.route("/data/xml/collection", methods=["GET", "POST"])
     def xml_collection_inventory():
@@ -734,6 +880,133 @@ def create_ui_blueprint(
             default_materialize_output=str(Path(derived_output_root).expanduser().resolve() / f"{path.stem}-tabular.csv"),
         )
 
+
+    @blueprint.post("/data/xml/<token>/typed-preview")
+    def xml_typed_preview(token: str):
+        """Explicitly requested, bounded, read-only typed XML preview (P5-15)."""
+        from ml_lab.data.xml_typed_records import preview_typed_xml_records
+        from ml_lab.data.xml_typed_representation import (
+            XmlTypedRepresentationError, build_typed_recipe,
+        )
+
+        path = verify_path(token)
+        if path.suffix.casefold() != ".xml":
+            abort(400)
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "JSON object body required"}), 400
+        # Bounded at the HTTP boundary as well as in the representation engine.
+        variables = payload.get("variables")
+        if not isinstance(variables, list) or not 1 <= len(variables) <= 12:
+            return jsonify({"error": "Select between 1 and 12 typed variables"}), 400
+        if any(not isinstance(v, dict) or set(v) != {"canonical_path", "representation"}
+               or not isinstance(v["canonical_path"], str) or not isinstance(v["representation"], str)
+               for v in variables):
+            return jsonify({"error": "Malformed variable declaration"}), 400
+        if not isinstance(payload.get("record_root_canonical_path"), str):
+            return jsonify({"error": "Record root required"}), 400
+        count = payload.get("max_records", 5)
+        if type(count) is not int or not 1 <= count <= 10:
+            return jsonify({"error": "max_records must be an integer from 1 to 10"}), 400
+        if payload.get("linked_child_paths", []) != []:
+            return jsonify({"error": "Linked-child preview is not enabled in this workspace"}), 400
+        if len({v["canonical_path"] for v in variables}) != len(variables):
+            return jsonify({"error": "Duplicate typed variables"}), 400
+        try:
+            record = data.inspect_file(path)
+            if record.format != "xml" or record.parse_status == "failed" or record.xml_structure is None:
+                raise ValueError(record.error or "XML structure could not be loaded")
+            recipe = build_typed_recipe(
+                record_root_canonical_path=payload["record_root_canonical_path"],
+                variables={v["canonical_path"]: v["representation"] for v in variables},
+            )
+            preview = preview_typed_xml_records(
+                path, record.xml_structure, recipe, max_records=count, max_nodes_per_value=2000,
+            )
+        except (OSError, UnicodeError, ValueError, TypeError, XmlTypedRepresentationError) as exc:
+            return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 400
+        response = jsonify(preview)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    def _typed_workspace_request(token: str, *, full: bool) -> tuple[Path, Any, dict[str, Any], int]:
+        """Revalidate a typed request and inspect the source; never trust browser previews.
+
+        A typed operation remains independent from C1--C7 recipes and dataset APIs.
+        The full-document path is deliberately capped for synchronous UI execution.
+        """
+        from ml_lab.data.xml_typed_representation import build_typed_recipe
+
+        path = verify_path(token)
+        if path.suffix.casefold() != ".xml":
+            abort(400)
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict) or set(payload) != {
+            "record_root_canonical_path", "variables", "max_records"
+        }:
+            raise ValueError("Expected record root, variables and max_records only")
+        variables = payload["variables"]
+        if not isinstance(variables, list) or not 1 <= len(variables) <= 12:
+            raise ValueError("Select between 1 and 12 typed variables")
+        if any(not isinstance(v, dict) or set(v) != {"canonical_path", "representation"}
+               or not isinstance(v["canonical_path"], str) or not isinstance(v["representation"], str)
+               for v in variables):
+            raise ValueError("Malformed typed variable declaration")
+        if len({v["canonical_path"] for v in variables}) != len(variables):
+            raise ValueError("Duplicate typed variable paths")
+        count = payload["max_records"]
+        if type(count) is not int or (not full and not 1 <= count <= 10) or (full and count != 5000):
+            raise ValueError("Invalid typed record limit")
+        record = data.inspect_file(path)
+        if record.format != "xml" or record.parse_status == "failed" or record.xml_structure is None:
+            raise ValueError(record.error or "XML structure could not be loaded")
+        recipe = build_typed_recipe(
+            record_root_canonical_path=payload["record_root_canonical_path"],
+            variables={v["canonical_path"]: v["representation"] for v in variables},
+        )
+        return path, record.xml_structure, recipe, count
+
+    @blueprint.post("/data/xml/<token>/typed-save-preview")
+    def xml_typed_save_preview(token: str):
+        """Explicit save of a freshly recomputed bounded preview; no dataset creation."""
+        from ml_lab.data.xml_typed_records import preview_typed_xml_records
+        from ml_lab.data.xml_typed_artifacts import persist_typed_preview
+        from ml_lab.data.xml_typed_representation import XmlTypedRepresentationError
+
+        try:
+            path, structure, recipe, count = _typed_workspace_request(token, full=False)
+            preview = preview_typed_xml_records(
+                path, structure, recipe, max_records=count, max_nodes_per_value=2000,
+            )
+            result = persist_typed_preview(project_root, preview, recipe=recipe)
+        except (OSError, UnicodeError, ValueError, TypeError, XmlTypedRepresentationError) as exc:
+            response = jsonify({"error": f"{type(exc).__name__}: {exc}"})
+            response.headers["Cache-Control"] = "no-store"
+            return response, 400
+        response = jsonify(result)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @blueprint.post("/data/xml/<token>/typed-materialize")
+    def xml_typed_materialize(token: str):
+        """Explicit and capped complete representation; never registers a dataset."""
+        from ml_lab.data.xml_typed_materialize import materialize_typed_xml_records
+        from ml_lab.data.xml_typed_representation import XmlTypedRepresentationError
+
+        try:
+            path, structure, recipe, _ = _typed_workspace_request(token, full=True)
+            result = materialize_typed_xml_records(
+                project_root, path, structure, recipe,
+                max_records=5000, max_output_bytes=32 * 1024 * 1024,
+                max_nodes_per_value=2000,
+            )
+        except (OSError, UnicodeError, ValueError, TypeError, XmlTypedRepresentationError) as exc:
+            response = jsonify({"error": f"{type(exc).__name__}: {exc}"})
+            response.headers["Cache-Control"] = "no-store"
+            return response, 400
+        response = jsonify(result)
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @blueprint.get("/data/xml/<token>/record-fields")
     def xml_record_fields(token: str):

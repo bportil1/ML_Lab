@@ -71,7 +71,16 @@
       <button class="button mini secondary" type="button" data-xml-collapse-all>Collapse all</button>
       <label class="check xml-candidate-filter"><input type="checkbox" data-xml-candidates-only> Candidate branches</label>
     </div>
-    <div class="tiny muted xml-tree-status" data-xml-tree-status></div>
+    <nav class="xml-ancestry" aria-label="Selected XML path" data-xml-ancestry>
+      <span class="muted">Select a path to navigate its ancestors.</span>
+    </nav>
+    <div class="xml-navigation-controls" aria-label="XML node navigation">
+      <button class="button mini secondary" type="button" data-xml-go-parent disabled>Parent</button>
+      <button class="button mini secondary" type="button" data-xml-go-previous disabled>Previous sibling</button>
+      <button class="button mini secondary" type="button" data-xml-go-next disabled>Next sibling</button>
+      <span class="tiny muted" data-xml-sibling-position aria-live="polite"></span>
+    </div>
+    <div class="tiny muted xml-tree-status" data-xml-tree-status aria-live="polite"></div>
     <div class="xml-tree" data-xml-tree role="tree" aria-label="XML element hierarchy"></div>
   </section>
 
@@ -99,6 +108,8 @@
         <div><dt>Namespace</dt><dd data-xml-inspector-namespace>—</dd></div>
         <div><dt>Depth</dt><dd data-xml-inspector-depth></dd></div>
         <div><dt>Occurrences</dt><dd data-xml-inspector-occurrences></dd></div>
+        <div><dt>Parent</dt><dd data-xml-inspector-parent></dd></div>
+        <div><dt>Sibling paths</dt><dd data-xml-inspector-siblings></dd></div>
       </dl>
 
       <h3 class="xml-inspector-subhead">Cardinality</h3>
@@ -289,8 +300,27 @@
   {% endif %}
 </section>
 
+<section class="panel inventory-panel" data-xml-typed-workspace data-typed-preview-url="{{ url_for(request.blueprint + '.xml_typed_preview', token=request.view_args['token']) }}" data-typed-save-url="{{ url_for(request.blueprint + '.xml_typed_save_preview', token=request.view_args['token']) }}" data-typed-materialize-url="{{ url_for(request.blueprint + '.xml_typed_materialize', token=request.view_args['token']) }}">
+  <div class="section-head"><div>
+    <p class="eyebrow">P5-15 · optional structured preview</p>
+    <h2>Typed XML variables</h2>
+    <p class="muted compact">Choose a record root and up to 12 structural fields. Preview or explicitly save typed records with strings, nested values, repeated order and lineage. These are independent artifacts, never encoded or registered as datasets.</p>
+  </div></div>
+  <div class="xml-field-toolbar">
+    <label>Record root <select data-xml-typed-root aria-label="Typed preview record root"></select></label>
+    <label>Preview records <select data-xml-typed-limit><option value="3">3</option><option value="5" selected>5</option><option value="10">10</option></select></label>
+  </div>
+  <div class="table-wrap" style="max-height: 19rem; overflow: auto">
+    <table><thead><tr><th>Include</th><th>XML path</th><th>Representation</th></tr></thead><tbody data-xml-typed-variables></tbody></table>
+  </div>
+  <div class="button-row"><button type="button" class="button" data-xml-typed-run>Preview selected variables</button><button type="button" class="button secondary" data-xml-typed-save>Save bounded preview</button><button type="button" class="button secondary" data-xml-typed-materialize>Materialize all records (max 5,000)</button><span class="tiny muted" role="status" aria-live="polite" data-xml-typed-status>Nothing has been extracted.</span></div>
+  <p class="tiny muted">The complete operation is synchronous and limited to 5,000 records / 32 MiB. Requests above these limits fail without publishing a completeness manifest. Results are stored inside the active ML_Lab project, not the source XML directory.</p>
+  <div class="tiny" aria-live="polite" data-xml-typed-artifact></div>
+  <details data-xml-typed-result hidden><summary>Typed record values and lineage (read-only)</summary><pre data-xml-typed-json style="white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32rem; overflow: auto"></pre></details>
+</section>
+
 <details class="panel json-details"><summary><strong>Machine-readable XML structure</strong></summary><pre>{{ structure_json }}</pre></details>
 <script id="xml-structure-data" type="application/json">{{ structure|tojson }}</script>
 {% endif %}
 {% endblock %}
-{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_xml_structure.js') }}"></script>{% endblock %}
+{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_xml_structure.js') }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_xml_typed_preview.js') }}"></script>{% endblock %}
