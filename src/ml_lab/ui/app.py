@@ -10,7 +10,7 @@ def create_app(*, enable_experimental: bool = False, config: dict[str, Any] | No
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError("ML Lab UI requires: pip install 'ml-lab[ui]'") from exc
 
-    from .blueprint import create_ui_blueprint
+    from . import create_ui_blueprint
 
     app = Flask("ml_lab.ui")
     app.config.update({

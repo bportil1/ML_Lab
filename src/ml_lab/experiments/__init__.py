@@ -35,6 +35,12 @@ from .run_control import request_run_cancellation, recover_interrupted_runs
 from .synthetic import (SYNTHETIC_EXECUTOR, SYNTHETIC_SCHEMA, ALL_METHODS,
                         validate_synthetic_plan, queue_synthetic_run,
                         execute_synthetic_run, generate_synthetic_dataset)
+from .workbench import (
+    WORKBENCH_SCHEMA, WorkbenchConflict, WorkbenchInstanceError,
+    WorkbenchInstanceNotFound, activate_workbench_experiment,
+    clear_workbench_dataset, create_workbench_instance,
+    get_workbench_instance, select_workbench_dataset,
+)
 from .store import (
     ExperimentNotFound,
     ExperimentStore,
@@ -44,6 +50,10 @@ from .store import (
 )
 
 __all__ = [
+    "WORKBENCH_SCHEMA", "WorkbenchConflict", "WorkbenchInstanceError",
+    "WorkbenchInstanceNotFound", "activate_workbench_experiment",
+    "clear_workbench_dataset", "create_workbench_instance",
+    "get_workbench_instance", "select_workbench_dataset",
     "COMPARISON_SCHEMA", "compare_experiment_runs", "comparison_csv",
     "VISUALIZATION_SCHEMA", "build_visualization_report", "chart_csv", "chart_svg",
     "DatasetSelectionError",

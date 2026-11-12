@@ -143,7 +143,7 @@ def test_existing_v1_db_migrates_without_losing_runs(tmp_path: Path):
     assert migrated.get_experiment(exp)["revision"] == 1
     assert migrated.artifacts.list_for_run(run) == []
     with sqlite3.connect(migrated.db_path) as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 3
     (tmp_path / "out.txt").write_text("ok")
     assert migrated.artifacts.register(run, "out.txt")["path"] == "out.txt"
     with sqlite3.connect(migrated.db_path) as db:

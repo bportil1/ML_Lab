@@ -20,7 +20,7 @@ def create_ui_blueprint(
 ):
     from .blueprint import create_ui_blueprint as _create_ui_blueprint
 
-    return _create_ui_blueprint(
+    blueprint = _create_ui_blueprint(
         name=name,
         enable_experimental=enable_experimental,
         profile_output_root=profile_output_root,
@@ -28,6 +28,14 @@ def create_ui_blueprint(
         experiment_project_root=experiment_project_root,
         path_autocomplete_roots=path_autocomplete_roots,
     )
+    # Keep workbench API wiring independent of the large, frequently edited
+    # legacy blueprint. Registration happens before the host mounts it.
+    from pathlib import Path
+    from .workbench_routes import install_workbench_routes
+
+    root = Path(experiment_project_root if experiment_project_root is not None else Path.cwd())
+    install_workbench_routes(blueprint, name=name, project_root=root.expanduser().resolve())
+    return blueprint
 
 
 def create_app(*, enable_experimental: bool = False, config: dict | None = None):

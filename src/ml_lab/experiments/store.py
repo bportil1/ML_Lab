@@ -15,7 +15,7 @@ import sqlite3
 from typing import Any, Iterator, Mapping
 from uuid import uuid4
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 _EXECUTION_STATUSES = frozenset({"queued", "running", "succeeded", "failed", "cancelled"})
 _TERMINAL = frozenset({"succeeded", "failed", "cancelled"})
 _TRANSITIONS = {
@@ -199,6 +199,26 @@ class ExperimentStore:
                     "CREATE INDEX artifact_sources_by_source ON artifact_sources(source_artifact_id)",
                 ):
                     db.execute(statement)
+                db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+            if version in (0, 1, 2):
+                # v3 adds only a project-local active-workbench pointer. Dataset
+                # bytes and experiment revisions remain in their existing stores.
+                # UUIDs are intentionally independent of Flask/browser sessions
+                # so multiple workbench instances can be supported in the future.
+                db.execute(
+                    """CREATE TABLE IF NOT EXISTS workbench_instances (
+                        instance_id TEXT PRIMARY KEY,
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL,
+                        generation INTEGER NOT NULL DEFAULT 0 CHECK(generation >= 0),
+                        experiment_id TEXT,
+                        experiment_revision INTEGER,
+                        CHECK ((experiment_id IS NULL AND experiment_revision IS NULL)
+                            OR (experiment_id IS NOT NULL AND experiment_revision >= 1)),
+                        FOREIGN KEY (experiment_id, experiment_revision)
+                            REFERENCES experiment_revisions(experiment_id, revision)
+                    )"""
+                )
                 db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
             # Refuse future versions and do not guess schemas.
 
