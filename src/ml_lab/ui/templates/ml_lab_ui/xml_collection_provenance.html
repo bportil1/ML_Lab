@@ -1,7 +1,8 @@
 {% extends "ml_lab_ui/base.html" %}
 {% block title %}XML collection provenance · ML Lab{% endblock %}
 {% block content %}
-<a class="back" href="{{ url_for(request.blueprint + '.xml_collection_export') }}">← XML collection export</a>
+{% set xml_workflow_stage = "provenance" %}{% include "ml_lab_ui/_xml_workflow_steps.html" %}
+<a class="back" href="{{ url_for(request.blueprint + '.xml_workbench') }}">← XML workspace</a>
 <section class="workspace-head"><div>
   <p class="eyebrow">Data · XML-C6</p>
   <h1>Multi-file provenance and safe recovery</h1>

@@ -169,7 +169,7 @@ class ExperimentStore:
                     "CREATE INDEX runs_by_experiment ON runs(experiment_id, created_at, run_id)",
                 ):
                     db.execute(statement)
-                db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+                db.execute("PRAGMA user_version = 1")
             if version in (1, 0):
                 # A nondestructive v1 -> v2 migration. Previously recorded
                 # experiments and runs keep the same IDs and snapshots.
@@ -199,7 +199,7 @@ class ExperimentStore:
                     "CREATE INDEX artifact_sources_by_source ON artifact_sources(source_artifact_id)",
                 ):
                     db.execute(statement)
-                db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+                db.execute("PRAGMA user_version = 2")
             if version in (0, 1, 2):
                 # v3 adds only a project-local active-workbench pointer. Dataset
                 # bytes and experiment revisions remain in their existing stores.
@@ -219,7 +219,36 @@ class ExperimentStore:
                             REFERENCES experiment_revisions(experiment_id, revision)
                     )"""
                 )
-                db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+                db.execute("PRAGMA user_version = 3")
+            if version in (0, 1, 2, 3):
+                # Optional, v3-compatible table: old v3 versions ignore it,
+                # making rollback non-destructive. It is kept in the SAME
+                # project store and never changes source data or revisions.
+                db.execute(
+                    """CREATE TABLE IF NOT EXISTS workbench_feature_roles (
+                        instance_id TEXT NOT NULL REFERENCES workbench_instances(instance_id)
+                            ON DELETE CASCADE,
+                        dataset_sha256 TEXT NOT NULL,
+                        column_name TEXT NOT NULL,
+                        role TEXT NOT NULL CHECK(role IN ('continuous','discrete','identifier','exclude')),
+                        updated_at TEXT NOT NULL,
+                        PRIMARY KEY (instance_id, dataset_sha256, column_name)
+                    )"""
+                )
+            if version in (0, 1, 2, 3):
+                # Optional local cache, not a new schema version. Older v3
+                # binaries ignore this table if the patch is rolled back.
+                db.execute(
+                    """CREATE TABLE IF NOT EXISTS workbench_feature_profile_cache (
+                        instance_id TEXT NOT NULL REFERENCES workbench_instances(instance_id)
+                            ON DELETE CASCADE,
+                        dataset_sha256 TEXT NOT NULL,
+                        cache_key TEXT NOT NULL,
+                        report_json TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        PRIMARY KEY (instance_id, dataset_sha256, cache_key)
+                    )"""
+                )
             # Refuse future versions and do not guess schemas.
 
     @property

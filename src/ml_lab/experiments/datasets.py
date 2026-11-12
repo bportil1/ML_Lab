@@ -77,9 +77,32 @@ def _lineage(store: ExperimentStore, file: Path, identity: Mapping[str, Any]) ->
     if not sidecar.exists() and not sidecar.is_symlink():
         return None
     _, relative = _project_file(store, sidecar)
+    # XML-C6 writes its own authoritative multi-source lineage schema, not the
+    # single-parent Data Lab transformation schema. Verify *all* recorded
+    # source/output bytes, then require this exact dataset to be the declared
+    # consolidated main output before accepting it as an experiment input.
+    import json
     try:
+        envelope = json.loads(sidecar.read_text(encoding="utf-8"))
+        if envelope.get("schema") == "ml-lab.xml-collection-provenance@1":
+            from ml_lab.data.xml_collection_provenance import verify_collection_event
+
+            audit = verify_collection_event(sidecar)
+            if audit["status"] != "verified":
+                raise DatasetSelectionError("XML collection sources or outputs changed: " +
+                                            "; ".join(audit["problems"]))
+            matching = [entry for entry in envelope.get("outputs", [])
+                        if entry.get("role") == "consolidated_main"
+                        and entry.get("path") == str(file)
+                        and entry.get("sha256") == identity["sha256"]]
+            if len(matching) != 1:
+                raise DatasetSelectionError("Dataset is not the verified main output of its XML collection")
+            return {"event_id": audit["event_id"], "path": relative,
+                    "sha256": _digest(sidecar)}
         event = load_provenance_event(sidecar)
-    except (OSError, ValueError, KeyError) as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        if isinstance(exc, DatasetSelectionError):
+            raise
         raise DatasetSelectionError("Dataset provenance sidecar is unreadable or invalid") from exc
     derived = event.get("derived", {})
     if (not isinstance(derived, dict) or derived.get("sha256") != identity["sha256"]

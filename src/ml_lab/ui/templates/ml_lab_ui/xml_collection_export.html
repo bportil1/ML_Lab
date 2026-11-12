@@ -1,11 +1,12 @@
 {% extends "ml_lab_ui/base.html" %}
 {% block title %}XML collection CSV export · ML Lab{% endblock %}
 {% block content %}
-<a class="back" href="{{ url_for(request.blueprint + '.xml_collection_recipe') }}">← Shared XML recipe</a>
+{% set xml_workflow_stage = "export" %}{% include "ml_lab_ui/_xml_workflow_steps.html" %}
+<a class="back" href="{{ url_for(request.blueprint + '.xml_workbench') }}">← XML workspace</a>
 <section class="workspace-head"><div>
   <p class="eyebrow">Data · XML-C5</p>
   <h1>Consolidated XML collection export</h1>
-  <p class="lede">Paste the validated JSON from XML-C4. Preview sampled rows before explicitly authorizing a combined CSV/TSV. Source XML files remain unchanged.</p>
+  <p class="lede">The validated recipe flows here from shared-recipe design. Review sampled rows, then explicitly authorize a combined CSV/TSV. You can also paste a saved recipe JSON. Source XML files remain unchanged.</p>
 </div></section>
 {% if error %}<div class="alert data-alert" role="alert">{{ error }}</div>{% endif %}
 <form method="post" action="{{ url_for(request.blueprint + '.xml_collection_export') }}">
@@ -43,7 +44,13 @@
   <h2>Consolidated dataset generated</h2>
   <p>{{ result.main_dataset.row_count }} rows written to <code>{{ result.main_dataset.path }}</code></p>
   <p class="muted">{{ result.child_datasets|length }} child tables · source and output checksums recorded in the manifest and <code>{{ result.provenance.path }}</code>.</p>
-  <p><a href="{{ url_for(request.blueprint + '.xml_collection_provenance') }}">Verify provenance / inspect recovery / regenerate</a></p>
+  <p><a href="{{ collection_provenance_url }}">Verify provenance / inspect recovery / regenerate</a></p>
+  {% if workbench_select_url %}
+  <div class="tip"><strong>Continue with this dataset:</strong> register the generated table as this instance's active dataset before using Feature Profiling, Representation, and Comparison. This is an explicit action and will not overwrite previous experiment history.</div>
+  <a class="button" href="{{ workbench_select_url }}">Use consolidated dataset in this workbench</a>
+  {% else %}
+  <p class="muted">The output is outside the current experiment project's directory. To activate it in this instance, export into the project directory; the XML export itself remains available.</p>
+  {% endif %}
   <details class="json-details"><summary>Export manifest</summary><pre>{{ result|tojson(indent=2) }}</pre></details>
 </section>
 {% endif %}

@@ -137,8 +137,10 @@ def _optimization_chart(store: ExperimentStore, run_id: str, plan: Mapping[str, 
         points.append({"x": index, "y": observed, "label": str(index)})
     if not points:
         return None
+    algorithm = plan.get("algorithm", "firefly")
+    title = "Random Search" if algorithm == "random_search" else "Firefly"
     return _chart(
-        f"optimization-{run_id}", f"Firefly · observed {metric}",
+        f"optimization-{run_id}", f"{title} · observed {metric}",
         kind="line", x_label="Candidate evaluation (recorded order)",
         y_label=metric, points=_sample(points), run_ids=[run_id], sources=[artifact],
         note="Observed objective per successful candidate; failed trials omitted. "

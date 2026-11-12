@@ -34,7 +34,22 @@ def create_ui_blueprint(
     from .workbench_routes import install_workbench_routes
 
     root = Path(experiment_project_root if experiment_project_root is not None else Path.cwd())
-    install_workbench_routes(blueprint, name=name, project_root=root.expanduser().resolve())
+    root = root.expanduser().resolve()
+    context_reader = install_workbench_routes(blueprint, name=name, project_root=root)
+    from .workbench_feature_routes import install_feature_routes
+    install_feature_routes(blueprint, project_root=root, workbench_context=context_reader)
+    from .workbench_representation_routes import install_representation_routes
+    install_representation_routes(blueprint, project_root=root, workbench_context=context_reader)
+    from .workbench_autoencoder_routes import install_autoencoder_routes
+    install_autoencoder_routes(blueprint, project_root=root, workbench_context=context_reader)
+    from .workbench_comparison_routes import install_comparison_routes
+    install_comparison_routes(blueprint, project_root=root, workbench_context=context_reader)
+    from .workbench_navigation import install_workbench_navigation
+
+    install_workbench_navigation(
+        blueprint, project_root=root, enable_experimental=enable_experimental,
+        workbench_context=context_reader,
+    )
     return blueprint
 
 

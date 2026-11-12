@@ -199,6 +199,17 @@ def execute_configured_run(
         _stage(store, run_id, "Executing model (engine progress unavailable)", 2, notify=progress)
         from ml_lab.application import execute_task  # Import heavy model engines lazily.
         check_cancelled(store, run_id)
+        # Autoencoders use ML_Lab's existing BestModelCheckpoint writer. The
+        # destination is allocated by this run executor, NEVER supplied by
+        # a web form or stored model configuration.
+        checkpoint_path = None
+        if (handoff["task"] == "representation" and
+                handoff["payload"].get("method") in ("mlp_autoencoder", "transformer_autoencoder")):
+            checkpoint_path = folder / "best_model.pt"
+            handoff["payload"]["training_config"] = {
+                **handoff["payload"].get("training_config", {}),
+                "checkpoint_path": str(checkpoint_path),
+            }
         response = execute_task(handoff["task"], handoff["payload"])
         check_cancelled(store, run_id)
         _stage(store, run_id, "Checking source and persisting results", 3, notify=progress)
@@ -212,6 +223,13 @@ def execute_configured_run(
             run_id, result_path, role="output", kind="result", media_type="application/json",
             source_artifact_ids=[item["artifact_id"] for item in artifacts if item["role"] == "input"],
         ))
+        if checkpoint_path is not None and checkpoint_path.is_file():
+            artifacts.append(store.artifacts.register(
+                run_id, checkpoint_path, role="output", kind="checkpoint",
+                media_type="application/octet-stream",
+                metadata={"selection": "best_epoch", "format": "pytorch-state-dict"},
+                source_artifact_ids=[item["artifact_id"] for item in artifacts if item["role"] == "input"],
+            ))
         check_cancelled(store, run_id)
         _stage(store, run_id, "Model run completed", 4, status="succeeded", notify=progress)
         store.update_run_status(run_id, "succeeded")

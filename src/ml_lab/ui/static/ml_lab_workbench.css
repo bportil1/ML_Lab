@@ -1,0 +1,218 @@
+/* ML-UW-02: sidebar navigation, layered after the existing PAH theme.
+   Keep content controls and all legacy table/chart styling untouched. */
+.mlwb-header { gap: 18px; }
+.mlwb-dataset-status {
+  min-width: 0;
+  max-width: min(50vw, 540px);
+  padding: 3px 9px;
+  border: 1px solid rgb(255 255 255 / .22);
+  color: rgb(255 255 255 / .88);
+  font-size: 11px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mlwb-dataset-status[data-status="stale"] { border-color: #ffba70; color: #ffe0ad; }
+.mlwb-layout { display: grid; grid-template-columns: 218px minmax(0, 1fr); min-height: calc(100vh - 46px); }
+.mlwb-sidebar {
+  align-self: stretch;
+  padding: 18px 9px;
+  border-right: 1px solid var(--pah-border);
+  background: var(--pah-surface-2);
+  min-width: 0;
+}
+.mlwb-sidebar-title, .mlwb-subtitle {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 800;
+  color: var(--pah-muted);
+  padding: 3px 10px 9px;
+}
+.mlwb-subtitle { margin-top: 16px; padding-bottom: 5px; }
+.mlwb-sidebar .mlwb-primary-nav.pah-tool-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  min-height: unset;
+  border: 0;
+  background: transparent;
+}
+.mlwb-primary-nav.pah-tool-nav > .mlwb-primary-link,
+.mlwb-primary-nav.pah-tool-nav > .mlwb-primary-link:last-child {
+  border: 1px solid transparent;
+  padding: 9px 10px;
+  font-size: 12px;
+  color: var(--pah-text);
+  text-transform: none;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.25;
+  white-space: normal;
+  text-decoration: none;
+}
+.mlwb-primary-nav.pah-tool-nav > .mlwb-primary-link.active {
+  color: var(--pah-navy-900);
+  border-color: var(--pah-sky-200);
+  background: #e4f1f7;
+  box-shadow: inset 3px 0 var(--pah-teal-600);
+}
+.mlwb-primary-nav.pah-tool-nav > .mlwb-primary-link:focus-visible,
+.mlwb-secondary-nav a:focus-visible {
+  outline: 2px solid var(--pah-blue-700);
+  outline-offset: 2px;
+}
+.mlwb-secondary-nav { display: grid; gap: 2px; }
+.mlwb-secondary-nav a {
+  display: block;
+  padding: 5px 10px 5px 16px;
+  font-size: 11px;
+  color: var(--pah-muted);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+}
+.mlwb-secondary-nav a[aria-current="page"], .mlwb-secondary-nav a:hover {
+  color: var(--pah-navy-900);
+  border-color: var(--pah-teal-600);
+  background: #e4f1f7;
+}
+.mlwb-layout > .mlwb-main.shell {
+  width: 100%;
+  min-width: 0;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px 28px 54px;
+}
+.mlwb-landing { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.mlwb-tool-card { display: flex; flex-direction: column; gap: 10px; }
+.mlwb-tool-card h2 { font-size: 16px; margin: 0; }
+.mlwb-tool-card .button { align-self: flex-start; margin-top: auto; }
+@media (max-width: 820px) {
+  .mlwb-layout { grid-template-columns: 1fr; }
+  .mlwb-sidebar { border-right: 0; border-bottom: 1px solid var(--pah-border); padding: 10px; }
+  .mlwb-sidebar .mlwb-primary-nav.pah-tool-nav { flex-direction: row; flex-wrap: wrap; }
+  .mlwb-secondary-nav { display: flex; flex-wrap: wrap; }
+  .mlwb-dataset-status { max-width: 50vw; }
+  .mlwb-layout > .mlwb-main.shell { padding: 16px 12px 32px; }
+}
+
+.mlwb-header-workspace {
+  margin-left: auto;
+  font-size: 12px;
+  color: rgb(255 255 255 / .88);
+  text-decoration: none;
+  font-weight: 650;
+}
+.mlwb-header-workspace:hover, .mlwb-header-workspace:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+}
+.mlwb-legacy-tools .scientific-tool-link {
+  border-left: 2px solid transparent;
+  padding: 5px 10px 5px 16px;
+  border-radius: 0;
+  font-size: 11px;
+}
+.mlwb-legacy-tools .scientific-tool-link.active {
+  border-left-color: var(--pah-teal-600);
+  padding-left: 16px;
+}
+/* ML-UW-04: bounded feature profiling controls. */
+.mlwb-feature-role { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.mlwb-feature-role select { min-width: 110px; max-width: 190px; }
+.mlwb-feature-role .button { padding: 4px 7px; font-size: 11px; }
+.mlwb-feature-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.mlwb-feature-picker select { max-width: min(100%, 340px); }
+.mlwb-feature-scatter { width: min(100%, 600px); height: auto; border: 1px solid var(--pah-border); }
+
+/* ML-UW-05: bounded, keyboard-accessible dependency matrix. */
+.mlwb-dependency-scroll { max-width: 100%; overflow: auto; }
+.mlwb-dependency-matrix { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 1px; }
+.mlwb-dependency-matrix th, .mlwb-dependency-matrix td { padding: 6px 8px; min-width: 45px; text-align: center; white-space: nowrap; }
+.mlwb-dependency-matrix th:first-child { position: sticky; left: 0; background: var(--pah-surface-2); z-index: 1; text-align: left; }
+.mlwb-dependency-matrix a { color: var(--pah-text); text-decoration: underline; text-underline-offset: 2px; }
+.mlwb-dependency-matrix a:focus-visible { outline: 2px solid var(--pah-blue-700); outline-offset: 2px; }
+.mlwb-dep-cell[data-strength="1"] { background: color-mix(in srgb, var(--pah-teal-600) 10%, transparent); }
+.mlwb-dep-cell[data-strength="2"] { background: color-mix(in srgb, var(--pah-teal-600) 22%, transparent); }
+.mlwb-dep-cell[data-strength="3"] { background: color-mix(in srgb, var(--pah-teal-600) 34%, transparent); }
+.mlwb-dep-cell[data-strength="4"] { background: color-mix(in srgb, var(--pah-teal-600) 47%, transparent); }
+.mlwb-dep-negative[data-strength="1"] { background: color-mix(in srgb, var(--pah-blue-700) 10%, transparent); }
+.mlwb-dep-negative[data-strength="2"] { background: color-mix(in srgb, var(--pah-blue-700) 22%, transparent); }
+.mlwb-dep-negative[data-strength="3"] { background: color-mix(in srgb, var(--pah-blue-700) 34%, transparent); }
+.mlwb-dep-negative[data-strength="4"] { background: color-mix(in srgb, var(--pah-blue-700) 47%, transparent); }
+
+/* ML-UW-06: capability-aware representation preview. */
+.mlwb-repr-form { display: grid; grid-template-columns: minmax(100px, 200px) minmax(200px, 460px); gap: 10px 14px; align-items: center; }
+.mlwb-repr-form input, .mlwb-repr-form select { max-width: 100%; }
+.mlwb-repr-checkbox { grid-column: 1 / -1; display: flex; align-items: center; gap: 9px; }
+.mlwb-repr-form button { grid-column: 1 / -1; justify-self: start; }
+.mlwb-repr-scatter { display: block; width: min(100%, 600px); height: auto; border: 1px solid var(--pah-border); }
+@media (max-width: 600px) { .mlwb-repr-form { grid-template-columns: 1fr; } }
+/* ML-UW-07: Neural representation controls reuse the existing workbench theme. */
+.mlwb-ae-form details { margin: 1rem 0; border-top: 1px solid var(--border, #7775); padding-top: .75rem; }
+.mlwb-ae-form summary { font-weight: 600; cursor: pointer; }
+.mlwb-ae-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .9rem; margin: .85rem 0; }
+.mlwb-ae-fields label { display: flex; flex-direction: column; gap: .3rem; }
+.mlwb-ae-fields input, .mlwb-ae-fields select { width: 100%; max-width: 100%; box-sizing: border-box; }
+
+/* ML-UW-08: source-matched comparison displays. */
+.mlwb-compare-form fieldset { border: 1px solid var(--pah-border); margin: 10px 0; padding: 12px; }
+.mlwb-method-choices { display: flex; flex-wrap: wrap; gap: 12px 18px; }
+.mlwb-method-choices label { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; }
+.mlwb-compare-options { display: flex; gap: 14px; flex-wrap: wrap; margin: 12px 0; }
+.mlwb-compare-options label { display: grid; gap: 5px; min-width: 130px; }
+.mlwb-compare-toggle { display: flex; gap: 8px; align-items: flex-start; }
+.mlwb-compare-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.mlwb-compare-bar { max-width: 680px; margin: 12px 0; }
+.mlwb-compare-bar div { display: flex; justify-content: space-between; gap: 8px; }
+.mlwb-compare-bar meter { display: block; width: 100%; height: 12px; }
+.mlwb-compare-previews { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 16px; }
+.mlwb-compare-preview { min-width: 0; }
+.mlwb-compare-preview h3 { font-size: 14px; }
+
+/* ML-UW-09: one launcher for the four independent model/tool families. */
+.mlwb-mltools { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; }
+.mlwb-mltools-section { min-width: 0; scroll-margin-top: 20px; }
+.mlwb-mltools-section h3 { font-size: 1rem; margin: 18px 0 8px; }
+.mlwb-mltools-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.mlwb-mltools-experiments { padding: 0; margin: 8px 0 0; list-style: none; }
+.mlwb-mltools-experiments li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line, #d9d9d9); }
+.mlwb-mltools-experiments li:last-child { border-bottom: 0; }
+.mlwb-mltools-experiments li span { min-width: 0; overflow-wrap: anywhere; }
+.mlwb-mltools-experiments li small { display: block; opacity: .78; }
+.mlwb-mltools-experiments li a { flex-shrink: 0; }
+
+/* ML-UW-12: keyboard navigation and recoverable error/stale form notices. */
+.mlwb-skip-link {
+  position: absolute;
+  top: -100px;
+  left: 12px;
+  z-index: 1000;
+  padding: 10px 14px;
+  background: var(--pah-surface-2, #fff);
+  color: var(--pah-text, #111);
+  border: 2px solid var(--pah-blue-700, #1468a0);
+  border-radius: 4px;
+}
+.mlwb-skip-link:focus { top: 8px; }
+.mlwb-main:focus { outline: none; }
+.mlwb-workbench-error { margin: 12px 0; }
+.mlwb-workbench-error p { margin: 8px 0; overflow-wrap: anywhere; }
+.mlwb-error-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.mlwb-context-warning {
+  grid-column: 1 / -1;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid #b27628;
+  background: var(--pah-surface-2, #fff);
+  color: var(--pah-text, #111);
+  overflow-wrap: anywhere;
+}
+.mlwb-context-warning[hidden] { display: none; }
+.mlwb-context-warning a { color: inherit; text-decoration: underline; font-weight: 650; }
+.mlwb-layout a:focus-visible, .mlwb-layout button:focus-visible,
+.mlwb-layout select:focus-visible, .mlwb-layout input:focus-visible {
+  outline: 2px solid var(--pah-blue-700, #1468a0);
+  outline-offset: 2px;
+}

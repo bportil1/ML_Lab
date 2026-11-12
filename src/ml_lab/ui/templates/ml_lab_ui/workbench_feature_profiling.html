@@ -1,0 +1,144 @@
+{% import 'ml_lab_ui/_workbench_error.html' as mlwb_error %}
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Feature Profiling · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head">
+  <div><p class="eyebrow">Unified research workbench</p><h1>Feature Profiling</h1>
+    <p class="lede">Explore the verified active dataset with the existing A2 statistics engine. Feature roles only affect these plots, not source data, experiments or learned models.</p></div>
+</section>
+{% if context.status != 'ready' %}
+<section class="panel"><h2>No verified active dataset</h2>
+  <p>{{ context.validation_error or 'Select a CSV/TSV dataset in Data. XML collections must first be explicitly exported and selected.' }}</p>
+  <a class="button" href="{{ url_for(request.blueprint + '.data_lab') }}">Open Data</a>
+</section>
+{% else %}
+<section class="panel">
+  <h2>Selected dataset</h2><p><code>{{ context.active_dataset.path }}</code></p>
+  <p class="muted">{{ context.active_dataset.rows }} rows · {{ context.active_dataset.columns }} columns · workbench generation {{ context.generation }}</p>
+  <div class="button-row">
+    <a class="button" href="{{ url_for(request.blueprint + '.workbench_feature_profiling', inspect='1', refresh='1') if report else url_for(request.blueprint + '.workbench_feature_profiling', inspect='1') }}">{{ 'Recompute profile' if report else 'Inspect active dataset' }}</a>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.data_lab') }}">Change dataset in Data</a>
+    {% if report %}<a class="button secondary" href="{{ url_for(request.blueprint + '.workbench_feature_profiling_json', selected=report.selected, left=report.left, right=report.right, metric=report.matrix.metric, matrix_limit=report.matrix.limit) }}">View profile JSON</a>{% endif %}
+  </div>
+  <p class="tiny muted">Statistics use up to 5,000 reproducibly sampled rows; plots are bounded. The original file remains unchanged. Saved roles are private to this workbench instance and dataset checksum.</p>
+</section>
+{{ mlwb_error.show_error(error, url_for(request.blueprint + '.workbench_feature_profiling'), url_for(request.blueprint + '.data_lab'), title='Could not complete this action') }}
+{% if report %}
+<section class="summary-grid" aria-label="Dataset summary">
+  <div class="metric"><strong>{{ report.summary.profiled_row_count }}</strong><span>Profiled rows</span></div>
+  <div class="metric"><strong>{{ report.summary.column_count }}</strong><span>Columns</span></div>
+  <div class="metric"><strong>{{ report.summary.duplicate_row_count }}</strong><span>Duplicate rows</span></div>
+  <div class="metric"><strong>{{ report.summary.relationship_count }}</strong><span>Ranked pairs</span></div>
+</section>
+<p class="tiny muted">{{ 'Cached profile: same verified dataset and selection.' if report.cache.status == 'hit' else ('Scientific profile reused; preview sampled from verified source.' if report.cache.status == 'reused' else 'Profile computed from verified source.') }}{% if not report.cache.stored %} The result was too large to cache.{% endif %} Recompute explicitly to refresh the stored preview.</p>
+{% for message in report.warnings %}<p class="tiny muted">{{ message }}</p>{% endfor %}
+<section class="panel"><h2>Per-feature metadata</h2><p class="muted compact">The inferred source type is preserved. Override the interpretation used for visualization only. Continuous roles require an inferred numeric column.</p>
+  <div class="table-wrap"><table class="interactive-table" data-page-size="50"><thead><tr><th>Column</th><th>Source type</th><th>Display role</th><th>Missing</th><th>Unique</th><th>Variance</th><th>Zero rate</th><th>Quality</th></tr></thead><tbody>
+  {% for col in report.columns %}
+  <tr><td><strong>{{ col.name }}</strong></td><td><code>{{ col.inferred_type }}</code></td>
+    <td><form method="post" action="{{ url_for(request.blueprint + '.workbench_feature_role') }}" class="mlwb-feature-role">
+      <input type="hidden" name="column" value="{{ col.name }}"><input type="hidden" name="source_sha256" value="{{ context.active_dataset.sha256 }}">
+      <input type="hidden" name="expected_generation" value="{{ context.generation }}">
+      <select name="role" aria-label="Role for {{ col.name }}">
+        <option value="auto" {{ 'selected' if not col.overridden else '' }}>Auto ({{ col.default_role }})</option>
+        <option value="continuous" {{ 'selected' if col.overridden and col.role == 'continuous' else '' }} {{ 'disabled' if col.inferred_type not in ['integer','float'] else '' }}>Continuous</option>
+        <option value="discrete" {{ 'selected' if col.overridden and col.role == 'discrete' else '' }}>Discrete</option>
+        <option value="identifier" {{ 'selected' if col.overridden and col.role == 'identifier' else '' }}>Identifier</option>
+        <option value="exclude" {{ 'selected' if col.overridden and col.role == 'exclude' else '' }}>Exclude</option>
+      </select><button class="button secondary" type="submit">Set</button></form></td>
+    <td>{{ '%.1f'|format(col.missing_rate * 100) }}%</td><td>{{ col.unique_count }}</td>
+    <td>{{ '%.5g'|format(col.variance) if col.variance is not none else '—' }}</td>
+    <td>{{ '%.1f%%'|format(col.zero_rate * 100) if col.zero_rate is not none else '—' }}</td>
+    <td>{% if col.constant %}constant {% endif %}{% if col.likely_identifier %}identifier {% endif %}</td></tr>
+  {% endfor %}
+  </tbody></table></div>
+</section>
+<section class="panel"><h2>Single-feature distribution</h2>
+  <form method="get" class="mlwb-feature-picker"><input type="hidden" name="inspect" value="1">
+    <input type="hidden" name="metric" value="{{ report.matrix.metric }}"><input type="hidden" name="matrix_limit" value="{{ report.matrix.limit }}">
+    <label for="feature-selected">Feature</label><select id="feature-selected" name="selected">{% for col in report.columns %}<option value="{{ col.name }}" {{ 'selected' if report.selected == col.name else '' }}>{{ col.name }} ({{ col.role }})</option>{% endfor %}</select>
+    <button class="button" type="submit">Inspect distribution</button>
+  </form>
+  {% if report.distribution and report.distribution.bins %}
+    <div class="viz-list">{% set top = report.distribution.bins|map(attribute='count')|max %}
+      {% for bin in report.distribution.bins %}<div class="viz-row"><div class="viz-label"><strong>{{ bin.label }}</strong><span>{{ bin.count }}</span></div>
+      <progress class="viz-progress category" max="{{ top if top else 1 }}" value="{{ bin.count }}">{{ bin.count }}</progress></div>{% endfor %}
+    </div>
+  {% else %}<p class="muted">No compatible distribution for this role or no observed values.</p>{% endif %}
+</section>
+<section class="panel"><h2>Pairwise feature explorer</h2>
+  <form method="get" class="mlwb-feature-picker"><input type="hidden" name="inspect" value="1">
+    <input type="hidden" name="metric" value="{{ report.matrix.metric }}"><input type="hidden" name="matrix_limit" value="{{ report.matrix.limit }}">
+    <label for="pair-left">Left</label><select id="pair-left" name="left">{% for col in report.columns %}<option value="{{ col.name }}" {{ 'selected' if report.left == col.name else '' }}>{{ col.name }} ({{ col.role }})</option>{% endfor %}</select>
+    <label for="pair-right">Right</label><select id="pair-right" name="right">{% for col in report.columns %}<option value="{{ col.name }}" {{ 'selected' if report.right == col.name else '' }}>{{ col.name }} ({{ col.role }})</option>{% endfor %}</select>
+    <button class="button" type="submit">Compare selected pair</button>
+  </form>
+  {% if report.pair %}
+    <p class="muted">{{ report.pair.left }} ({{ report.pair.roles[0] }}) vs {{ report.pair.right }} ({{ report.pair.roles[1] }}): {{ report.pair.count }} complete paired observations.</p>
+    {% if report.pair.kind == 'scatter' %}
+    <svg class="mlwb-feature-scatter" role="img" aria-label="Scatter plot of {{ report.pair.left }} versus {{ report.pair.right }}" viewBox="0 0 600 330" xmlns="http://www.w3.org/2000/svg">
+      <line x1="36" y1="282" x2="562" y2="282" stroke="currentColor"/><line x1="36" y1="34" x2="36" y2="282" stroke="currentColor"/>
+      {% for dot in report.pair.points %}<circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="2.2" fill="currentColor" opacity=".5"/>{% endfor %}
+      <text x="300" y="320" text-anchor="middle" fill="currentColor" font-size="12">{{ report.pair.left }} ({{ '%.4g'|format(report.pair.x_min) }}–{{ '%.4g'|format(report.pair.x_max) }})</text>
+      <text x="40" y="20" fill="currentColor" font-size="12">{{ report.pair.right }} ({{ '%.4g'|format(report.pair.y_min) }}–{{ '%.4g'|format(report.pair.y_max) }})</text>
+    </svg>
+    {% if report.pair.sampled %}<p class="tiny muted">Scatter shows at most 240 deterministic observations.</p>{% endif %}
+    {% elif report.pair.kind == 'groups' %}
+      <div class="table-wrap"><table><thead><tr><th>{{ report.pair.category }}</th><th>Count</th><th>Q1</th><th>Median</th><th>Q3</th></tr></thead><tbody>
+      {% for group in report.pair.groups %}<tr><td>{{ group.label }}</td><td>{{ group.count }}</td><td>{{ '%.4g'|format(group.q1) }}</td><td>{{ '%.4g'|format(group.median) }}</td><td>{{ '%.4g'|format(group.q3) }}</td></tr>{% endfor %}
+      </tbody></table></div>
+    {% elif report.pair.kind == 'contingency' %}
+      <div class="table-wrap"><table><thead><tr><th>{{ report.pair.left }} / {{ report.pair.right }}</th>{% for label in report.pair.y_categories %}<th>{{ label }}</th>{% endfor %}</tr></thead><tbody>
+      {% for row in report.pair.rows %}<tr><th>{{ row.label }}</th>{% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}
+      </tbody></table></div>
+    {% else %}<p class="muted">{{ report.pair.message }}</p>{% endif %}
+    {% if report.pair.truncated %}<p class="tiny muted">Only the eight most common categories per axis are displayed; the counts and plot may not include every category.</p>{% endif %}
+  {% endif %}
+</section>
+<section class="panel"><h2>Dependency matrix</h2>
+  <p class="muted compact">Symmetric, source-inferred A2 statistics. A blank cell means no valid pairwise estimate. Diagonals are intentionally not estimated. Colors show magnitude relative to the largest visible value, not statistical significance. MI is discretized; none of these statistics implies causality.</p>
+  <form method="get" class="mlwb-feature-picker">
+    <input type="hidden" name="inspect" value="1">
+    {% if report.selected %}<input type="hidden" name="selected" value="{{ report.selected }}">{% endif %}
+    {% if report.left %}<input type="hidden" name="left" value="{{ report.left }}">{% endif %}
+    {% if report.right %}<input type="hidden" name="right" value="{{ report.right }}">{% endif %}
+    <label for="matrix-metric">Metric</label>
+    <select id="matrix-metric" name="metric">
+      {% for key, label in [('normalized_mutual_information','Normalized MI'), ('mutual_information','Mutual information'), ('pearson','Pearson'), ('spearman','Spearman')] %}
+        <option value="{{ key }}" {{ 'selected' if report.matrix.metric == key else '' }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <label for="matrix-limit">Columns</label>
+    <select id="matrix-limit" name="matrix_limit">
+      {% for size in [8,12,20] %}<option value="{{ size }}" {{ 'selected' if report.matrix.limit == size else '' }}>{{ size }}</option>{% endfor %}
+    </select>
+    <button class="button" type="submit">Update matrix</button>
+  </form>
+  {% if report.matrix.names %}
+  <div class="table-wrap mlwb-dependency-scroll" role="region" aria-label="Pairwise dependence matrix" tabindex="0">
+    <table class="mlwb-dependency-matrix">
+      <thead><tr><th scope="col">Feature</th>{% for name in report.matrix.names %}<th scope="col" title="{{ name }}">{{ name }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for row in report.matrix.rows %}<tr><th scope="row">{{ row.name }}</th>
+        {% for cell in row.cells %}
+          <td class="mlwb-dep-cell mlwb-dep-{{ cell.sign }}" data-strength="{{ cell.strength }}">
+          {% if cell.value is not none %}
+            <a href="{{ url_for(request.blueprint + '.workbench_feature_profiling', inspect='1', selected=report.selected, left=row.name, right=cell.other, metric=report.matrix.metric, matrix_limit=report.matrix.limit) }}"
+               title="{{ row.name }} versus {{ cell.other }} · {{ cell.pair_count }} paired rows · {{ report.matrix.metric_label }} {{ '%.5g'|format(cell.value) }}">{{ '%.3g'|format(cell.value) }}</a>
+          {% else %}<span title="Not estimated">—</span>{% endif %}
+          </td>
+        {% endfor %}
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  <p class="tiny muted">{{ report.matrix.names|length }} of {{ report.matrix.eligible_column_count }} relationship-eligible columns shown. Select a populated cell to inspect its pair. {% if report.matrix.omitted_count %}Increase the column limit to inspect more candidates.{% endif %}</p>
+  {% else %}<p class="muted">No eligible feature pairs were returned by the A2 profiler.</p>{% endif %}
+</section>
+<section class="panel"><h2>Existing pairwise dependence metrics</h2><p class="muted compact">Computed by the A2 profiler using source-inferred types, independently of display-role overrides. MI is discretized and does not establish causality.</p>
+  {% if report.relationships %}<div class="table-wrap"><table class="interactive-table" data-page-size="50"><thead><tr><th>Left</th><th>Right</th><th>N</th><th>Pearson</th><th>Spearman</th><th>MI</th><th>NMI</th></tr></thead><tbody>
+  {% for rel in report.relationships %}<tr><td>{{ rel.left }}</td><td>{{ rel.right }}</td><td>{{ rel.pair_count }}</td>
+    <td>{{ '%.4g'|format(rel.pearson) if rel.pearson is not none else '—' }}</td><td>{{ '%.4g'|format(rel.spearman) if rel.spearman is not none else '—' }}</td><td>{{ '%.4g'|format(rel.mutual_information) if rel.mutual_information is not none else '—' }}</td><td>{{ '%.4g'|format(rel.normalized_mutual_information) if rel.normalized_mutual_information is not none else '—' }}</td></tr>
+  {% endfor %}</tbody></table></div>{% else %}<p class="muted">No eligible pairs for dependence statistics.</p>{% endif %}
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -126,21 +126,36 @@
 {% if experiment.model_spec.schema == 'ml-lab.model-configuration@1' and not data_error and optimization_controls and optimization_metrics %}
 <section class="panel model-optimization-launch" id="model-optimization">
   <h2>Optimize saved configuration</h2>
-  <p class="muted compact">Firefly searches one numeric control at a time using the pinned dataset and existing model engine. Each candidate may retrain the model. A run records trials; it does not update or promote the saved model configuration.</p>
+  <p class="muted compact">Firefly and Random Search search 1–4 numeric controls using a shared evaluator using the pinned dataset and existing model engine. Each candidate may retrain the model. A run records trials; it does not update or promote the saved model configuration.</p>
   <form method="post" action="{{ url_for(request.blueprint + '.experiment_model_optimize') }}" class="model-configuration">
     <input type="hidden" name="experiment_id" value="{{ experiment.experiment_id }}">
     <input type="hidden" name="expected_revision" value="{{ experiment.revision }}">
     <div class="model-control-grid">
+      <label class="model-field">Algorithm<select class="wide-input" name="algorithm"><option value="firefly">Firefly</option><option value="random_search">Random Search</option></select></label>
       <label class="model-field">Numeric control<select class="wide-input" name="parameter">{% for item in optimization_controls %}<option value="{{ item.path }}">{{ item.path }} ({{ item.kind }})</option>{% endfor %}</select></label>
       <label class="model-field">Minimum<input class="wide-input" name="lower" type="number" step="any" required value="1"></label>
       <label class="model-field">Maximum<input class="wide-input" name="upper" type="number" step="any" required value="2"></label>
+      <label class="model-field">Scale<select class="wide-input" name="scale"><option value="linear">Linear</option><option value="log">Logarithmic (positive bounds)</option></select></label>
       <label class="model-field">Objective metric<select class="wide-input" name="metric">{% for value in optimization_metrics %}<option value="{{ value }}" {% if value == 'rmse' %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
       <label class="model-field">Goal<select class="wide-input" name="goal"><option value="minimize">Minimize</option><option value="maximize">Maximize</option></select></label>
       <label class="model-field">Population (2–8)<input class="wide-input" name="population_size" type="number" min="2" max="8" value="2"></label>
       <label class="model-field">Iterations (0–5)<input class="wide-input" name="iterations" type="number" min="0" max="5" value="1"></label>
-      <label class="model-field">Firefly seed<input class="wide-input" name="seed" type="number" min="0" max="4294967295" value="42"></label>
+      <label class="model-field">Random Search evaluations (1–32)<input class="wide-input" name="evaluations" type="number" min="1" max="32" value="8"></label>
+      <label class="model-field">Optimizer seed<input class="wide-input" name="seed" type="number" min="0" max="4294967295" value="42"></label>
     </div>
-    <p class="muted compact">Bounded to 32 candidate evaluations. Search controls and bounds must respect model-specific constraints; some candidates may fail. Candidate execution is serial and cannot be forcibly terminated midway.</p>
+    <details class="panel">
+      <summary>Add up to three more numeric controls (optional)</summary>
+      <p class="muted compact">Each selected control must have its own lower and upper bounds. Distinct controls are optimized together; unsupplied controls retain their saved configuration values.</p>
+      <div class="model-control-grid">
+      {% for index in range(2, 5) %}
+        <label class="model-field">Additional control {{ index }}<select class="wide-input" name="parameter_{{ index }}"><option value="">None</option>{% for item in optimization_controls %}<option value="{{ item.path }}">{{ item.path }} ({{ item.kind }})</option>{% endfor %}</select></label>
+        <label class="model-field">Control {{ index }} minimum<input class="wide-input" name="lower_{{ index }}" type="number" step="any" placeholder="Optional"></label>
+        <label class="model-field">Control {{ index }} maximum<input class="wide-input" name="upper_{{ index }}" type="number" step="any" placeholder="Optional"></label>
+        <label class="model-field">Control {{ index }} scale<select class="wide-input" name="scale_{{ index }}"><option value="linear">Linear</option><option value="log">Logarithmic</option></select></label>
+      {% endfor %}
+      </div>
+    </details>
+    <p class="muted compact">Bounded to 32 candidate evaluations. Firefly uses population × (iterations + 1); Random Search uses its independent evaluation count. Other algorithm controls are ignored. Search controls and bounds must respect model-specific constraints; some candidates may fail. Candidate execution is serial and cannot be forcibly terminated midway.</p>
     <button type="submit" class="button">Start optimization trial</button>
   </form>
 </section>

@@ -1,0 +1,81 @@
+{% import 'ml_lab_ui/_workbench_error.html' as mlwb_error %}
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Autoencoders · Representation · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head"><div><p class="eyebrow">Unified research workbench → Representation</p>
+  <h1>Trainable Autoencoders</h1>
+  <p class="lede">Configure ML_Lab's existing MLP or Transformer autoencoder trainer against a verified dataset. Saving creates an immutable experiment revision; training is a separate action.</p>
+</div></section>
+<p><a class="button secondary" href="{{ url_for(request.blueprint + '.workbench_representation') }}">Back to sklearn representations</a></p>
+{{ mlwb_error.show_error(error, url_for(request.blueprint + '.workbench_autoencoder'), url_for(request.blueprint + '.data_lab'), title='Could not complete this action') }}
+{% if saved %}<section class="status-card transform-success" role="status"><strong>Configuration saved</strong><span>Active workbench bound to the saved revision. No training was started.</span></section>{% endif %}
+{% if context.status != 'ready' %}
+<section class="panel"><h2>No verified active dataset</h2><p>{{ context.validation_error or 'Select a feature-only CSV or TSV dataset in Data.' }}</p><a class="button" href="{{ url_for(request.blueprint + '.data_lab') }}">Open Data</a></section>
+{% else %}
+<section class="panel"><h2>Verified active dataset</h2><p><code>{{ context.active_dataset.path }}</code> · {{ context.active_dataset.rows }} rows · {{ context.active_dataset.feature_columns|length }} features · experiment revision {{ context.experiment_revision }} · generation {{ context.generation }}</p>
+  <p class="tiny muted">The training engine requires finite numeric, complete feature-only data. Feature-profiling display-role overrides do not change the selected training columns.</p>
+</section>
+{% if context.active_dataset.target_columns %}
+<section class="panel"><h2>Feature-only selection required</h2><p>Remove target columns through Data before configuring an autoencoder.</p></section>
+{% else %}
+<section class="panel"><h2>Configure autoencoder</h2>
+<form method="post" action="{{ url_for(request.blueprint + '.workbench_autoencoder') }}" class="mlwb-ae-form">
+<input type="hidden" name="experiment_id" value="{{ context.experiment_id }}">
+<input type="hidden" name="expected_revision" value="{{ context.experiment_revision }}">
+<input type="hidden" name="expected_generation" value="{{ context.generation }}">
+<input type="hidden" name="source_sha256" value="{{ context.active_dataset.sha256 }}">
+<div class="mlwb-ae-fields">
+<label>Network type<select name="method"><option value="mlp_autoencoder" {% if fields.method == 'mlp_autoencoder' %}selected{% endif %}>Symmetric MLP autoencoder</option><option value="transformer_autoencoder" {% if fields.method == 'transformer_autoencoder' %}selected{% endif %}>Transformer autoencoder</option></select></label>
+<label>Latent dimensions<input type="number" name="latent_dim" min="1" max="512" value="{{ fields.latent_dim }}" required></label>
+<label>Output activation<select name="output_activation">{% for value in ['none', 'sigmoid', 'tanh'] %}<option value="{{ value }}" {% if fields.output_activation == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+<label>Dropout<input type="number" name="dropout" min="0" max="0.8" step="0.01" value="{{ fields.dropout }}" required></label>
+</div>
+<details open><summary>MLP architecture (applies only to MLP)</summary><div class="mlwb-ae-fields">
+<label>Encoder hidden widths (comma separated, mirrored in decoder)<input name="hidden_dims" value="{{ fields.hidden_dims }}" spellcheck="false"></label>
+<label>Activation<select name="activation">{% for value in ['relu','gelu','tanh','leaky_relu'] %}<option value="{{ value }}" {% if fields.activation == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+</div></details>
+<details><summary>Transformer architecture (applies only to Transformer)</summary><div class="mlwb-ae-fields">
+{% for item, title in [('token_width','Token width'),('model_dim','Model width'),('nhead','Attention heads'),('encoder_layers','Encoder blocks'),('decoder_layers','Decoder blocks'),('feedforward_dim','Feedforward width'),('max_tokens','Maximum tokens')] %}
+<label>{{ title }}<input type="number" name="{{ item }}" min="1" value="{{ fields[item] }}"></label>
+{% endfor %}
+<label>Transformer activation<select name="transformer_activation">{% for value in ['relu','gelu'] %}<option value="{{ value }}" {% if fields.transformer_activation == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+<label>Pre-layer normalization<select name="norm_first"><option value="0" {% if fields.norm_first == '0' %}selected{% endif %}>No</option><option value="1" {% if fields.norm_first == '1' %}selected{% endif %}>Yes</option></select></label>
+</div></details>
+<details open><summary>Training and checkpoint selection</summary><div class="mlwb-ae-fields">
+{% for item, title, step in [('epochs','Maximum epochs','1'),('batch_size','Batch size','1'),('learning_rate','Learning rate','any'),('weight_decay','Weight decay','any'),('validation_fraction','Validation fraction','any'),('patience','Early stopping patience','1'),('min_delta','Minimum improvement','any'),('random_state','Random seed','1')] %}
+<label>{{ title }}<input type="number" name="{{ item }}" min="0" step="{{ step }}" value="{{ fields[item] }}" required></label>
+{% endfor %}
+<label>Scaling<select name="scaling">{% for value in ['none','standard','minmax','robust'] %}<option value="{{ value }}" {% if fields.scaling == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+<label>Execution device<select name="device">{% for value in ['auto','cpu','cuda','mps'] %}<option value="{{ value }}" {% if fields.device == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+<label>Result model state<select name="checkpoint_selection"><option value="best" {% if fields.checkpoint_selection == 'best' %}selected{% endif %}>Best validation (or training) epoch</option><option value="last" {% if fields.checkpoint_selection == 'last' %}selected{% endif %}>Final training epoch</option></select></label>
+<label>Deterministic training<select name="deterministic"><option value="1" {% if fields.deterministic == '1' %}selected{% endif %}>Yes</option><option value="0" {% if fields.deterministic == '0' %}selected{% endif %}>No</option></select></label>
+</div></details>
+<p class="tiny muted">Best-model checkpoints are written only within the owning project when a configured run begins. Best/final selection affects the reported reconstruction and latent results; the last-epoch state is not stored as a separate checkpoint. No arbitrary checkpoint filesystem path may be submitted.</p>
+<button class="button" type="submit">Save autoencoder configuration</button>
+</form></section>
+{% endif %}
+{% if configured %}
+<section class="panel"><h2>Run saved autoencoder</h2>
+<p>Saved <strong>{{ fields.method }}</strong> model, revision {{ context.experiment_revision }}. Training is managed by the existing asynchronous experiment runner; unsaved edits above will not be included.</p>
+<form method="post" action="{{ url_for(request.blueprint + '.experiment_model_run') }}">
+<input type="hidden" name="experiment_id" value="{{ context.experiment_id }}"><input type="hidden" name="expected_revision" value="{{ context.experiment_revision }}">
+<button class="button" type="submit">Train saved model</button></form>
+<p class="muted tiny">Validation and training MSE are in preprocessed feature space. Reconstruction metrics compare reconstructed inputs to training-source observations, not held-out evaluation.</p>
+</section>
+{% endif %}
+{% if recent %}<section class="panel"><h2>Runs for selected revision</h2><div class="table-wrap"><table><thead><tr><th>Run</th><th>Status</th><th>Revision</th></tr></thead><tbody>
+{% for run in recent %}<tr><td><a href="{{ url_for(request.blueprint + '.experiment_model_run_view', run_id=run.run_id) }}">{{ run.run_id[:12] }}…</a></td><td>{{ run.status }}</td><td>{{ run.revision }}</td></tr>{% endfor %}
+</tbody></table></div></section>{% endif %}
+{% if diagnostics %}
+<section class="panel"><h2>Latest verified successful run: reconstruction diagnostics</h2><p class="tiny muted">Source-matched output artifact. These are in-sample reconstruction statistics, not a held-out test score.</p>
+<div class="table-wrap"><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>{% for key, value in diagnostics.metrics.items() %}<tr><td>{{ key }}</td><td>{{ '%.6g'|format(value) }}</td></tr>{% endfor %}</tbody></table></div>
+{% if diagnostics.chart %}<h3>Training history</h3><p class="tiny muted">Epochs 1–{{ diagnostics.chart.last_epoch }}. Solid = train MSE; dashed = validation MSE (where available).</p><svg class="mlwb-repr-scatter" viewBox="0 0 600 320" role="img" aria-label="Training and validation mean squared error per epoch">
+<line x1="36" y1="276" x2="560" y2="276" stroke="currentColor"/><line x1="36" y1="36" x2="36" y2="276" stroke="currentColor"/>
+<polyline points="{{ diagnostics.chart.series.train_mse }}" fill="none" stroke="currentColor" stroke-width="2"/>
+{% if diagnostics.chart.series.validation_mse %}<polyline points="{{ diagnostics.chart.series.validation_mse }}" fill="none" stroke="#6e83b3" stroke-width="2" stroke-dasharray="5 4"/>{% endif %}
+<text x="40" y="25" font-size="12" fill="currentColor">MSE · peak {{ '%.4g'|format(diagnostics.chart.max_value) }}</text><text x="290" y="306" font-size="12" fill="currentColor">Training epoch</text></svg>{% endif %}
+{% if diagnostics.preview %}<h3>Original vs. reconstructed: {{ diagnostics.preview.feature }}</h3>
+<div class="table-wrap"><table><thead><tr><th>Source row</th><th>Original</th><th>Reconstructed</th></tr></thead><tbody>{% for row in diagnostics.preview.rows %}<tr><td>{{ row.row }}</td><td>{{ '%.5g'|format(row.original) }}</td><td>{{ '%.5g'|format(row.reconstructed) }}</td></tr>{% endfor %}</tbody></table></div><p class="tiny muted">First 12 rows of the first selected feature, for visual inspection only. Full result arrays remain in the existing run artifacts.</p>{% endif %}
+</section>{% endif %}
+{% endif %}
+{% endblock %}

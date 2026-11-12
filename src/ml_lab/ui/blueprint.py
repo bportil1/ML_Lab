@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 try:
-    from flask import Blueprint, Response, abort, jsonify, redirect, render_template, request, send_file, url_for
+    from flask import Blueprint, Response, abort, current_app, jsonify, redirect, render_template, request, send_file, url_for
 except ImportError as exc:  # pragma: no cover
     raise RuntimeError("ML Lab UI requires: pip install 'ml-lab[ui]'") from exc
 
@@ -349,6 +349,20 @@ def create_ui_blueprint(
             return None
         return url_for(request.blueprint + ".experiment_dataset", source_token=sign_path(str(resolved)))
 
+    def workbench_dataset_url(path: str) -> str | None:
+        """Allow an explicit post-extraction selection only for this project.
+
+        The legacy Blueprint factory can be used without the unified workbench;
+        only advertise the link if its route is actually installed by the host.
+        The selection endpoint performs its own independent provenance checks.
+        """
+        if experiment_dataset_url(path) is None:
+            return None
+        endpoint = request.blueprint + ".workbench_select_file"
+        if endpoint not in current_app.view_functions:
+            return None
+        return url_for(endpoint, path=path)
+
     def provenance_url(path: str) -> str:
         return url_for(request.blueprint + ".data_provenance", source_token=sign_path(path))
 
@@ -552,19 +566,45 @@ def create_ui_blueprint(
                                inventory_id=inventory_id, artifact_kind=artifact_kind,
                                error=None, refresh_report=refresh_report)
 
+    @blueprint.get("/data/xml/workbench")
+    def xml_workbench():
+        """One entry point for legacy single-file and collection XML workflows."""
+        return render_template("ml_lab_ui/xml_workbench.html", version=__version__)
+
+    @blueprint.post("/data/xml/open")
+    def xml_open():
+        """Open one selected XML in the existing hierarchy explorer.
+
+        This does not modify the file or implicitly start an extraction.
+        """
+        source = Path(request.form.get("source", "").strip()).expanduser()
+        if (not source.is_file() or source.is_symlink()
+                or source.suffix.casefold() != ".xml"):
+            return redirect(url_for(request.blueprint + ".xml_workbench", error="invalid_source"))
+        return redirect(xml_structure_url(str(source)))
+
     @blueprint.route("/data/xml/collection", methods=["GET", "POST"])
     def xml_collection_inventory():
-        directory = request.form.get("directory", "").strip()
-        recursive = request.form.get("recursive", "") == "1" if request.method == "POST" else True
-        include_hidden = request.form.get("include_hidden", "") == "1"
-        max_files = _form_int("max_files", 1000)
-        include_glob = request.form.get("include_glob", "*.xml").strip() or "*.xml"
-        exclude_glob = request.form.get("exclude_glob", "").strip()
+        # GET restores source/filter choices for back-navigation, but NEVER
+        # discovers or parses files. Only an explicit POST performs inspection.
+        values = request.form if request.method == "POST" else request.args
+        directory = values.get("directory", "").strip()
+        recursive = values.get("recursive", "1") == "1"
+        include_hidden = values.get("include_hidden", "") == "1"
+        max_files = _form_int("max_files", 1000) if request.method == "POST" else 1000
+        if request.method == "GET":
+            try:
+                max_files = int(values.get("max_files", 1000))
+            except (ValueError, TypeError):
+                max_files = 1000
+            max_files = max(1, min(100000, max_files))
+        include_glob = values.get("include_glob", "*.xml").strip() or "*.xml"
+        exclude_glob = values.get("exclude_glob", "").strip()
         inventory = None
         comparison = None
         error = None
-        compare = request.form.get("compare", "") == "1"
-        minimum_similarity = request.form.get("minimum_similarity", "0.80")
+        compare = values.get("compare", "") == "1"
+        minimum_similarity = values.get("minimum_similarity", "0.80")
         if request.method == "POST":
             try:
                 if not directory:
@@ -756,7 +796,7 @@ def create_ui_blueprint(
             preview_xml_collection_export, materialize_xml_collection,
         )
         recipe_text = request.form.get("recipe_json", "")
-        output = request.form.get("output", "analysis/data/xml_collection.csv").strip()
+        output = request.form.get("output", str(project_root / "analysis/data/xml_collection.csv")).strip()
         mode = request.form.get("mode", "preview")
         preview = result = error = None
         try:
@@ -783,6 +823,12 @@ def create_ui_blueprint(
             "ml_lab_ui/xml_collection_export.html", version=__version__,
             recipe_text=recipe_text, output=output, preview=preview,
             result=result, error=error,
+            collection_provenance_url=(url_for(request.blueprint + ".xml_collection_provenance",
+                                               provenance_path=result["provenance"]["path"],
+                                               output=result["main_dataset"]["path"])
+                                       if result else None),
+            workbench_select_url=(workbench_dataset_url(result["main_dataset"]["path"])
+                                  if result else None),
         ), (400 if error else 200)
 
     @blueprint.route("/data/xml/collection/provenance", methods=["GET", "POST"])
@@ -793,8 +839,9 @@ def create_ui_blueprint(
             resume_xml_collection_export, regenerate_xml_collection,
         )
         action = request.form.get("action", "verify")
-        event_path = request.form.get("provenance_path", "").strip()
-        output = request.form.get("output", "").strip()
+        values = request.form if request.method == "POST" else request.args
+        event_path = values.get("provenance_path", "").strip()
+        output = values.get("output", "").strip()
         result = error = None
         try:
             if request.method == "POST":
@@ -1128,6 +1175,9 @@ def create_ui_blueprint(
         response = result.to_record()
         response["transform_url"] = transform_url(result.dataset_path)
         response["data_url"] = url_for(request.blueprint + ".data_lab")
+        # Same explicit, project-scoped handoff as collection export. Do not
+        # mutate the active dataset or create experiments during extraction.
+        response["workbench_select_url"] = workbench_dataset_url(result.dataset_path)
         return jsonify(response)
 
 
@@ -1780,10 +1830,22 @@ def create_ui_blueprint(
         identifier = request.form.get("experiment_id", "").strip()
         try:
             revision = int(request.form.get("expected_revision", ""))
+            parameters = []
+            for index in range(1, 5):
+                suffix = "" if index == 1 else f"_{index}"
+                path = request.form.get("parameter" + suffix, "").strip()
+                lower = request.form.get("lower" + suffix, "").strip()
+                upper = request.form.get("upper" + suffix, "").strip()
+                if not path and index > 1:
+                    if lower or upper:
+                        raise ExperimentStoreError("Choose a control before entering its bounds")
+                    continue
+                parameters.append({"path": path, "lower": float(lower), "upper": float(upper),
+                                   "scale": request.form.get("scale" + suffix, "linear")})
             plan = {
-                "parameter": request.form.get("parameter", "").strip(),
-                "lower": float(request.form.get("lower", "")),
-                "upper": float(request.form.get("upper", "")),
+                "parameters": parameters,
+                "algorithm": request.form.get("algorithm", "firefly"),
+                "evaluations": int(request.form.get("evaluations", "8")),
                 "metric": request.form.get("metric", "").strip(),
                 "goal": request.form.get("goal", "minimize"),
                 "population_size": int(request.form.get("population_size", "2")),

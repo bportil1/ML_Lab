@@ -1,6 +1,7 @@
 {% extends "ml_lab_ui/base.html" %}
 {% block title %}{{ source_name }} · XML Structure · ML Lab{% endblock %}
 {% block content %}
+{% set xml_workflow_stage = "single" %}{% include "ml_lab_ui/_xml_workflow_steps.html" %}
 <a class="back" href="{{ data_url }}">← Data Lab</a>
 <section class="workspace-head xml-workspace-head">
   <div>
@@ -255,7 +256,11 @@
         <div><dt>Columns</dt><dd data-xml-materialize-columns></dd></div>
         <div><dt>Structure artifact</dt><dd><code data-xml-materialize-structure></code></dd></div>
       </dl>
-      <div class="button-row"><a class="button mini" data-xml-materialize-transform href="#">Open in Transform</a></div>
+      <div class="button-row">
+        <a class="button mini" data-xml-materialize-transform href="#">Open in Transform</a>
+        <a class="button mini" data-xml-materialize-workbench href="#" hidden>Use this dataset in workbench</a>
+      </div>
+      <p class="tiny muted" data-xml-materialize-workbench-note hidden>To activate this dataset in Feature Profiling, Representation, and Comparison, export into the current project directory. No dataset is activated automatically.</p>
       <details class="json-details xml-selection-json"><summary><strong>Materialization result</strong></summary><pre data-xml-materialize-json></pre></details>
     </div>
   </div>

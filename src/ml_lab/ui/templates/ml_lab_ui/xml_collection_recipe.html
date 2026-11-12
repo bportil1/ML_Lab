@@ -1,7 +1,8 @@
 {% extends "ml_lab_ui/base.html" %}
 {% block title %}XML shared extraction recipe · ML Lab{% endblock %}
 {% block content %}
-<a class="back" href="{{ url_for(request.blueprint + '.xml_collection_review') }}">← XML collection review</a>
+{% set xml_workflow_stage = "recipe" %}{% include "ml_lab_ui/_xml_workflow_steps.html" %}
+<a class="back" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=max_files, min_shared_fraction=min_shared_fraction) }}">← Collection review (retain filters)</a>
 <section class="workspace-head"><div>
   <p class="eyebrow">Data · XML-C4</p>
   <h1>Shared XML extraction recipe</h1>
@@ -10,7 +11,7 @@
 {% if error %}<div class="alert data-alert" role="alert">{{ error }}</div>{% endif %}
 {% if not catalog %}
 <section class="panel"><p>Select and review XML files on the collection review page, then choose <strong>Configure shared extraction recipe</strong>.</p>
-<a class="button secondary" href="{{ url_for(request.blueprint + '.xml_collection_review') }}">Return to collection review</a></section>
+<a class="button secondary" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=max_files, min_shared_fraction=min_shared_fraction) }}">Return to collection review</a></section>
 {% else %}
 <section class="panel">
   <h2>Reviewed collection</h2>

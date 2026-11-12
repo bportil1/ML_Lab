@@ -1,0 +1,51 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}XML extraction workspace · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head"><div>
+  <p class="eyebrow">Data · unified XML workflow</p>
+  <h1>XML extraction workspace</h1>
+  <p class="lede">Start with one XML source or a directory of related XML files. Both modes remain inside Data, preserve the original documents, and produce datasets that you can explicitly bind to this workbench instance.</p>
+</div></section>
+{% if request.args.get('error') == 'invalid_source' %}
+<div class="alert data-alert" role="alert">Select an existing regular XML file. No extraction was started.</div>
+{% endif %}
+<section class="panel">
+  <h2>Single XML file</h2>
+  <p>Inspect the hierarchy and repeated branches, select variables, preview the extraction, then materialize a dataset. Nothing is flattened automatically.</p>
+  <form method="post" action="{{ url_for(request.blueprint + '.xml_open') }}">
+    <label for="xml-single-source">Local XML source</label>
+    <div class="path-input-shell" data-path-input>
+      <input id="xml-single-source" type="text" name="source" required data-path-autocomplete data-path-kind="file" data-path-extensions="xml" data-path-suggestions-url="{{ url_for(request.blueprint + '.path_suggestions') }}" autocomplete="off" placeholder="/path/to/source.xml">
+      <div class="path-suggestion-menu" data-path-suggestion-menu hidden></div>
+    </div>
+    <button class="button" type="submit">Inspect single XML</button>
+  </form>
+</section>
+<section class="panel">
+  <h2>XML collection</h2>
+  <p>Compare a directory of XML sources, choose a structural group, build one shared extraction recipe, preview combined records, and explicitly export CSV/TSV.</p>
+  <form method="post" action="{{ url_for(request.blueprint + '.xml_collection_review') }}">
+    <input type="hidden" name="mode" value="inspect">
+    <label for="xml-collection-root">XML directory</label>
+    <div class="path-input-shell" data-path-input>
+      <input id="xml-collection-root" type="text" name="directory" required data-path-autocomplete data-path-kind="directory" data-path-suggestions-url="{{ url_for(request.blueprint + '.path_suggestions') }}" autocomplete="off" placeholder="/path/to/xml_collection">
+      <div class="path-suggestion-menu" data-path-suggestion-menu hidden></div>
+    </div>
+    <div class="form-row">
+      <label class="check"><input type="checkbox" name="recursive" value="1" checked> Include nested directories</label>
+      <label>Include glob <input name="include_glob" value="*.xml"></label>
+      <label>Exclude glob <input name="exclude_glob" placeholder="*.backup.xml"></label>
+      <label>Review at most <input type="number" name="max_files" min="1" max="80" value="40"></label>
+      <label>Shared-path fraction <input type="number" name="min_shared_fraction" min="0" max="1" step="0.05" value="0.5"></label>
+    </div>
+    <p class="muted">The interactive comparison currently caps review at 80 files to bound pairwise work. This is an analysis limit, not a silent truncation or a limit on your XML directory.</p>
+    <button class="button" type="submit">Review XML collection</button>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.xml_collection_inventory') }}">Inspect source inventory first</a>
+  </form>
+</section>
+<section class="panel">
+  <h2>After extraction</h2>
+  <p>When a consolidated CSV/TSV is created inside the experiment project, use its <strong>Use consolidated dataset</strong> action to verify and activate it. Activation is explicit: existing experiments are retained, and the same selected dataset becomes available to Feature Profiling, Representation, and Comparison.</p>
+  <p class="muted">Collection and single-file analysis remain separate extraction modes, but there is now one entry point and one workbench dataset context for their outputs.</p>
+</section>
+{% endblock %}

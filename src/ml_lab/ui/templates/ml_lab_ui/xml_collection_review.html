@@ -1,7 +1,8 @@
 {% extends "ml_lab_ui/base.html" %}
 {% block title %}XML collection compatibility review · ML Lab{% endblock %}
 {% block content %}
-<a class="back" href="{{ url_for(request.blueprint + '.xml_collection_inventory') }}">← XML collection inventory</a>
+{% set xml_workflow_stage = "review" %}{% include "ml_lab_ui/_xml_workflow_steps.html" %}
+<a class="back" href="{{ url_for(request.blueprint + '.xml_collection_inventory', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=max_files, compare='1', minimum_similarity=min_shared_fraction) }}">← XML collection inventory (retain filters)</a>
 <section class="workspace-head"><div>
   <p class="eyebrow">Data · XML-C3</p>
   <h1>XML collection compatibility review</h1>
@@ -54,7 +55,7 @@
         {% if recursive %}<input type="hidden" name="recursive" value="1">{% endif %}
         {% if include_hidden %}<input type="hidden" name="include_hidden" value="1">{% endif %}
         {% for member in group.members %}<input type="hidden" name="selected" value="{{ member }}">{% endfor %}
-        <button class="button mini" type="submit">Extract entire group</button>
+        <button class="button mini" type="submit">Prepare full-group extraction recipe</button>
       </form>
       {% endif %}
     </td></tr>

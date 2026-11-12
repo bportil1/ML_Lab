@@ -7,7 +7,7 @@ used by ML_Lab models, PAH modules, or external callers.
 
 from .api import optimize
 from .base import OptimizationAlgorithm
-from .config import FireflyConfig
+from .config import FireflyConfig, RandomSearchConfig
 from .evaluator import CandidateEvaluator, FunctionEvaluator
 from .fitness import FitnessEvaluator, FitnessTermSpec
 from .registry import available_optimizers, create_optimizer, register_optimizer
@@ -19,6 +19,7 @@ __all__ = [
     "CandidateEvaluation",
     "CandidateEvaluator",
     "FireflyConfig",
+    "RandomSearchConfig",
     "FitnessEvaluator",
     "FitnessTermSpec",
     "FunctionEvaluator",

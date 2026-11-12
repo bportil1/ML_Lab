@@ -7,7 +7,7 @@ from typing import Any, Mapping, Sequence
 import numpy as np
 
 
-_PARAMETER_KINDS = {"continuous", "continuous_log", "integer", "categorical"}
+_PARAMETER_KINDS = {"continuous", "continuous_log", "integer", "integer_log", "categorical"}
 
 
 @dataclass(frozen=True)
@@ -31,7 +31,7 @@ class ParameterSpec:
                 raise ValueError(f"parameter {self.name!r} requires lower/upper bounds")
             if self.lower > self.upper:
                 raise ValueError(f"parameter {self.name!r} bounds must be ordered")
-            if self.kind == "continuous_log" and self.lower <= 0:
+            if self.kind in {"continuous_log", "integer_log"} and self.lower <= 0:
                 raise ValueError(f"log parameter {self.name!r} requires lower > 0")
 
     @property
@@ -46,8 +46,9 @@ class ParameterSpec:
             return low
         if self.kind == "continuous":
             return float(rng.uniform(low, high))
-        if self.kind == "continuous_log":
-            return float(10 ** rng.uniform(np.log10(low), np.log10(high)))
+        if self.kind in {"continuous_log", "integer_log"}:
+            sample = float(10 ** rng.uniform(np.log10(low), np.log10(high)))
+            return float(int(round(sample))) if self.kind == "integer_log" else sample
         if self.kind in {"integer", "categorical"}:
             return float(rng.integers(int(np.ceil(low)), int(np.floor(high)) + 1))
         raise RuntimeError(self.kind)
@@ -55,7 +56,7 @@ class ParameterSpec:
     def coerce(self, value: float) -> float:
         low, high = self.numeric_bounds
         value = float(np.clip(float(value), low, high))
-        if self.kind in {"integer", "categorical"}:
+        if self.kind in {"integer", "integer_log", "categorical"}:
             value = float(int(round(value)))
         return value
 
@@ -63,7 +64,7 @@ class ParameterSpec:
         value = self.coerce(value)
         if self.kind == "categorical":
             return self.choices[int(value)]
-        if self.kind == "integer":
+        if self.kind in {"integer", "integer_log"}:
             return int(value)
         return float(value)
 
@@ -93,6 +94,28 @@ class SearchSpace:
     @property
     def bound_pairs(self) -> list[tuple[float, float]]:
         return [spec.numeric_bounds for spec in self.specs]
+
+    @property
+    def movement_bound_pairs(self) -> list[tuple[float, float]]:
+        """Optimizer coordinates; log parameters move by ratios, not raw deltas."""
+        return [(float(np.log10(lo)), float(np.log10(hi)))
+                if spec.kind in {"continuous_log", "integer_log"} else (lo, hi)
+                for spec, (lo, hi) in zip(self.specs, self.bound_pairs)]
+
+    def to_movement_coordinates(self, position: Sequence[Any]) -> np.ndarray:
+        position = self.coerce(position)
+        return np.asarray([np.log10(value) if spec.kind in {"continuous_log", "integer_log"} else value
+                           for spec, value in zip(self.specs, position)], dtype=float)
+
+    def from_movement_coordinates(self, position: Sequence[Any]) -> np.ndarray:
+        if len(position) != self.dimension:
+            raise ValueError("Movement position dimensionality mismatch")
+        decoded = [
+            10 ** float(np.clip(value, np.log10(spec.lower), np.log10(spec.upper)))
+            if spec.kind in {"continuous_log", "integer_log"} else float(value)
+            for spec, value in zip(self.specs, position)
+        ]
+        return self.coerce(decoded)
 
     def sample(self, rng: np.random.Generator | None = None) -> np.ndarray:
         rng = rng or np.random.default_rng()

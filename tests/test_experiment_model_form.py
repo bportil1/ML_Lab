@@ -140,4 +140,8 @@ def test_template_renders_each_model_family_from_registry_without_flask(tmp_path
         assert "ctl." in page
         assert "readonly" not in page.lower()
         assert "<select" in page
-        assert "3 · training" in page.lower()
+        # The five-tab workbench deliberately keeps tools independent.
+        # Training is only offered after a model configuration is saved.
+        assert "Tools are independent." in page
+        assert "model-workflow-stages" in page
+        assert "Train saved configuration" not in page

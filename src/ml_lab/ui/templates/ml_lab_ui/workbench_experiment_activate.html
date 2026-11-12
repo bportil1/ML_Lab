@@ -1,0 +1,46 @@
+{% import 'ml_lab_ui/_workbench_error.html' as mlwb_error %}
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Use saved experiment · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head"><div>
+  <p class="eyebrow">Unified research workbench · Data</p>
+  <h1>Use saved experiment in this workbench</h1>
+  <p class="lede">Select a verified, existing experiment revision without copying datasets, revising model configurations, or starting a training run.</p>
+</div></section>
+{{ mlwb_error.show_error(error, url_for(request.blueprint + '.workbench_general_ml_tools'), url_for(request.blueprint + '.data_lab'), title='Could not complete this action') }}
+{% if activated %}
+<section class="panel" role="status">
+  <h2>Existing experiment activated</h2>
+  <p><code>{{ context.active_dataset.path }}</code> · experiment revision {{ context.experiment_revision }} · workbench generation {{ context.generation }}</p>
+  <p class="tiny muted">Previous dataset selections, model revisions, recorded runs, and artifacts remain unchanged.</p>
+  <div class="button-row">
+    <a class="button" href="{{ url_for(request.blueprint + '.workbench_feature_profiling') }}">Feature Profiling</a>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.workbench_representation') }}">Representation</a>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.workbench_comparison') }}">Comparison</a>
+  </div>
+</section>
+{% elif experiment and verified %}
+<section class="panel">
+  <h2>Confirm existing selection</h2>
+  <p><strong>{{ experiment.name }}</strong> · revision {{ experiment.revision }}</p>
+  <p><code>{{ experiment.dataset_ref.path }}</code> · {{ experiment.dataset_ref.rows }} rows · {{ experiment.dataset_ref.columns }} columns</p>
+  <p><strong>Selected features:</strong> {{ experiment.dataset_ref.feature_columns|join(', ') }}</p>
+  {% if experiment.dataset_ref.target_columns %}<p><strong>Targets:</strong> {{ experiment.dataset_ref.target_columns|join(', ') }}</p>{% endif %}
+  <p class="tiny muted">The source and its lineage have been verified. Changing the active selection affects this browser workbench instance only; training runs and existing model configurations are not changed. Another tab may change this workbench generation, in which case confirmation must be repeated.</p>
+  {% if context.experiment_id == experiment.experiment_id and context.experiment_revision == experiment.revision %}
+    <p class="tiny muted">This revision is already active. Confirming it is unnecessary.</p>
+    <a class="button" href="{{ url_for(request.blueprint + '.workbench_feature_profiling') }}">Continue to Feature Profiling</a>
+  {% else %}
+  <form method="post" action="{{ url_for(request.blueprint + '.workbench_activate_experiment') }}">
+    <input type="hidden" name="experiment_id" value="{{ experiment.experiment_id }}">
+    <input type="hidden" name="revision" value="{{ experiment.revision }}">
+    <input type="hidden" name="expected_generation" value="{{ context.generation }}">
+    <button class="button" type="submit">Activate this saved revision</button>
+  </form>
+  {% endif %}
+</section>
+{% elif not error %}
+<section class="panel"><p>Choose a saved experiment from General ML Tools to preview its dataset selection.</p></section>
+{% endif %}
+<p><a class="button secondary" href="{{ url_for(request.blueprint + '.workbench_general_ml_tools') }}">Back to General ML Tools</a></p>
+{% endblock %}

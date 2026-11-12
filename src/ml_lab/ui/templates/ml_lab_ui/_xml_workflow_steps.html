@@ -1,0 +1,13 @@
+{# Informational progress, not links to empty steps that would lose form state. #}
+<nav class="panel" aria-label="XML extraction stages">
+  <div class="button-row">
+    <a class="button mini secondary" href="{{ url_for(request.blueprint + '.xml_workbench') }}">XML workspace</a>
+    {% if xml_workflow_stage == 'single' %}<strong>Single-file structure → Preview → Materialize</strong>
+    {% else %}
+    {% for key, label in [('inventory', 'Inventory'), ('review', 'Review'), ('recipe', 'Shared recipe'), ('export', 'Preview / Export'), ('provenance', 'Provenance')] %}
+      <span class="{{ 'badge ready' if key == xml_workflow_stage else 'muted' }}" {% if key == xml_workflow_stage %}aria-current="step"{% endif %}>{{ label }}</span>
+      {% if not loop.last %}<span aria-hidden="true">›</span>{% endif %}
+    {% endfor %}
+    {% endif %}
+  </div>
+</nav>

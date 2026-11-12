@@ -34,3 +34,18 @@ class FireflyConfig:
             raise ValueError("alpha_lognormal_sigma must be >= 0")
         if self.fitness_difference_clip <= 0:
             raise ValueError("fitness_difference_clip must be > 0")
+
+
+@dataclass(frozen=True)
+class RandomSearchConfig:
+    """Budget of independent, reproducibly sampled candidates."""
+    evaluations: int = 10
+    failure_fitness: float = 1e9
+    seed: int | None = 42
+    scope: str = "model"
+
+    def __post_init__(self):
+        if type(self.evaluations) is not int or not 1 <= self.evaluations <= 100_000:
+            raise ValueError("Random Search evaluations must be in [1,100000]")
+        if self.seed is not None and (type(self.seed) is not int or not 0 <= self.seed < 2**32):
+            raise ValueError("Random Search seed must be unsigned 32-bit or None")

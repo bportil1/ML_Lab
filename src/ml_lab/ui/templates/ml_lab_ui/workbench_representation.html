@@ -1,0 +1,83 @@
+{% import 'ml_lab_ui/_workbench_error.html' as mlwb_error %}
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Representation · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head">
+  <div><p class="eyebrow">Unified research workbench</p><h1>Representation</h1>
+  <p class="lede">Explore dimensionality reduction on the active, verified numeric dataset. No trained model is saved and no experiment run is created by this preview.</p></div>
+</section>
+{{ mlwb_error.show_error(error, url_for(request.blueprint + '.workbench_representation'), url_for(request.blueprint + '.data_lab'), title='Could not complete this action') }}
+{% if context.status != 'ready' %}
+<section class="panel"><h2>No verified active dataset</h2>
+  <p>{{ context.validation_error or 'Select a CSV/TSV dataset in Data. Materialize XML collections as a derived dataset first.' }}</p>
+  <a class="button" href="{{ url_for(request.blueprint + '.data_lab') }}">Open Data</a>
+</section>
+{% else %}
+<section class="panel">
+  <h2>Verified input</h2><p><code>{{ context.active_dataset.path }}</code></p>
+  <p class="muted">{{ context.active_dataset.rows }} rows · {{ context.active_dataset.feature_columns|length }} selected features · generation {{ context.generation }}.</p>
+  <p class="tiny muted">Only the pinned feature columns are used; feature-profiling display-role overrides do not alter model inputs. All selected values must be numeric, finite and nonmissing. The general limit is {{ max_rows }} rows × {{ max_features }} features; nonlinear methods have a smaller, explicit limit. No silent sampling, automatic imputation or data mutation is performed.</p>
+  <a class="button secondary" href="{{ url_for(request.blueprint + '.data_lab') }}">Change selected dataset</a>
+  <a class="button" href="{{ url_for(request.blueprint + '.workbench_autoencoder') }}">Trainable autoencoders</a>
+</section>
+<section class="panel"><h2>Fit a representation (preview only)</h2>
+  <form action="{{ url_for(request.blueprint + '.workbench_representation') }}" method="post" class="mlwb-repr-form">
+    <input type="hidden" name="expected_generation" value="{{ context.generation }}">
+    <input type="hidden" name="source_sha256" value="{{ context.active_dataset.sha256 }}">
+    <label for="repr-method">Method</label>
+    <select id="repr-method" name="method" required>
+      {% for option in methods %}
+      <option value="{{ option.id }}" {% if option.id == method %}selected{% endif %}>{{ option.title }}{% if not option.can_inverse_transform %} · no inverse{% endif %}{% if not option.can_transform_new_data %} · fit only{% endif %}</option>
+      {% endfor %}
+    </select>
+    <label for="repr-components">Latent dimensions</label>
+    <input id="repr-components" type="number" name="components" min="1" max="{{ context.active_dataset.feature_columns|length }}" value="{{ raw_components }}" required>
+    <label for="repr-scaling">Feature scaling</label>
+    <select name="scaling" id="repr-scaling">
+      {% for option in scalings %}<option value="{{ option }}" {% if option == scaling %}selected{% endif %}>{{ option }}</option>{% endfor %}
+    </select>
+    <label for="repr-x">Plot X latent axis (1-based)</label><input type="number" id="repr-x" name="axis_x" min="1" value="{{ raw_x }}" required>
+    <label for="repr-y">Plot Y latent axis (1-based)</label><input type="number" id="repr-y" name="axis_y" min="1" value="{{ raw_y }}" required>
+    <label class="mlwb-repr-checkbox"><input type="checkbox" name="reconstruct" value="1" {% if reconstruct %}checked{% endif %}> Estimate inverse/reconstruction error (only for methods with inverse)</label>
+    <button class="button" type="submit">Fit selected representation</button>
+  </form>
+  <p class="tiny muted">PCA delegates to the existing ML_Lab PCA implementation. Other methods use scikit-learn estimators. NMF requires nonnegative values (use minmax scaling); Kernel PCA reconstruction is approximate. Isomap cannot inverse-transform; t-SNE is fit-only and cannot transform new observations or reconstruct inputs. Plot axes must be different if two or more latent dimensions are requested.</p>
+</section>
+{% if report %}
+<section class="summary-grid" aria-label="Representation summary">
+  <div class="metric"><strong>{{ report.method_title }}</strong><span>Fitted method</span></div>
+  <div class="metric"><strong>{{ report.latent_shape[0] }} × {{ report.latent_shape[1] }}</strong><span>Embedding shape</span></div>
+  <div class="metric"><strong>{{ 'Yes' if report.capabilities.transform_new_data else 'No' }}</strong><span>Estimator supports new-data transform</span></div>
+  <div class="metric"><strong>{{ 'Yes' if report.capabilities.inverse_transform else 'No' }}</strong><span>Inverse available</span></div>
+</section>
+{% if report.metrics %}
+<section class="panel"><h2>Input-space reconstruction diagnostics</h2>
+  <p class="muted">These values compare reconstructed features against the same observations used for fitting. They are training-set reconstruction errors, not held-out evaluation or model quality rankings.</p>
+  <div class="table-wrap"><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>
+    {% for key, value in report.metrics.items() %}<tr><td>{{ key }}</td><td>{{ '%.6g'|format(value) }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endif %}
+{% if report.metadata.explained_variance_ratio_sum is defined %}
+<p class="muted">Explained variance ratio sum: {{ '%.6g'|format(report.metadata.explained_variance_ratio_sum) }}.</p>
+{% endif %}
+{% if report.scatter %}
+<section class="panel"><h2>Latent scatter preview</h2>
+  <p class="muted">Dimension {{ report.scatter.axes[0] }} vs. dimension {{ report.scatter.axes[1] }}; {{ report.scatter.points|length }} of {{ report.scatter.total_rows }} observations{% if report.scatter.sampled %}, selected deterministically for display{% endif %}.</p>
+  <svg class="mlwb-repr-scatter" viewBox="0 0 600 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Representation latent scatter plot">
+    <line x1="38" y1="282" x2="560" y2="282" stroke="currentColor"/><line x1="38" y1="36" x2="38" y2="282" stroke="currentColor"/>
+    {% for point in report.scatter.points %}<circle cx="{{ point.x }}" cy="{{ point.y }}" r="2.3" fill="currentColor" opacity=".55"><title>Row {{ point.row }}</title></circle>{% endfor %}
+    <text x="300" y="322" text-anchor="middle" fill="currentColor" font-size="12">Latent {{ report.scatter.axes[0] }} ({{ '%.3g'|format(report.scatter.x_range[0]) }} – {{ '%.3g'|format(report.scatter.x_range[1]) }})</text>
+    <text x="45" y="19" fill="currentColor" font-size="12">Latent {{ report.scatter.axes[1] }} ({{ '%.3g'|format(report.scatter.y_range[0]) }} – {{ '%.3g'|format(report.scatter.y_range[1]) }})</text>
+  </svg>
+</section>
+{% else %}<p class="muted">The fit has one latent dimension; a two-axis scatter is not meaningful.</p>{% endif %}
+<section class="panel"><h2>Latent coordinate preview</h2>
+  <div class="table-wrap"><table><thead><tr><th>Source row</th>{% for index in range(report.latent_shape[1]) %}<th>Latent {{ index + 1 }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for observation in report.preview %}<tr><td>{{ observation.row }}</td>{% for value in observation.values %}<td>{{ '%.6g'|format(value) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+  <p class="tiny muted">First {{ report.preview|length }} rows only; the embedding and fitted model are not saved. Model experiments and reusable artifacts continue through the existing experiment workflow.</p>
+  <a class="button secondary" href="{{ url_for(request.blueprint + '.task', capability_id='representation') }}">Existing PCA / neural representation task</a>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

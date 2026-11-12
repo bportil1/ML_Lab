@@ -4,9 +4,10 @@ from __future__ import annotations
 from typing import Callable
 
 from .firefly import Firefly
+from .random_search import RandomSearch
 
 
-_ALGORITHMS: dict[str, Callable] = {"firefly": Firefly}
+_ALGORITHMS: dict[str, Callable] = {"firefly": Firefly, "random_search": RandomSearch}
 
 
 def normalize_optimizer_name(name: str) -> str:

@@ -15,8 +15,20 @@
 
 <section class="panel">
   <h2>Unified experiment workspace</h2>
-  <p>Choose Data, Models, Representation, EBM, Optimization, Generative, XML, or Results independently. A selection is optional; saved project-local experiments are available across tools. Existing JSON task workbenches remain available.</p>
-  <a class="button" href="{{ url_for(request.blueprint + '.workspace') }}">Open scientific workspace</a>
+  <p>Use the five-section research workbench to access existing data, modeling, and analysis tools. The active dataset indicator is read-only for now; legacy data selections are not automatically bound to the new instance until a later integration patch.</p>
+  <div class="button-row">
+    <a class="button" href="{{ url_for(request.blueprint + '.workspace') }}">Open scientific workspace</a>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.data_lab') }}">Data</a>
+    {% if mlwb_navigation is defined %}
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.workbench_representation') }}">Representation</a>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.workbench_comparison') }}">Compare</a>
+    {% else %}
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.task', capability_id='representation') }}">Representation</a>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.data_compare') }}">Compare</a>
+    {% endif %}
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.data_transform') }}">Transform</a>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.data_provenance') }}">Provenance</a>
+  </div>
 </section>
 
 {% for group in groups %}

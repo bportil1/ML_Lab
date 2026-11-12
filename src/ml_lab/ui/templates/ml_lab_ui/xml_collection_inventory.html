@@ -1,6 +1,7 @@
 {% extends "ml_lab_ui/base.html" %}
 {% block title %}XML collection inventory · ML Lab{% endblock %}
 {% block content %}
+{% set xml_workflow_stage = "inventory" %}{% include "ml_lab_ui/_xml_workflow_steps.html" %}
 <p><a href="{{ url_for(request.blueprint + '.xml_catalog_browser') }}">Browse indexed XML catalog</a></p>
 <a class="back" href="{{ url_for(request.blueprint + '.data_lab') }}">← Data Lab</a>
 <section class="workspace-head"><div>
@@ -62,7 +63,7 @@
   <div class="metric"><strong>{{ comparison.summary.excluded_source_count }}</strong><span>Excluded / changed</span></div>
   <div class="metric"><strong>{{ comparison.summary.group_count }}</strong><span>Candidate groups</span></div>
 </section>
-<div class="tip">Structure matches and compatible variants are advisory evidence. Use <strong>Extract all group data</strong> to carry every member of one compatible group into a shared recipe automatically, or use compatibility review for manual membership control.</div>
+<div class="tip">Structure matches and compatible variants are advisory evidence. Use <strong>Prepare full-group extraction recipe</strong> to carry every member of one compatible group into a shared recipe automatically, or use compatibility review for manual membership control.</div>
 <section class="panel inventory-panel">
   <h2>Candidate structure groups</h2>
   <div class="table-wrap"><table class="interactive-table" data-page-size="50">
@@ -85,7 +86,7 @@
           {% if recursive %}<input type="hidden" name="recursive" value="1">{% endif %}
           {% if include_hidden %}<input type="hidden" name="include_hidden" value="1">{% endif %}
           {% for member in group.members %}<input type="hidden" name="selected" value="{{ member }}">{% endfor %}
-          <button class="button mini" type="submit">Extract all group data</button>
+          <button class="button mini" type="submit">Prepare full-group extraction recipe</button>
         </form>
         {% endif %}
       </td></tr>

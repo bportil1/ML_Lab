@@ -851,6 +851,15 @@
     panel.querySelector("[data-xml-materialize-structure]").textContent = materializationResult.structure_artifact_path || "";
     const transformLink = panel.querySelector("[data-xml-materialize-transform]");
     if (transformLink && materializationResult.transform_url) transformLink.href = materializationResult.transform_url;
+    const workbenchLink = panel.querySelector("[data-xml-materialize-workbench]");
+    if (workbenchLink) {
+      const url = materializationResult.workbench_select_url;
+      workbenchLink.hidden = !url;
+      if (url) workbenchLink.href = url;
+      else workbenchLink.removeAttribute("href");
+    }
+    const note = panel.querySelector("[data-xml-materialize-workbench-note]");
+    if (note) note.hidden = Boolean(materializationResult.workbench_select_url);
     panel.querySelector("[data-xml-materialize-json]").textContent = JSON.stringify(materializationResult, null, 2);
   };
 

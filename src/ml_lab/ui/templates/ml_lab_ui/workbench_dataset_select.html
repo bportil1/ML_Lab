@@ -1,0 +1,52 @@
+{% import 'ml_lab_ui/_workbench_error.html' as mlwb_error %}
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Select active dataset · ML Lab{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for(request.blueprint + '.xml_workbench') }}">← XML extraction workspace</a>
+<section class="workspace-head"><div>
+  <p class="eyebrow">ML_Lab workbench · dataset context</p>
+  <h1>Use dataset in this workbench</h1>
+  <p class="lede">A dataset must be an existing project-local CSV or TSV. The selected schema and source fingerprint are pinned to an immutable experiment revision. The previous active experiment remains available in history.</p>
+</div></section>
+{{ mlwb_error.show_error(error, url_for(request.blueprint + '.workbench_select_file', path=source_path), url_for(request.blueprint + '.data_lab'), title='Could not complete this action') }}
+{% if updated %}
+<section class="panel">
+  <h2>Active dataset updated</h2>
+  <p><strong>{{ updated.active_dataset.path }}</strong> · {{ updated.active_dataset.rows }} rows · {{ updated.active_dataset.columns }} columns</p>
+  <p>Instance generation {{ updated.generation }} · experiment {{ updated.experiment_id }} · revision {{ updated.experiment_revision }}</p>
+  <div class="button-row">
+    <a class="button" href="{{ url_for(request.blueprint + '.workbench_feature_profiling') }}">Continue to Feature Profiling</a>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.workbench_representation') }}">Representation</a>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.workbench_comparison') }}">Comparison</a>
+  </div>
+</section>
+{% elif preview %}
+<section class="panel">
+  <h2>Verify dataset identity</h2>
+  <p><code>{{ preview.path }}</code></p>
+  <p>{{ preview.rows }} rows · {{ preview.columns }} columns · SHA-256 <code>{{ preview.sha256 }}</code></p>
+  {% if context.active_dataset %}
+  <p class="muted">Currently active: {{ context.active_dataset.path }}. Activating the dataset below will switch this instance, not erase the earlier experiment.</p>
+  {% endif %}
+  <form method="post" action="{{ url_for(request.blueprint + '.workbench_select_file') }}">
+    <input type="hidden" name="path" value="{{ source_path }}">
+    <input type="hidden" name="source_sha256" value="{{ preview.sha256 }}">
+    <input type="hidden" name="source_dataset_id" value="{{ preview.dataset_id }}">
+    <input type="hidden" name="expected_generation" value="{{ context.generation }}">
+    <label for="workbench-experiment-name">Experiment label (optional)</label>
+    <input id="workbench-experiment-name" name="experiment_name" value="XML dataset: {{ preview.path|replace('\\', '/')|replace('/', ' · ') }}">
+    <h3>Feature columns</h3>
+    <p class="muted">Choose the columns you want to analyze. Change the selection later by creating a new dataset revision; the original source is not altered.</p>
+    <div class="table-wrap"><table class="interactive-table" data-page-size="50"><thead><tr><th>Feature</th><th>Column</th><th>Type</th><th>Target</th></tr></thead><tbody>
+    {% for column in preview.column_names %}<tr>
+      <td><input type="checkbox" name="features" value="{{ column }}" checked aria-label="Use {{ column }} as feature"></td>
+      <td>{{ column }}</td><td>{{ preview.dtypes[loop.index0] }}</td>
+      <td><input type="checkbox" name="targets" value="{{ column }}" aria-label="Use {{ column }} as target"></td>
+    </tr>{% endfor %}
+    </tbody></table></div>
+    <p class="muted">Features and targets must not overlap. Uncheck a feature if selecting it as a target.</p>
+    <button class="button" type="submit">Activate selected dataset</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

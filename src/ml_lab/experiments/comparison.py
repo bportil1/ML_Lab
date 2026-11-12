@@ -58,7 +58,7 @@ def _model_metrics(document: Any) -> dict[str, int | float]:
 
 
 def _optimization_metrics(document: Any, plan: Mapping[str, Any]) -> tuple[dict[str, int | float], dict[str, Any]]:
-    if not isinstance(document, Mapping) or document.get("algorithm") != "firefly":
+    if not isinstance(document, Mapping) or document.get("algorithm") not in {"firefly", "random_search"}:
         return {}, {}
     metric = plan.get("metric")
     goal = plan.get("goal")
@@ -72,7 +72,7 @@ def _optimization_metrics(document: Any, plan: Mapping[str, Any]) -> tuple[dict[
     values = {f"best observed · {metric}": observed} if observed is not None else {}
     parameters = document.get("best_parameters")
     return values, {
-        "metric": metric, "goal": goal,
+        "algorithm": document.get("algorithm"), "metric": metric, "goal": goal,
         "evaluations": document.get("evaluations") if type(document.get("evaluations")) is int else None,
         "best_parameters": parameters if isinstance(parameters, dict) else {},
     }

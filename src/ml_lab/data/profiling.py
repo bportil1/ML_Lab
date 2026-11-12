@@ -196,6 +196,8 @@ def _numeric_summary(series: pd.Series, *, outlier_iqr_multiplier: float) -> dic
         "max": float(numeric.max()),
         "mean": float(numeric.mean()),
         "std": std,
+        "variance": float(numeric.var(ddof=1)) if len(numeric) > 1 else 0.0,
+        "zero_rate": float((numeric == 0).mean()),
         "q1": q1,
         "median": median,
         "q3": q3,

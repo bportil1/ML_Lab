@@ -218,10 +218,16 @@ class Firefly(OptimizationAlgorithm):
         self.objective_history[iteration] = [dict(item.objective_terms) if item is not None else {} for item in self.evaluations]
 
     def _move_position(self, pos1, pos2, fitness1, fitness2):
-        pos1 = np.asarray(pos1, dtype=float)
-        pos2 = np.asarray(pos2, dtype=float)
-        lower = np.asarray([pair[0] for pair in self.bounds], dtype=float)
-        upper = np.asarray([pair[1] for pair in self.bounds], dtype=float)
+        # Legacy linear parameters preserve their original movement policy.
+        # Log parameters instead move in log10 coordinates so attraction and
+        # mutation are invariant to changes in physical parameter units.
+        to_coords = getattr(self.search_space, "to_movement_coordinates", np.asarray)
+        from_coords = getattr(self.search_space, "from_movement_coordinates", self.search_space.coerce)
+        pos1 = to_coords(pos1)
+        pos2 = to_coords(pos2)
+        movement_bounds = getattr(self.search_space, "movement_bound_pairs", self.bounds)
+        lower = np.asarray([pair[0] for pair in movement_bounds], dtype=float)
+        upper = np.asarray([pair[1] for pair in movement_bounds], dtype=float)
         scale = upper - lower
         safe_scale = np.where(scale == 0, 1.0, scale)
         p1 = (pos1 - lower) / safe_scale
@@ -236,7 +242,7 @@ class Firefly(OptimizationAlgorithm):
         for index in range(len(new_pos)):
             if self.rng.random() < self.mutation_probability and scale[index] > 0:
                 new_pos[index] += self.rng.uniform(-scale[index] * self.mutation_scale_fraction, scale[index] * self.mutation_scale_fraction)
-        return self.search_space.coerce(new_pos)
+        return from_coords(new_pos)
 
     def move_population(self):
         new_positions = [np.asarray(position, dtype=float).copy() for position in self.positions]

@@ -1,0 +1,15 @@
+{# Shared, read-only recovery links for the new workbench views.
+   GET reloads may drop unsaved form edits; no automatic retry is attempted. #}
+{% macro show_error(message, reload_url, data_url=none, title='Could not complete this action') -%}
+{% if message %}
+<div class="alert data-alert mlwb-workbench-error" role="alert">
+  <strong>{{ title }}</strong>
+  <p>{{ message }}</p>
+  <div class="button-row mlwb-error-actions">
+    <a class="button secondary" href="{{ reload_url }}">Reload current view</a>
+    {% if data_url %}<a class="button secondary" href="{{ data_url }}">Open Data</a>{% endif %}
+  </div>
+  <p class="tiny muted">Reloading fetches the latest verified workbench context; unsaved form edits will be lost. No action is retried automatically.</p>
+</div>
+{% endif %}
+{%- endmacro %}

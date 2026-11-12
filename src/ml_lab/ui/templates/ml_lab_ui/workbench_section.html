@@ -1,0 +1,22 @@
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}{{ section_title }} · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head">
+  <div>
+    <p class="eyebrow">Unified research workbench</p>
+    <h1>{{ section_title }}</h1>
+    <p class="lede">{{ section_description }}</p>
+  </div>
+</section>
+<section class="mlwb-landing" aria-label="{{ section_title }} options">
+  {% for card in cards %}
+  <article class="panel mlwb-tool-card">
+    <div class="card-head"><h2>{{ card.title }}</h2>
+      <span class="badge {{ 'ready' if card.status == 'Available' else 'planned' }}">{{ card.status }}</span>
+    </div>
+    <p class="muted">{{ card.description }}</p>
+    {% if card.url %}<a class="button secondary" href="{{ card.url }}">Open tool</a>{% endif %}
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}

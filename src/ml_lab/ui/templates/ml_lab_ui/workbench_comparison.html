@@ -1,0 +1,66 @@
+{% import 'ml_lab_ui/_workbench_error.html' as mlwb_error %}
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}Comparison · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head"><div>
+  <p class="eyebrow">Unified research workbench</p><h1>Comparison</h1>
+  <p class="lede">Explore source-matched representations side by side. Fresh sklearn fits reuse the Representation algorithms; saved neural results are read only from verified experiment artifacts.</p>
+</div></section>
+<section class="mlwb-landing" aria-label="Other comparisons">
+<article class="panel mlwb-tool-card"><h2>Dataset comparison</h2><p>Compare schemas, row overlap and content relationships.</p><a class="button secondary" href="{{ url_for(request.blueprint + '.data_compare') }}">Open dataset comparison</a></article>
+<article class="panel mlwb-tool-card"><h2>Model run comparison</h2><p>Compare existing revision-pinned experiment results.</p><a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_model') }}">Open model experiments</a></article>
+</section>
+{% if context.status != 'ready' %}
+<section class="panel"><h2>No verified active dataset</h2><p>{{ context.validation_error or 'Select a feature-only CSV or TSV in Data.' }}</p><a class="button" href="{{ url_for(request.blueprint + '.data_lab') }}">Open Data</a></section>
+{% else %}
+<section class="panel"><h2>Shared comparison cohort</h2>
+<p><code>{{ context.active_dataset.path }}</code> · {{ context.active_dataset.rows }} rows · {{ context.active_dataset.feature_columns|length }} selected features · revision {{ context.experiment_revision }}</p>
+<p class="tiny muted">The comparison is bounded to {{ max_rows }} rows and {{ max_features }} selected numeric, complete features. No automatic row sampling, imputation, fitting cache, neural training or source-data modification.</p>
+<form method="post" action="{{ url_for(request.blueprint + '.workbench_comparison') }}" class="mlwb-compare-form">
+<input type="hidden" name="expected_generation" value="{{ context.generation }}">
+<input type="hidden" name="expected_revision" value="{{ context.experiment_revision }}">
+<input type="hidden" name="source_sha256" value="{{ context.active_dataset.sha256 }}">
+<fieldset><legend>Fresh sklearn fits (choose 2–{{ max_methods }})</legend>
+<div class="mlwb-method-choices">{% for item in methods %}<label><input type="checkbox" name="methods" value="{{ item.id }}" {% if item.id in chosen_methods %}checked{% endif %}> {{ item.title }}{% if not item.can_inverse_transform %} <small>(no inverse)</small>{% endif %}</label>{% endfor %}</div>
+</fieldset>
+<div class="mlwb-compare-options"><label>Latent dimensions<input type="number" name="components" min="1" max="8" value="{{ raw_components }}" required></label>
+<label>Input scaling<select name="scaling">{% for item in scalings %}<option value="{{ item }}" {% if item == scaling %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label></div>
+<label class="mlwb-compare-toggle"><input type="checkbox" name="include_recorded_neural" value="1" {% if include_neural %}checked{% endif %}> Include verified MLP/Transformer runs from this experiment, only when dimensions, dataset, feature order and training scaling match</label>
+<p class="tiny muted">NMF requires minmax or nonnegative unscaled data. t-SNE accepts up to 3 dimensions, cannot inverse-transform, and does not support new-data transforms. Failed or incompatible fits appear separately rather than as zero scores.</p>
+<div class="mlwb-compare-actions"><button class="button" type="submit">Compute comparison</button><button class="button secondary" name="export" value="csv" type="submit">Compute &amp; export CSV</button><button class="button secondary" name="export" value="svg" type="submit">Compute &amp; export SVG</button><button class="button secondary" name="export" value="tex" type="submit">Compute &amp; export LaTeX</button></div>
+</form></section>
+{% endif %}
+{{ mlwb_error.show_error(error, url_for(request.blueprint + '.workbench_comparison'), url_for(request.blueprint + '.data_lab'), title='Could not complete this action') }}
+{% if report %}
+<section class="panel"><h2>Comparison conditions</h2>
+<p>{{ report.source.rows }} identical source rows, {{ report.source.columns }} ordered input columns, {{ report.conditions.components }} latent dimensions, {{ report.conditions.scaling }} scaling. <strong>{{ report.conditions.evaluation }}</strong>.</p>
+<p class="muted">{{ report.note }}</p>
+</section>
+<section class="panel"><h2>Side-by-side evaluation</h2>
+<div class="table-wrap"><table><thead><tr><th>Representation</th><th>Origin</th><th>Input MSE</th><th>Input RMSE</th><th>Input MAE</th><th>Trustworthiness</th><th>Distance-rank Spearman</th><th>Provenance</th></tr></thead><tbody>
+{% for item in report.results %}<tr><td>{{ item.title }}</td><td>{{ 'Saved neural run' if item.kind == 'verified_saved_neural' else 'Fresh fit' }}</td>
+{% for key in ['mse', 'rmse', 'mae'] %}<td>{% if item.metrics[key] is defined %}{{ '%.5g'|format(item.metrics[key]) }}{% else %}N/A{% endif %}</td>{% endfor %}
+<td>{{ '%.5g'|format(item.geometry.trustworthiness) }}</td><td>{% if item.geometry.distance_rank_spearman is not none %}{{ '%.5g'|format(item.geometry.distance_rank_spearman) }}{% else %}N/A{% endif %}</td>
+<td>{% if item.run_id %}<a href="{{ url_for(request.blueprint + '.experiment_model_run_view', run_id=item.run_id) }}">Run {{ item.run_id[:12] }}…</a>{% else %}Ephemeral{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+<p class="tiny muted">MSE/RMSE/MAE are computed in original feature units on all input rows and are unavailable for methods without a supported inverse. Trustworthiness uses {{ report.results[0].geometry.neighbors if report.results else 5 }} shared input neighbors; distance-rank Spearman compares all pairwise source distances to latent distances. Neither measure establishes an independent test score.</p>
+</section>
+{% if report.results %}
+<section class="panel"><h2>Relative neighborhood preservation</h2><p class="tiny muted">Bars depict trustworthiness in the range 0–1, not model quality or an overall score.</p>
+{% for item in report.results %}
+<div class="mlwb-compare-bar"><div><span>{{ item.title }}{% if item.run_id %} · saved{% endif %}</span><span>{{ '%.3f'|format(item.geometry.trustworthiness) }}</span></div><meter min="0" max="1" value="{{ item.geometry.trustworthiness }}">{{ item.geometry.trustworthiness }}</meter></div>
+{% endfor %}</section>
+<section class="panel"><h2>Latent-space preview</h2><p class="tiny muted">Each plot has its own latent-axis range, so apparent distances and visual scale must not be compared directly between plots. Shared source rows are marked by their original row number.</p>
+<div class="mlwb-compare-previews">{% for item in report.results %}<section class="mlwb-compare-preview"><h3>{{ item.title }}{% if item.run_id %} · saved{% endif %}</h3>
+{% if item.scatter %}<svg viewBox="0 0 600 330" class="mlwb-repr-scatter" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="{{ item.title }} latent-space scatter">
+<line x1="38" y1="282" x2="560" y2="282" stroke="currentColor"/><line x1="38" y1="36" x2="38" y2="282" stroke="currentColor"/>
+{% for point in item.scatter.points %}<circle cx="{{ point.x }}" cy="{{ point.y }}" r="2.3" fill="currentColor" opacity=".55"><title>Source row {{ point.row }}</title></circle>{% endfor %}
+<text x="300" y="320" text-anchor="middle" font-size="12" fill="currentColor">Latent 1 ({{ '%.3g'|format(item.scatter.x_range[0]) }} to {{ '%.3g'|format(item.scatter.x_range[1]) }})</text>
+<text x="38" y="20" font-size="12" fill="currentColor">Latent 2 ({{ '%.3g'|format(item.scatter.y_range[0]) }} to {{ '%.3g'|format(item.scatter.y_range[1]) }})</text></svg>
+{% else %}<p>One latent dimension; 2-D scatter unavailable.</p>{% endif %}
+<p class="tiny muted">{{ item.notes }}</p></section>{% endfor %}</div></section>
+{% endif %}
+{% if report.failures %}<section class="panel"><h2>Unavailable or failed fits</h2><ul>{% for item in report.failures %}<li><strong>{{ item.title }}</strong>: {{ item.reason }}</li>{% endfor %}</ul><p class="tiny muted">An unavailable score is never coerced to zero.</p></section>{% endif %}
+{% if report.excluded_runs %}<section class="panel"><h2>Excluded saved neural runs</h2><ul>{% for item in report.excluded_runs %}<li>{{ item.run_id[:12] }}… — {{ item.reason }}</li>{% endfor %}</ul></section>{% endif %}
+{% endif %}
+{% endblock %}

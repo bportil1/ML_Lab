@@ -7,43 +7,73 @@
   <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab.css') }}">
   <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='pah-module-theme.css') }}">
   <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_pah_compat.css') }}">
+  <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_workbench.css') }}">
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_tables.js') }}"></script>
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_path_input.js') }}"></script>
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_workspace.js') }}"></script>
+  <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_workbench_context.js') }}"></script>
   {% block styles %}{% endblock %}
 </head>
-<body class="pah-module" data-pah-module-root data-workspace-scope="{{ workspace_scope }}" data-workspace-current="{{ workspace_active_tool }}" data-workspace-context-url="{{ url_for(request.blueprint + '.workspace_context') }}">
-  <header class="topbar pah-module-header">
+<body class="pah-module mlwb-page" data-pah-module-root data-workspace-scope="{{ workspace_scope }}" data-workspace-current="{{ workspace_active_tool }}" data-workspace-context-url="{{ url_for(request.blueprint + '.workspace_context') }}">
+  <a class="mlwb-skip-link" href="#mlwb-main">Skip to main content</a>
+  <header class="topbar pah-module-header mlwb-header">
     <div class="brand-group">
       <a class="brand" href="{{ url_for(request.blueprint + '.index') }}">ML Lab</a>
       <span class="version">v{{ version }}</span>
     </div>
-    <nav class="module-nav pah-tool-nav" data-pah-tool-nav aria-label="ML Lab">
-      <a href="{{ url_for(request.blueprint + '.index') }}" class="nav-link {% if request.endpoint == request.blueprint + ".index" %}active{% endif %}">Overview</a>
-      <a href="{{ url_for(request.blueprint + '.workspace') }}" class="nav-link {% if request.endpoint == request.blueprint + '.workspace' %}active{% endif %}">Workspace</a>
-      <a href="{{ url_for(request.blueprint + '.data_lab') }}" class="nav-link {% if request.endpoint == request.blueprint + ".data_lab" %}active{% endif %}">Data</a>
-      <a href="{{ url_for(request.blueprint + '.experiment_model') }}" class="nav-link {% if request.endpoint == request.blueprint + ".experiment_model" %}active{% endif %}">Experiments</a>
-      <a href="{{ url_for(request.blueprint + '.data_compare') }}" class="nav-link {% if request.endpoint == request.blueprint + ".data_compare" %}active{% endif %}">Compare</a>
-      <a href="{{ url_for(request.blueprint + '.data_transform') }}" class="nav-link {% if request.endpoint == request.blueprint + ".data_transform" %}active{% endif %}">Transform</a>
-      <a href="{{ url_for(request.blueprint + '.data_provenance') }}" class="nav-link {% if request.endpoint == request.blueprint + ".data_provenance" %}active{% endif %}">Provenance</a>
-    </nav>
+    {% if mlwb_navigation is defined %}
+    <span class="mlwb-dataset-status" role="status" aria-live="polite"
+          data-mlwb-context-url="{{ url_for(request.blueprint + '.workbench_context_api') }}">
+      Active dataset: checking…
+    </span>
+    {% else %}<span class="mlwb-dataset-status">Dataset context unavailable in legacy UI</span>{% endif %}
+    <a class="mlwb-header-workspace" href="{{ url_for(request.blueprint + '.workspace') }}">Workspace</a>
     <span class="mode">local · optional UI</span>
   </header>
-  <div class="scientific-workspace-layout">
-    <aside class="scientific-tool-palette" aria-label="Scientific tools">
-      <div class="scientific-tool-palette-heading">Tools <span class="muted">· any order</span></div>
-      <nav class="scientific-tool-list" aria-label="Scientific tool palette">
-        {% for tool in workspace_tools %}
-        <a class="scientific-tool-link {% if workspace_active_tool == tool.id %}active{% endif %}"
-           data-workspace-tool="{{ tool.id }}" data-workspace-target="{{ tool.endpoint }}"
-           {% if workspace_active_tool == tool.id %}aria-current="page"{% endif %}
-           href="{{ url_for(request.blueprint + '.' + tool.endpoint, **tool.query) }}{% if tool.anchor %}#{{ tool.anchor }}{% endif %}">{{ tool.title }}</a>
+  <div class="mlwb-layout">
+    <aside class="mlwb-sidebar" aria-label="ML Lab tools">
+      <div class="mlwb-sidebar-title">Tools</div>
+      <nav class="mlwb-primary-nav pah-tool-nav" data-pah-tool-nav aria-label="Research workflow">
+        {% if mlwb_navigation is defined %}
+          {% for item in mlwb_navigation.sections %}
+          <a href="{{ item.url }}" class="mlwb-primary-link{% if item.active %} active{% endif %}"
+             {% if item.active %}aria-current="page"{% endif %}>{{ item.label }}</a>
+          {% endfor %}
+        {% else %}
+          {# The older direct blueprint factory lacks the new section routes. #}
+          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_lab') }}">Data</a>
+          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_lab') }}">Feature Profiling</a>
+          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.task', capability_id='representation') }}">Representation</a>
+          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_compare') }}">Comparison</a>
+          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.experiment_model') }}">General ML Tools</a>
+        {% endif %}
+      </nav>
+      {% if mlwb_navigation is defined and mlwb_navigation.links %}
+      <div class="mlwb-subtitle">{{ mlwb_navigation.active_label }}</div>
+      <nav class="mlwb-secondary-nav" aria-label="{{ mlwb_navigation.active_label }} options">
+        {% for item in mlwb_navigation.links %}
+        <a href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a>
         {% endfor %}
       </nav>
-      <a class="scientific-palette-home" href="{{ url_for(request.blueprint + '.workspace') }}">Selected context &amp; all tools</a>
-      <small>Choose a tool directly. No stage must be completed first.</small>
+      {% endif %}
+      {% if mlwb_navigation is defined %}
+        {% set section_tools = mlwb_navigation.tools %}
+      {% else %}
+        {% set section_tools = workspace_tools %}
+      {% endif %}
+      {% if section_tools %}
+      <div class="mlwb-subtitle">Existing tools</div>
+      <nav class="mlwb-secondary-nav mlwb-legacy-tools" aria-label="Existing scientific tools">
+        {% for tool in section_tools %}
+        <a class="scientific-tool-link{% if workspace_active_tool == tool.id %} active{% endif %}"
+           data-workspace-tool="{{ tool.id }}" data-workspace-target="{{ tool.endpoint }}"
+           {% if workspace_active_tool == tool.id %}aria-current="page"{% endif %}
+           href="{% if tool.url is defined %}{{ tool.url }}{% else %}{{ url_for(request.blueprint + '.' + tool.endpoint, **tool.query) }}{% if tool.anchor %}#{{ tool.anchor }}{% endif %}{% endif %}">{{ tool.title }}</a>
+        {% endfor %}
+      </nav>
+      {% endif %}
     </aside>
-    <main class="shell scientific-workspace-main">
+    <main class="shell mlwb-main scientific-workspace-main" id="mlwb-main" tabindex="-1">
       {% block content %}{% endblock %}
     </main>
   </div>

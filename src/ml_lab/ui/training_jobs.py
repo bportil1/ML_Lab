@@ -46,7 +46,7 @@ class TrainingJobManager:
         return run_id
 
     def start_optimization(self, experiment_id: str, *, expected_revision: int, plan: dict) -> str:
-        """Launch a bounded, explicitly requested serial Firefly search."""
+        """Launch a bounded, explicitly requested serial optimizer search."""
         from ml_lab.experiments import queue_optimization_run
         with self._lock:
             if len(self._active) >= self.max_active:

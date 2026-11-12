@@ -1,0 +1,104 @@
+{% import 'ml_lab_ui/_workbench_error.html' as mlwb_error %}
+{% extends "ml_lab_ui/base.html" %}
+{% block title %}General ML Tools · ML Lab{% endblock %}
+{% block content %}
+<section class="workspace-head">
+  <div>
+    <p class="eyebrow">Unified research workbench</p>
+    <h1>General ML Tools</h1>
+    <p class="lede">Models, energy-based methods, optimization, and generative workflows share one entry point but retain their existing engines, revision histories, and run ownership.</p>
+  </div>
+</section>
+{% if context %}
+<section class="panel" aria-label="Current workbench selection">
+  <h2>Active dataset in this workbench</h2>
+  {% if context.status == 'ready' %}
+  <p><code>{{ context.active_dataset.path }}</code> · rev {{ context.experiment_revision }} · generation {{ context.generation }}</p>
+  <p class="tiny muted">Opening a model configuration does not change this selection. To profile or compare a different saved experiment, explicitly activate its verified dataset below.</p>
+  <a class="button secondary" href="{{ url_for(request.blueprint + '.workbench_feature_profiling') }}">Inspect active dataset</a>
+  {% else %}
+  <p>{{ context.validation_error or 'No dataset selected for this workbench instance.' }}</p>
+  <a class="button secondary" href="{{ url_for(request.blueprint + '.data_lab') }}">Select a dataset in Data</a>
+  {% endif %}
+</section>
+{% endif %}
+{{ mlwb_error.show_error(error, url_for(request.blueprint + '.workbench_general_ml_tools'), url_for(request.blueprint + '.data_lab'), title="Could not read this project's experiment catalog") }}
+<p class="muted compact">This page lists only recent project-local experiment metadata (up to {{ catalog_limit }} examined, at most 8 shown in each section). Opening a saved configuration never starts a job. Dataset verification and run approvals still occur in the original tool.</p>
+<div class="mlwb-mltools">
+  <section class="panel mlwb-mltools-section" id="models" aria-labelledby="mlwb-models-title">
+    <div class="card-head"><h2 id="mlwb-models-title">Models</h2><span class="badge">Existing engines</span></div>
+    <p class="muted">Configure classification, regression, clustering, representation, RBM, or GAN methods in the typed experiment editor. Revisions and prior runs remain attached to their original experiments.</p>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_model') }}">Open model experiments</a>
+    {% if groups.models %}
+    <h3>Recent dataset experiments</h3>
+    <ul class="mlwb-mltools-experiments">
+      {% for item in groups.models %}
+      <li><span><strong>{{ item.name }}</strong><small>rev {{ item.revision }} · {{ (item.family ~ ' / ' ~ item.method) if item.configured else 'Not configured' }}</small></span>
+        {% if item.configured %}
+        <a href="{{ url_for(request.blueprint + '.experiment_model', experiment_id=item.experiment_id, family=item.family, method=item.method) }}">Configure</a>
+        {% else %}
+        <a href="{{ url_for(request.blueprint + '.experiment_model', experiment_id=item.experiment_id) }}">Configure</a>
+        {% endif %}
+        <a href="{{ url_for(request.blueprint + '.workbench_activate_experiment', experiment_id=item.experiment_id, revision=item.revision) }}">Use in workbench</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted compact">No project-local dataset experiments found. Select a dataset in Data before configuring a model.</p>{% endif %}
+  </section>
+
+  <section class="panel mlwb-mltools-section" id="ebm" aria-labelledby="mlwb-ebm-title">
+    <div class="card-head"><h2 id="mlwb-ebm-title">Energy-based models (EBM)</h2><span class="badge">Existing RBM pipeline</span></div>
+    <p class="muted">Use the existing RBM training and configuration tools. This launcher does not create a separate CD-k trainer or copy saved weights.</p>
+    <div class="mlwb-mltools-actions">
+      <a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_model', family='rbm') }}">Configure RBM</a>
+      <a class="button secondary" href="{{ url_for(request.blueprint + '.task', capability_id='rbm') }}">Direct RBM task</a>
+    </div>
+    {% if groups.ebm %}
+    <h3>Recent RBM configurations</h3>
+    <ul class="mlwb-mltools-experiments">
+      {% for item in groups.ebm %}
+      <li><span><strong>{{ item.name }}</strong><small>rev {{ item.revision }} · {{ item.method }}</small></span>
+        <a href="{{ url_for(request.blueprint + '.experiment_model', experiment_id=item.experiment_id, family='rbm', method=item.method) }}">Open configuration</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted compact">No saved RBM configuration appears in the recent catalog.</p>{% endif %}
+  </section>
+
+  <section class="panel mlwb-mltools-section" id="optimization" aria-labelledby="mlwb-opt-title">
+    <div class="card-head"><h2 id="mlwb-opt-title">Optimization</h2><span class="badge">Revision-pinned runs</span></div>
+    <p class="muted">Firefly and Random Search operate on an already saved model revision with up to four supported numeric controls and verified objectives. It launches its own recorded run and never silently promotes its best candidate into the saved model.</p>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_model') }}">Choose model to optimize</a>
+    {% if groups.optimization %}
+    <h3>Recent configurations with numeric search controls</h3>
+    <ul class="mlwb-mltools-experiments">
+      {% for item in groups.optimization %}
+      <li><span><strong>{{ item.name }}</strong><small>rev {{ item.revision }} · {{ item.family }} / {{ item.method }}</small></span>
+        <a href="{{ url_for(request.blueprint + '.experiment_model', experiment_id=item.experiment_id, family=item.family, method=item.method, _anchor='model-optimization') }}">Open optimization</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted compact">No eligible numeric-control configurations appear in the recent catalog. Save a supported model configuration first.</p>{% endif %}
+  </section>
+
+  <section class="panel mlwb-mltools-section" id="generative" aria-labelledby="mlwb-gen-title">
+    <div class="card-head"><h2 id="mlwb-gen-title">Generative</h2><span class="badge">Synthetic + GAN</span></div>
+    <p class="muted">Use existing statistical generators, or configure GAN/RBM generation in an experiment. GAN/RBM synthetic generation retrains the saved configuration for that run; it does not reuse weights from an earlier run.</p>
+    <div class="mlwb-mltools-actions">
+      <a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_synthetic') }}">Synthetic datasets</a>
+      <a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_model', family='gan') }}">Configure GAN</a>
+      <a class="button secondary" href="{{ url_for(request.blueprint + '.task', capability_id='gan') }}">Direct GAN task</a>
+    </div>
+    {% if groups.generative %}
+    <h3>Recent source datasets for generation</h3>
+    <ul class="mlwb-mltools-experiments">
+      {% for item in groups.generative %}
+      <li><span><strong>{{ item.name }}</strong><small>rev {{ item.revision }} · {{ item.family|upper if item.family in ['gan', 'rbm'] else 'Statistical sampling' }}</small></span>
+        <a href="{{ url_for(request.blueprint + '.experiment_synthetic', experiment_id=item.experiment_id) }}">Open generator</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted compact">Select a project-local dataset in Data to access the synthetic-data workflow.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}
