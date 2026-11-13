@@ -55,7 +55,7 @@ def _parser() -> argparse.ArgumentParser:
     xml_compare.add_argument("--include-hidden", action="store_true")
     xml_compare.add_argument("--include-glob", action="append", default=None)
     xml_compare.add_argument("--exclude-glob", action="append", default=[])
-    xml_compare.add_argument("--max-files", type=int, default=100)
+    xml_compare.add_argument("--max-files", type=int, default=1000, help="Discovery inventory maximum; XML-C2 has no separate parsed-source cap")
     xml_compare.add_argument("--max-entries", type=int, default=100000)
     xml_compare.add_argument("--max-total-bytes", type=int, default=2 * 1024 ** 3)
     xml_compare.add_argument("--max-file-bytes", type=int, default=512 * 1024 ** 2)
@@ -291,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             comparison = data.compare_xml_collection(
                 inventory, minimum_similarity=args.minimum_similarity,
-                max_sources=args.max_files, max_file_bytes=args.max_file_bytes,
+                max_file_bytes=args.max_file_bytes,
                 max_unique_paths=args.max_unique_paths,
             )
             destination = data.save_xml_collection_comparison(comparison, args.output)

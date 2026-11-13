@@ -1,33 +1,23 @@
 {% extends "ml_lab_ui/base.html" %}
-{% block title %}Data Lab · ML Lab{% endblock %}
+{% block title %}Tabular Data · ML Lab{% endblock %}
 {% block content %}
 <a class="back" href="{{ url_for(request.blueprint + '.index') }}">← All capabilities</a>
 <section class="workspace-head">
   <div>
-    <p class="eyebrow">Data · A1/A2.1 · ML-2/ML-3/ML-4</p>
-    <h1>Data intake, profiling, transformation, discovery & provenance</h1>
-    <p class="lede">Inspect unknown CSV/TSV/XML files, load XML structure safely, run statistical profiles with visible status, browse complete source tables, create non-destructive derived datasets, and trace authoritative ML Lab lineage.</p>
+    <p class="eyebrow">Tabular Data · A1/A2.1</p>
+    <h1>Tabular Data: CSV/TSV intake and profiling</h1>
+    <p class="lede">Inspect CSV/TSV files and directories, run tabular profiles with visible status, and browse source tables. XML analysis belongs exclusively in XML Data; cleaning and provenance tools are under Postcollection Utilities.</p>
   </div>
   <span class="badge ready">ready</span>
 </section>
 
-<div class="tip">Inventory and profiling remain read-only. Transformations always create a derived dataset and never silently overwrite the raw source.</div>
-<section class="panel">
-  <h2>XML collection analysis</h2>
-  <p>Process a directory of XML files as one collection: inventory the files, compare structure, review compatible sources, configure one shared extraction recipe, preview combined rows, and generate a consolidated CSV or TSV.</p>
-  <div class="button-row">
-    <a class="button" href="{{ url_for(request.blueprint + '.xml_workbench') }}">Open XML extraction workspace</a>
-    <a class="button secondary" href="{{ url_for(request.blueprint + '.xml_collection_inventory') }}">XML source inventory</a>
-  </div>
-</section>
-<div class="button-row action-strip"><a class="button secondary" href="{{ url_for(request.blueprint + '.data_transform') }}">Transform a dataset</a><a class="button secondary" href="{{ url_for(request.blueprint + '.data_provenance') }}">Trace provenance</a></div>
-
+<div class="tip">Tabular inspection and profiling are read-only. Transformations and provenance are available in Postcollection Utilities.</div>
 <section class="panel data-input-panel">
   <form method="post" action="{{ url_for(request.blueprint + '.data_lab') }}">
     <label for="paths"><strong>Files or directories</strong></label>
-    <p class="muted compact">Enter one local path per line. Directories are inspected recursively by default.</p>
+    <p class="muted compact">Enter CSV/TSV files or directories, one local path per line. Only CSV/TSV files are inspected in this section.</p>
     <div class="path-input-shell" data-path-input>
-      <textarea class="paths-input" id="paths" name="paths" spellcheck="false" autocomplete="off" placeholder="/path/to/datasets&#10;/path/to/file.csv" data-path-autocomplete data-path-multiline="true" data-path-kind="either" data-path-extensions="csv,tsv,xml" data-path-suggestions-url="{{ url_for(request.blueprint + '.path_suggestions') }}">{{ paths_text }}</textarea>
+      <textarea class="paths-input" id="paths" name="paths" spellcheck="false" autocomplete="off" placeholder="/path/to/datasets&#10;/path/to/file.csv" data-path-autocomplete data-path-multiline="true" data-path-kind="either" data-path-extensions="csv,tsv" data-path-suggestions-url="{{ url_for(request.blueprint + '.path_suggestions') }}">{{ paths_text }}</textarea>
       <div class="path-suggestion-menu" data-path-suggestion-menu hidden></div>
     </div>
     <div class="form-row">
@@ -81,7 +71,7 @@
           <td>{% if file.has_header is sameas true %}yes{% elif file.has_header is sameas false %}no{% else %}—{% endif %}</td>
           <td>{{ file.likely_exported_index_columns|join(', ') if file.likely_exported_index_columns else '—' }}</td>
           <td>{% if file.error %}<div class="warning">{{ file.error }}</div>{% endif %}{% if file.warnings %}{{ file.warnings|join('; ') }}{% else %}—{% endif %}</td>
-          <td>{% if file.tabular_ready and file.supported and file.parse_status != 'failed' %}<a class="button mini secondary" href="{{ source_url(file.path) }}">Open source</a> <a class="button mini secondary" href="{{ transform_url(file.path) }}">Transform</a> <a class="button mini secondary" href="{{ provenance_url(file.path) }}">Lineage</a>{% elif file.format == 'xml' and file.parse_status == 'parsed' %}<a class="button mini secondary" href="{{ xml_structure_url(file.path) }}">Explore XML</a>{% else %}—{% endif %}</td>
+          <td>{% if file.tabular_ready and file.supported and file.parse_status != 'failed' %}<a class="button mini secondary" href="{{ source_url(file.path) }}">Open source</a>{% else %}—{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>

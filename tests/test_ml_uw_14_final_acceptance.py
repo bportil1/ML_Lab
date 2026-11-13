@@ -45,9 +45,9 @@ def test_every_ui_template_parses_without_optional_flask():
         env.get_template('ml_lab_ui/' + filename)
 
 
-def test_five_section_scientific_contract_is_preserved():
+def test_scientific_sections_and_data_area_split_are_preserved():
     navigation = (TEMPLATES.parent.parent / 'workbench_navigation.py').read_text(encoding='utf-8')
-    labels = ('Data', 'Feature Profiling', 'Representation', 'Comparison', 'General ML Tools')
+    labels = ('Tabular Data', 'XML Data', 'Postcollection Utilities', 'Feature Profiling', 'Representation', 'Comparison', 'General ML Tools')
     positions = [navigation.index(f'"{label}"') for label in labels]
     assert positions == sorted(positions)
     assert '"Planned"' in navigation  # Held-out benchmarking must not claim availability.
@@ -149,7 +149,7 @@ def test_mounted_page_navigation_is_read_only_and_prefix_safe(tmp_path):
         response = client.get('/pah/labs/ml-lab' + path)
         assert response.status_code == 200, path
         html = response.get_data(as_text=True)
-        assert html.count('class="mlwb-primary-link') == 5, path
+        assert html.count('class="mlwb-primary-link') == 7, path
         assert '/pah/labs/ml-lab/api/workbench/context' in html
     tools = client.get('/pah/labs/ml-lab/workbench/general-ml-tools').get_data(as_text=True)
     for anchor in ('#models', '#ebm', '#optimization', '#generative'):

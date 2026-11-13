@@ -40,6 +40,7 @@ def _profile_payload_from_form() -> dict[str, Any]:
         raise ValueError("Enter at least one file or directory path.")
     return {
         "paths": paths,
+        "allowed_suffixes": (".csv", ".tsv"),
         "recursive": request.form.get("recursive", "") == "1",
         "include_hidden": request.form.get("include_hidden", "") == "1",
         "preview_rows": _form_int("preview_rows", 20),
@@ -484,6 +485,7 @@ def create_ui_blueprint(
                         "data.inspect",
                         {
                             "paths": paths,
+                            "allowed_suffixes": (".csv", ".tsv"),
                             "recursive": recursive,
                             "include_hidden": include_hidden,
                             "preview_rows": preview_rows,
@@ -619,7 +621,6 @@ def create_ui_blueprint(
                 if compare:
                     comparison = data.compare_xml_collection(
                         collection, minimum_similarity=float(minimum_similarity),
-                        max_sources=100,
                     ).to_record()
             except (OSError, TypeError, ValueError) as exc:
                 error = f"{type(exc).__name__}: {exc}"
@@ -891,7 +892,7 @@ def create_ui_blueprint(
                 structure=None,
                 structure_json=None,
                 error=f"{type(exc).__name__}: {exc}",
-                data_url=url_for(request.blueprint + ".data_lab"),
+                data_url=url_for(request.blueprint + ".xml_workbench"),
             ), 400
         if record.format != "xml":
             abort(400)
@@ -904,7 +905,7 @@ def create_ui_blueprint(
                 structure=None,
                 structure_json=None,
                 error=record.error or "XML structure could not be loaded.",
-                data_url=url_for(request.blueprint + ".data_lab"),
+                data_url=url_for(request.blueprint + ".xml_workbench"),
             ), 400
 
         structure = record.xml_structure.to_record()
@@ -916,7 +917,7 @@ def create_ui_blueprint(
             structure=structure,
             structure_json=_pretty(structure),
             error=None,
-            data_url=url_for(request.blueprint + ".data_lab"),
+            data_url=url_for(request.blueprint + ".xml_workbench"),
             record_fields_url=url_for(request.blueprint + ".xml_record_fields", token=token),
             collection_plan_url=url_for(request.blueprint + ".xml_collection_plan", token=token),
             preview_url=url_for(request.blueprint + ".xml_tabular_preview", token=token),
@@ -1311,7 +1312,7 @@ def create_ui_blueprint(
             lineage=lineage,
             lineage_json=(_pretty(lineage) if lineage is not None else None),
             error=error,
-            data_url=url_for(request.blueprint + ".data_lab"),
+            data_url=url_for(request.blueprint + ".workbench_postcollection"),
         )
 
     @blueprint.get("/api/path-suggestions")
@@ -1459,7 +1460,7 @@ def create_ui_blueprint(
             source_table_error=source_table_error,
             provenance_url=(provenance_url(result["derived"]["path"]) if applied and result else None),
             experiment_url=(experiment_dataset_url(result["derived"]["path"]) if applied and result else None),
-            data_url=url_for(request.blueprint + ".data_lab"),
+            data_url=url_for(request.blueprint + ".workbench_postcollection"),
         )
 
     @blueprint.post("/data/profile/start")

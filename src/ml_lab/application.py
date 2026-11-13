@@ -188,6 +188,7 @@ def _data_inspect(payload: dict[str, Any]) -> dict[str, Any]:
         recursive=bool(payload.get("recursive", True)),
         include_hidden=bool(payload.get("include_hidden", False)),
         preview_rows=int(payload.get("preview_rows", 20)),
+        allowed_suffixes=(tuple(payload["allowed_suffixes"]) if "allowed_suffixes" in payload else None),
     )
     return inventory.to_record()
 
@@ -211,6 +212,7 @@ def _data_profile(payload: dict[str, Any]) -> dict[str, Any]:
         max_relationship_pairs=int(payload.get("max_relationship_pairs", 200)),
         outlier_iqr_multiplier=float(payload.get("outlier_iqr_multiplier", 1.5)),
         random_state=int(payload.get("random_state", 42)),
+        allowed_suffixes=(tuple(payload["allowed_suffixes"]) if "allowed_suffixes" in payload else None),
     )
     return profile.to_record()
 

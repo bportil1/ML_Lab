@@ -34,7 +34,7 @@
     <input type="hidden" name="source_dataset_id" value="{{ preview.dataset_id }}">
     <input type="hidden" name="expected_generation" value="{{ context.generation }}">
     <label for="workbench-experiment-name">Experiment label (optional)</label>
-    <input id="workbench-experiment-name" name="experiment_name" value="XML dataset: {{ preview.path|replace('\\', '/')|replace('/', ' · ') }}">
+    <input id="workbench-experiment-name" name="experiment_name" value="Dataset: {{ preview.path|replace('\\', '/')|replace('/', ' · ') }}">
     <h3>Feature columns</h3>
     <p class="muted">Choose the columns you want to analyze. Change the selection later by creating a new dataset revision; the original source is not altered.</p>
     <div class="table-wrap"><table class="interactive-table" data-page-size="50"><thead><tr><th>Feature</th><th>Column</th><th>Type</th><th>Target</th></tr></thead><tbody>

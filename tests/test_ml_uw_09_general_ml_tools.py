@@ -106,7 +106,7 @@ def test_grouped_hub_under_mount_prefix_reads_only_project_experiments(tmp_path)
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert 'source &lt;script&gt;' in html and '<script>alert(1)</script>' not in html
-    assert html.count('class="mlwb-primary-link') == 5
+    assert html.count('class="mlwb-primary-link') == 7
     for group in ('models', 'ebm', 'optimization', 'generative'):
         assert f'id="{group}"' in html
         assert f'/pah/ml-lab/workbench/general-ml-tools#{group}' in html

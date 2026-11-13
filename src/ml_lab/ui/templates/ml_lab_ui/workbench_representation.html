@@ -9,8 +9,8 @@
 {{ mlwb_error.show_error(error, url_for(request.blueprint + '.workbench_representation'), url_for(request.blueprint + '.data_lab'), title='Could not complete this action') }}
 {% if context.status != 'ready' %}
 <section class="panel"><h2>No verified active dataset</h2>
-  <p>{{ context.validation_error or 'Select a CSV/TSV dataset in Data. Materialize XML collections as a derived dataset first.' }}</p>
-  <a class="button" href="{{ url_for(request.blueprint + '.data_lab') }}">Open Data</a>
+  <p>{{ context.validation_error or 'Select a CSV/TSV dataset in Tabular Data. Materialize XML collections as a derived dataset first.' }}</p>
+  <a class="button" href="{{ url_for(request.blueprint + '.data_lab') }}">Open Tabular Data</a>
 </section>
 {% else %}
 <section class="panel">

@@ -10,7 +10,7 @@
 {{ mlwb_error.show_error(error, url_for(request.blueprint + '.workbench_autoencoder'), url_for(request.blueprint + '.data_lab'), title='Could not complete this action') }}
 {% if saved %}<section class="status-card transform-success" role="status"><strong>Configuration saved</strong><span>Active workbench bound to the saved revision. No training was started.</span></section>{% endif %}
 {% if context.status != 'ready' %}
-<section class="panel"><h2>No verified active dataset</h2><p>{{ context.validation_error or 'Select a feature-only CSV or TSV dataset in Data.' }}</p><a class="button" href="{{ url_for(request.blueprint + '.data_lab') }}">Open Data</a></section>
+<section class="panel"><h2>No verified active dataset</h2><p>{{ context.validation_error or 'Select a feature-only CSV or TSV dataset in Tabular Data.' }}</p><a class="button" href="{{ url_for(request.blueprint + '.data_lab') }}">Open Tabular Data</a></section>
 {% else %}
 <section class="panel"><h2>Verified active dataset</h2><p><code>{{ context.active_dataset.path }}</code> · {{ context.active_dataset.rows }} rows · {{ context.active_dataset.feature_columns|length }} features · experiment revision {{ context.experiment_revision }} · generation {{ context.generation }}</p>
   <p class="tiny muted">The training engine requires finite numeric, complete feature-only data. Feature-profiling display-role overrides do not change the selected training columns.</p>

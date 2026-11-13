@@ -380,12 +380,23 @@ def inspect_paths(
     recursive: bool = True,
     include_hidden: bool = False,
     preview_rows: int = 20,
+    allowed_suffixes: tuple[str, ...] | None = None,
 ) -> DataInventory:
     requested = tuple(str(Path(path).expanduser()) for path in paths)
     if not requested:
         raise ValueError("at least one file or directory path is required")
     if preview_rows < 1:
         raise ValueError("preview_rows must be at least 1")
+    if allowed_suffixes is not None:
+        allowed = frozenset(str(item).casefold() for item in allowed_suffixes)
+        if not allowed or not allowed.issubset(_SUPPORTED):
+            raise ValueError("allowed_suffixes must name known source types")
+        for raw_path in requested:
+            direct = Path(raw_path)
+            if direct.is_file() and direct.suffix.casefold() not in allowed:
+                raise ValueError("Tabular Data accepts CSV/TSV files only; use XML Data for XML sources")
+    else:
+        allowed = None
 
     warnings: list[str] = []
     discovered: dict[str, tuple[Path, Path]] = {}
@@ -395,7 +406,12 @@ def inspect_paths(
             warnings.append(f"path does not exist: {candidate}")
             continue
         for file_path, root in _discover_one(candidate, recursive=recursive, include_hidden=include_hidden):
+            if allowed is not None and file_path.suffix.casefold() not in allowed:
+                continue
             discovered[str(file_path.resolve())] = (file_path, root)
+
+    if allowed is not None and not discovered:
+        warnings.append("No CSV/TSV sources matched the selected paths; XML belongs in XML Data.")
 
     records: list[DataFileRecord] = []
     for _, (file_path, root) in sorted(discovered.items(), key=lambda item: item[0]):

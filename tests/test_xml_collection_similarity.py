@@ -85,8 +85,8 @@ def test_comparison_limits_and_nonmutating_output(tmp_path: Path) -> None:
     inventory = data.inventory_xml_collection(tmp_path)
     with pytest.raises(ValueError, match="source limit"):
         data.compare_xml_collection(inventory, max_sources=2)
-    with pytest.raises(ValueError, match="hard comparison safety"):
-        data.compare_xml_collection(inventory, max_sources=1000)
+    # A caller may set a high source budget; no hard 200-source gate remains.
+    assert data.compare_xml_collection(inventory, max_sources=1000).to_record()["summary"]["compared_source_count"] == 3
     with pytest.raises(ValueError, match="minimum_similarity"):
         data.compare_xml_collection(inventory, minimum_similarity=1.2)
     before = (tmp_path / "a.xml").read_bytes()

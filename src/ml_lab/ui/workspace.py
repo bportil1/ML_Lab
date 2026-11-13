@@ -14,13 +14,13 @@ from pathlib import Path
 # Tuple: id, title, description, existing Blueprint endpoint, URL arguments,
 #       section anchor. Every surface remains available without a selection.
 TOOLS = (
-    ("data", "Data", "Inspect, profile, select, and transform local datasets.", "data_lab", (), ""),
+    ("data", "Tabular Data", "Inspect CSV/TSV sources and choose tabular datasets.", "data_lab", (), ""),
     ("models", "Models", "Configure and run saved model families.", "experiment_model", (), ""),
     ("representation", "Representation", "Explore representation-learning model families.", "experiment_model", (("family", "representation"),), ""),
     ("ebm", "EBM", "Configure energy-based RBM models.", "experiment_model", (("family", "rbm"),), ""),
     ("optimization", "Optimization", "Run searches on saved model configurations.", "experiment_model", (), "model-optimization"),
     ("generative", "Generative", "Generate synthetic data or configure GAN models.", "experiment_synthetic", (), ""),
-    ("xml", "XML", "Explore XML collections and extraction recipes.", "xml_collection_inventory", (), ""),
+    ("xml", "XML Data", "Explore XML sources and collection extraction recipes.", "xml_workbench", (), ""),
     ("results", "Results", "Inspect recorded runs and compare verified results.", "workspace_results", (), ""),
 )
 

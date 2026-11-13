@@ -16,7 +16,8 @@ def test_workbench_templates_parse_without_server():
 def test_sidebar_order_and_no_legacy_horizontal_bar():
     contract = (UI / 'workbench_navigation.py').read_text(encoding='utf-8')
     positions = [contract.index('("' + key + '", "' + title + '"') for key, title in (
-        ('data', 'Data'), ('profiling', 'Feature Profiling'),
+        ('tabular', 'Tabular Data'), ('xml', 'XML Data'),
+        ('postcollection', 'Postcollection Utilities'), ('profiling', 'Feature Profiling'),
         ('representation', 'Representation'), ('comparison', 'Comparison'),
         ('tools', 'General ML Tools'))]
     assert positions == sorted(positions)

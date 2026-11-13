@@ -1,7 +1,7 @@
 {% extends "ml_lab_ui/base.html" %}
 {% block title %}XML Catalog · ML Lab{% endblock %}
 {% block content %}
-<a class="back" href="{{ url_for(request.blueprint + '.data_lab') }}">← Data Lab</a>
+<a class="back" href="{{ url_for(request.blueprint + '.xml_workbench') }}">← XML Data</a>
 <section class="panel">
   <h1>XML collection catalog</h1>
   <p class="muted">Read-only metadata from the last explicitly rebuilt, project-local index. Original sources, recipes, and artifacts remain authoritative. Entries may be stale until rebuilt.</p>
@@ -79,6 +79,6 @@
       {% if page.offset + page.limit < page.total %}<a class="button mini secondary" href="{{ url_for(request.blueprint + '.xml_catalog_browser', offset=page.offset + page.limit, **filter_args) }}">Next</a>{% endif %}
     </nav>
   {% endif %}
-  <p><a href="{{ url_for(request.blueprint + '.xml_collection_inventory') }}">Open XML collection inspection</a> · <a href="{{ url_for(request.blueprint + '.xml_collection_recipe') }}">Open XML recipe workspace</a> · <a href="{{ url_for(request.blueprint + '.data_lab') }}">Open Data Lab</a></p>
+  <p><a href="{{ url_for(request.blueprint + '.xml_collection_inventory') }}">Open XML collection inspection</a> · <a href="{{ url_for(request.blueprint + '.xml_collection_recipe') }}">Open XML recipe workspace</a> · <a href="{{ url_for(request.blueprint + '.xml_workbench') }}">Open XML Data</a></p>
 </section>
 {% endblock %}

@@ -145,6 +145,7 @@ class ProfileJobManager:
                 max_relationship_pairs=int(payload.get("max_relationship_pairs", 200)),
                 outlier_iqr_multiplier=float(payload.get("outlier_iqr_multiplier", 1.5)),
                 random_state=int(payload.get("random_state", 42)),
+                allowed_suffixes=(tuple(payload["allowed_suffixes"]) if "allowed_suffixes" in payload else None),
                 progress=lambda event: self._progress(job_id, event),
             )
             self._update(job_id, stage="Saving profile artifacts", current=len(collection.profiles), total=len(collection.profiles))

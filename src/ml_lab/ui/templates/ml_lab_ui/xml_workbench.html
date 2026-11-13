@@ -2,9 +2,9 @@
 {% block title %}XML extraction workspace · ML Lab{% endblock %}
 {% block content %}
 <section class="workspace-head"><div>
-  <p class="eyebrow">Data · unified XML workflow</p>
+  <p class="eyebrow">XML Data · unified XML workflow</p>
   <h1>XML extraction workspace</h1>
-  <p class="lede">Start with one XML source or a directory of related XML files. Both modes remain inside Data, preserve the original documents, and produce datasets that you can explicitly bind to this workbench instance.</p>
+  <p class="lede">Start with one XML source or a directory of related XML files. Single-source and collection workflows live here. The original XML documents are preserved; exported CSV/TSV datasets can be explicitly used in the workbench or processed under Postcollection Utilities.</p>
 </div></section>
 {% if request.args.get('error') == 'invalid_source' %}
 <div class="alert data-alert" role="alert">Select an existing regular XML file. No extraction was started.</div>

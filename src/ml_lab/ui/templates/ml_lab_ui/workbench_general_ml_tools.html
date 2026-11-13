@@ -18,7 +18,7 @@
   <a class="button secondary" href="{{ url_for(request.blueprint + '.workbench_feature_profiling') }}">Inspect active dataset</a>
   {% else %}
   <p>{{ context.validation_error or 'No dataset selected for this workbench instance.' }}</p>
-  <a class="button secondary" href="{{ url_for(request.blueprint + '.data_lab') }}">Select a dataset in Data</a>
+  <a class="button secondary" href="{{ url_for(request.blueprint + '.data_lab') }}">Select a dataset in Tabular Data</a>
   {% endif %}
 </section>
 {% endif %}
@@ -43,7 +43,7 @@
       </li>
       {% endfor %}
     </ul>
-    {% else %}<p class="muted compact">No project-local dataset experiments found. Select a dataset in Data before configuring a model.</p>{% endif %}
+    {% else %}<p class="muted compact">No project-local dataset experiments found. Select a dataset in Tabular Data before configuring a model.</p>{% endif %}
   </section>
 
   <section class="panel mlwb-mltools-section" id="ebm" aria-labelledby="mlwb-ebm-title">

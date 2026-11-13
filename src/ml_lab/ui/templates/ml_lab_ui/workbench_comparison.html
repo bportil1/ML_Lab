@@ -11,7 +11,7 @@
 <article class="panel mlwb-tool-card"><h2>Model run comparison</h2><p>Compare existing revision-pinned experiment results.</p><a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_model') }}">Open model experiments</a></article>
 </section>
 {% if context.status != 'ready' %}
-<section class="panel"><h2>No verified active dataset</h2><p>{{ context.validation_error or 'Select a feature-only CSV or TSV in Data.' }}</p><a class="button" href="{{ url_for(request.blueprint + '.data_lab') }}">Open Data</a></section>
+<section class="panel"><h2>No verified active dataset</h2><p>{{ context.validation_error or 'Select a feature-only CSV or TSV in Tabular Data.' }}</p><a class="button" href="{{ url_for(request.blueprint + '.data_lab') }}">Open Tabular Data</a></section>
 {% else %}
 <section class="panel"><h2>Shared comparison cohort</h2>
 <p><code>{{ context.active_dataset.path }}</code> · {{ context.active_dataset.rows }} rows · {{ context.active_dataset.feature_columns|length }} selected features · revision {{ context.experiment_revision }}</p>

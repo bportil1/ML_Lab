@@ -493,12 +493,14 @@ def profile_paths(
     outlier_iqr_multiplier: float = 1.5,
     random_state: int = 42,
     progress: Callable[[dict[str, Any]], None] | None = None,
+    allowed_suffixes: tuple[str, ...] | None = None,
 ) -> DataProfileCollection:
     inventory = inspect_paths(
         paths,
         recursive=recursive,
         include_hidden=include_hidden,
         preview_rows=preview_rows,
+        allowed_suffixes=allowed_suffixes,
     )
     profiles: list[DataProfile] = []
     warnings = list(inventory.warnings)

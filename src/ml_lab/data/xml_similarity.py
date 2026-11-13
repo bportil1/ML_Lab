@@ -181,7 +181,7 @@ def compare_xml_collection(
     *,
     minimum_similarity: float = 0.80,
     min_shared_fraction: float | None = None,
-    max_sources: int = 100,
+    max_sources: int | None = None,
     max_unique_paths: int = 5000,
     max_file_bytes: int = 512 * 1024 ** 2,
     max_diff_paths: int = 20,
@@ -191,6 +191,8 @@ def compare_xml_collection(
     Failed/stale files are reported, not treated as empty XML. A complete-link
     grouping policy prevents chains of individually similar but mutually
     incompatible files from entering one candidate group. No writes occur.
+    All parsed sources are compared unless a caller explicitly supplies
+    ``max_sources``; time and report size grow quadratically with source count.
     """
     if not isinstance(inventory, XmlCollectionInventory):
         raise TypeError("expected an XML-C1 collection inventory")
@@ -200,12 +202,12 @@ def compare_xml_collection(
         minimum_similarity = min_shared_fraction
     if not 0.0 < minimum_similarity <= 1.0:
         raise ValueError("minimum_similarity must be in (0, 1]")
-    if any(value < 1 for value in (max_sources, max_unique_paths, max_file_bytes, max_diff_paths)):
+    if any(value < 1 for value in (max_unique_paths, max_file_bytes, max_diff_paths)) or (max_sources is not None and max_sources < 1):
         raise ValueError("comparison bounds must be positive")
-    if max_sources > 200 or max_unique_paths > 100_000 or max_diff_paths > 100:
+    if max_unique_paths > 100_000 or max_diff_paths > 100:
         raise ValueError("XML-C2 hard comparison safety limit exceeded")
     parsed_count = sum(item.status == "parsed" for item in inventory.files)
-    if parsed_count > max_sources:
+    if max_sources is not None and parsed_count > max_sources:
         raise ValueError(f"XML comparison source limit exceeded ({max_sources}); reduce selection")
     root = Path(inventory.root_path).resolve()
     shapes: list[_Shape] = []

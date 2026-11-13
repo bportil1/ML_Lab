@@ -3,9 +3,9 @@
 {% block content %}
 {% set xml_workflow_stage = "inventory" %}{% include "ml_lab_ui/_xml_workflow_steps.html" %}
 <p><a href="{{ url_for(request.blueprint + '.xml_catalog_browser') }}">Browse indexed XML catalog</a></p>
-<a class="back" href="{{ url_for(request.blueprint + '.data_lab') }}">← Data Lab</a>
+<a class="back" href="{{ url_for(request.blueprint + '.xml_workbench') }}">← XML Data</a>
 <section class="workspace-head"><div>
-  <p class="eyebrow">Data · XML-C1 / XML-C2</p>
+  <p class="eyebrow">XML Data · XML-C1 / XML-C2</p>
   <h1>XML collection analysis</h1>
   <p class="lede">Analyze a directory of XML files as a collection. Discover sources, compare normalized structure, identify candidate groups, then continue through review, shared-recipe validation, combined preview, and consolidated CSV/TSV export.</p>
 </div></section>
@@ -24,9 +24,10 @@
       <label>Maximum XML files <input class="medium-input" type="number" name="max_files" min="1" max="100000" value="{{ max_files }}"></label>
     </div>
     <div class="form-row">
-      <label class="check"><input type="checkbox" name="compare" value="1" {% if compare %}checked{% endif %}> Compare XML structures (XML-C2; maximum 100 parsed sources)</label>
+      <label class="check"><input type="checkbox" name="compare" value="1" {% if compare %}checked{% endif %}> Compare XML structures (XML-C2)</label>
       <label>Minimum similarity (0–1) <input class="medium-input" type="number" name="minimum_similarity" min="0.01" max="1" step="0.01" value="{{ minimum_similarity }}"></label>
     </div>
+    <p class="tiny muted">XML-C2 does not impose a separate count limit on parsed sources. The inventory maximum controls discovery; structural comparison produces pairwise results that can become expensive for large collections.</p>
     <button class="button" type="submit">Inspect XML collection</button>
   </form>
 </section>

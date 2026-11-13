@@ -1,4 +1,4 @@
-"""ML-UW-02 five-section navigation layered over existing stable ML_Lab routes.
+"""ML-UW-16 section navigation layered over existing stable ML_Lab routes.
 
 No source import, algorithm execution or dataset mutations occur in navigation.
 Register via :func:`ml_lab.ui.create_ui_blueprint`, not the legacy blueprint
@@ -14,7 +14,9 @@ from .workspace import active_tool, tool_records
 
 
 SECTION_SPEC = (
-    ("data", "Data", "data_lab"),
+    ("tabular", "Tabular Data", "data_lab"),
+    ("xml", "XML Data", "xml_workbench"),
+    ("postcollection", "Postcollection Utilities", "workbench_postcollection"),
     ("profiling", "Feature Profiling", "workbench_feature_profiling"),
     ("representation", "Representation", "workbench_representation"),
     ("comparison", "Comparison", "workbench_comparison"),
@@ -24,17 +26,27 @@ SECTION_SPEC = (
 # All links point to already-existing, working routes or the new read-only
 # landing pages. A planned capability never receives an executable link.
 SECTION_LINKS = {
-    "data": (
-        ("Data intake", "data_lab", {}),
-        ("Saved context & all tools", "workspace", {}),
-        ("XML extraction workspace", "xml_workbench", {}),
-        ("XML collection inventory", "xml_collection_inventory", {}),
-        ("Transform", "data_transform", {}),
-        ("Provenance", "data_provenance", {}),
+    "tabular": (
+        ("Tabular intake and inventory", "data_lab", {}),
+        ("Active dataset and history", "workspace", {}),
+    ),
+    "xml": (
+        ("XML data workspace", "xml_workbench", {}),
+        ("XML collection analysis", "xml_collection_inventory", {}),
+        ("XML collection review", "xml_collection_review", {}),
+        ("XML extraction provenance", "xml_collection_provenance", {}),
+        ("Indexed XML catalog", "xml_catalog_browser", {}),
+    ),
+    "postcollection": (
+        ("Postcollection utilities", "workbench_postcollection", {}),
+        ("Transform and clean", "data_transform", {}),
+        ("Trace provenance", "data_provenance", {}),
+        ("Compare collected datasets", "data_compare", {}),
+        ("Recorded experiment datasets", "experiment_dataset", {}),
     ),
     "profiling": (
         ("Feature Profiling", "workbench_feature_profiling", {}),
-        ("Run data profiles", "data_lab", {}),
+        ("Run tabular profiles", "data_lab", {}),
     ),
     "representation": (
         ("Representation", "workbench_representation", {}),
@@ -59,7 +71,9 @@ SECTION_LINKS = {
 # Preserve the existing P5-13 tool entrypoints and browser navigation context,
 # but show them within their corresponding primary workflow sections.
 SECTION_TOOL_IDS = {
-    "data": frozenset({"data", "xml"}),
+    "tabular": frozenset({"data"}),
+    "xml": frozenset({"xml"}),
+    "postcollection": frozenset(),
     "profiling": frozenset(),
     "representation": frozenset({"representation"}),
     "comparison": frozenset({"results"}),
@@ -78,7 +92,7 @@ def section_for_request(endpoint: str | None, view_args: dict | None, family: st
         return "representation"
     if name == "experiment_model" and family == "representation":
         return "representation"
-    if name in {"workbench_comparison", "data_compare", "workspace_results", "experiment_compare",
+    if name in {"workbench_comparison", "workspace_results", "experiment_compare",
                 "experiment_compare_csv", "experiment_visualizations_json",
                 "experiment_chart_svg", "experiment_chart_csv",
                 "experiment_model_run_view", "experiment_model_run_result"}:
@@ -88,15 +102,16 @@ def section_for_request(endpoint: str | None, view_args: dict | None, family: st
         if capability == "representation":
             return "representation"
         if capability == "data":
-            return "data"
+            return "tabular"
         return "tools"
-    if name in {"workbench_select_file", "workbench_activate_experiment"}:
-        return "data"
+    if name.startswith("xml_"):
+        return "xml"
+    if name in {"data_transform", "data_provenance", "data_compare", "workbench_postcollection",
+                "workbench_select_file", "workbench_activate_experiment", "experiment_dataset"}:
+        return "postcollection"
     if name == "workbench_general_ml_tools" or name.startswith("experiment_"):
-        if name == "experiment_dataset":
-            return "data"
         return "tools"
-    return "data"
+    return "tabular"
 
 
 def install_workbench_navigation(blueprint: Blueprint, *, project_root: Path,
@@ -172,6 +187,24 @@ def install_workbench_navigation(blueprint: Blueprint, *, project_root: Path,
                 "url": url_for(request.blueprint + "." + endpoint, **params) if endpoint else None,
                 "status": status,
             } for t, d, endpoint, params, status in cards[key]],
+        )
+
+    @blueprint.get("/workbench/postcollection")
+    def workbench_postcollection():
+        """Read-only entry point for tools operating after dataset collection."""
+        options = (
+            ("Transform and clean", "Operate on an existing CSV/TSV dataset, preserving its original source and recipe provenance.", "data_transform"),
+            ("Trace provenance", "Inspect the provenance chain of derived or consolidated datasets.", "data_provenance"),
+            ("Compare datasets", "Compare existing tabular datasets after ingestion or XML materialization.", "data_compare"),
+            ("Experiment dataset setup", "Bind a dataset to an experiment through the existing configuration workflow.", "experiment_dataset"),
+        )
+        return render_template(
+            "ml_lab_ui/workbench_section.html", version=__version__,
+            section_title="Postcollection Utilities",
+            section_description="Clean, validate, compare and trace already-collected or XML-extracted tabular datasets without re-running source collection.",
+            cards=[{"title": title, "description": description,
+                    "url": url_for(request.blueprint + "." + endpoint), "status": "Available"}
+                   for title, description, endpoint in options],
         )
 
     @blueprint.get("/workbench/general-ml-tools")

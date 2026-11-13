@@ -4,7 +4,7 @@
 {% set xml_workflow_stage = "recipe" %}{% include "ml_lab_ui/_xml_workflow_steps.html" %}
 <a class="back" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=max_files, min_shared_fraction=min_shared_fraction) }}">← Collection review (retain filters)</a>
 <section class="workspace-head"><div>
-  <p class="eyebrow">Data · XML-C4</p>
+  <p class="eyebrow">XML Data · XML-C4</p>
   <h1>Shared XML extraction recipe</h1>
   <p class="lede">Configure one record root and field mapping across reviewed XML sources. Validate missing fields and repeated-branch strategies before collection extraction. No CSV files are generated here.</p>
 </div></section>

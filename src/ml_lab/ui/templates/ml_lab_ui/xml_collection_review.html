@@ -4,7 +4,7 @@
 {% set xml_workflow_stage = "review" %}{% include "ml_lab_ui/_xml_workflow_steps.html" %}
 <a class="back" href="{{ url_for(request.blueprint + '.xml_collection_inventory', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=max_files, compare='1', minimum_similarity=min_shared_fraction) }}">← XML collection inventory (retain filters)</a>
 <section class="workspace-head"><div>
-  <p class="eyebrow">Data · XML-C3</p>
+  <p class="eyebrow">XML Data · XML-C3</p>
   <h1>XML collection compatibility review</h1>
   <p class="lede">Inspect structural groups, variants, conflicts, and failed files, then choose the XML sources that should share one extraction recipe. A successful review can continue directly to shared-recipe design and consolidated export.</p>
 </div></section>

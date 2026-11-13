@@ -41,7 +41,9 @@
           {% endfor %}
         {% else %}
           {# The older direct blueprint factory lacks the new section routes. #}
-          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_lab') }}">Data</a>
+          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_lab') }}">Tabular Data</a>
+          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.xml_workbench') }}">XML Data</a>
+          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_transform') }}">Postcollection Utilities</a>
           <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_lab') }}">Feature Profiling</a>
           <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.task', capability_id='representation') }}">Representation</a>
           <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_compare') }}">Comparison</a>
