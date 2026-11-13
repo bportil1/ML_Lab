@@ -25,9 +25,9 @@
     </div>
     <div class="form-row">
       <label class="check"><input type="checkbox" name="compare" value="1" {% if compare %}checked{% endif %}> Compare XML structures (XML-C2)</label>
-      <label>Minimum similarity (0–1) <input class="medium-input" type="number" name="minimum_similarity" min="0.01" max="1" step="0.01" value="{{ minimum_similarity }}"></label>
+      <label>Similarity reference (0–1) <input class="medium-input" type="number" name="minimum_similarity" min="0.01" max="1" step="0.01" value="{{ minimum_similarity }}"></label>
     </div>
-    <p class="tiny muted">XML-C2 does not impose a separate count limit on parsed sources. The inventory maximum controls discovery; structural comparison produces pairwise results that can become expensive for large collections.</p>
+    <p class="tiny muted">XML-C2 compares all parsed sources. Similarity is advisory: missing paths, absent attributes and empty values do not by themselves split candidate groups. Different roots and true structural conflicts remain flagged. Exhaustive pairwise comparison can be expensive.</p>
     <button class="button" type="submit">Inspect XML collection</button>
   </form>
 </section>
@@ -64,7 +64,7 @@
   <div class="metric"><strong>{{ comparison.summary.excluded_source_count }}</strong><span>Excluded / changed</span></div>
   <div class="metric"><strong>{{ comparison.summary.group_count }}</strong><span>Candidate groups</span></div>
 </section>
-<div class="tip">Structure matches and compatible variants are advisory evidence. Use <strong>Prepare full-group extraction recipe</strong> to carry every member of one compatible group into a shared recipe automatically, or use compatibility review for manual membership control.</div>
+<div class="tip">The observed union treats absent paths as optional; low similarity alone does not disqualify candidate groups. Structure matches and compatible variants are advisory evidence. Use <strong>Prepare full-group extraction recipe</strong> to carry every member of one compatible group into a shared recipe automatically, or use compatibility review for manual membership control.</div>
 <section class="panel inventory-panel">
   <h2>Candidate structure groups</h2>
   <div class="table-wrap"><table class="interactive-table" data-page-size="50">
@@ -75,7 +75,7 @@
       <td>{{ group.shared_record_root_candidates|join(', ') or 'Review needed' }}</td>
       <td>
         <a class="button mini secondary" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=max_files, min_shared_fraction=minimum_similarity) }}">Review collection</a>
-        {% if group.members|length > 1 %}
+        {% if group.members|length > 1 and group.classification != "review_required" %}
         <form method="post" action="{{ url_for(request.blueprint + '.xml_collection_recipe') }}" class="inline-form">
           <input type="hidden" name="directory" value="{{ directory }}">
           <input type="hidden" name="include_glob" value="{{ include_glob }}">
@@ -101,8 +101,8 @@
     <thead><tr><th>Left file</th><th>Right file</th><th>Classification</th><th>Similarity</th><th>Reason</th><th>Differences</th></tr></thead>
     <tbody>{% for pair in comparison.pairs %}
       <tr><td>{{ pair.left }}</td><td>{{ pair.right }}</td><td>{{ pair.classification }}</td>
-      <td>{{ pair.similarity_score }}</td><td>{{ pair.reason }}</td>
-      <td>Paths: {{ pair.differences.left_only_path_count }} / {{ pair.differences.right_only_path_count }}; attributes: {{ pair.differences.attribute_change_count }}; cardinality: {{ pair.differences.cardinality_change_count }}; text: {{ pair.differences.text_shape_change_count }}</td></tr>
+      <td>{{ pair.similarity_score }}{% if pair.below_similarity_threshold %} <span class="muted tiny">(below reference)</span>{% endif %}</td><td>{{ pair.reason }}</td>
+      <td>Paths: {{ pair.differences.left_only_path_count }} / {{ pair.differences.right_only_path_count }}; attributes: {{ pair.differences.attribute_change_count }}; cardinality: {{ pair.differences.cardinality_change_count }}; optionality: {{ pair.differences.optional_presence_change_count }}; mixed content: {{ pair.differences.text_shape_change_count }}; text presence: {{ pair.differences.text_presence_change_count }}</td></tr>
     {% endfor %}</tbody>
   </table></div>
 </section>
@@ -111,6 +111,13 @@
   {% for source in comparison.sources if source.status != 'compared' %}
   <p><strong>{{ source.relative_path }}</strong> — {{ source.reason }}</p>
   {% endfor %}
+</section>
+{% endif %}
+{% if comparison.union_structure %}
+<section class="panel inventory-panel">
+  <h2>Observed consolidated XML union</h2>
+  <p class="tiny muted">{{ comparison.union_structure.path_count }} canonical paths across {{ comparison.union_structure.source_count }} verified sources; optional paths retain source-level occurrence counts. This is observed structure, not an approved recipe. A graphical view will be added in a later sprint. Groups without an identified shared record root remain review-required and cannot auto-prepare a recipe.</p>
+  <details class="json-details"><summary><strong>Inspect canonical union structure (JSON)</strong></summary><pre>{{ comparison.union_structure|tojson(indent=2) }}</pre></details>
 </section>
 {% endif %}
 <details class="panel json-details"><summary><strong>Machine-readable XML-C2 similarity report</strong></summary><pre>{{ comparison|tojson(indent=2) }}</pre></details>
