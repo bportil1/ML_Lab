@@ -23,6 +23,7 @@ from typing import Any
 from .xml_collection import inventory_xml_collection
 from .xml_collection_recipe import build_xml_collection_recipe
 from .xml_ingest import inspect_xml_structure
+from .xml_null_provenance import catalog_xml_null_fields, preview_xml_null_provenance
 from .xml_preview import preview_xml_tabularization
 from .xml_similarity import compare_xml_collection
 from .xml_collection_provenance import (
@@ -108,6 +109,7 @@ def _extract(recipe: Mapping[str, Any], *, preview: bool, max_files: int | None,
     child: OrderedDict[str, dict[str, Any]] = OrderedDict()
     source_reports: list[dict[str, Any]] = []
     warnings: list[str] = []
+    verified_artifacts: dict[str, Any] = {}
     limit = 25 if preview else None
     for entry in current['selected_sources']:
         rel = entry['relative_path']
@@ -115,19 +117,37 @@ def _extract(recipe: Mapping[str, Any], *, preview: bool, max_files: int | None,
         artifact = inspect_xml_structure(path, max_source_bytes=max_source_bytes)
         if artifact.source_fingerprint != entry['source_fingerprint']:
             raise XmlCollectionExportError(f'Source changed during export: {rel}')
+        if preview:
+            verified_artifacts[rel] = artifact
         if entry['record_root_occurrences'] > max_source_records:
             raise XmlCollectionExportError(f'{rel}: too many record-root occurrences for C5 in-memory execution ({max_source_records})')
         selected = entry['present_field_ids']
-        extracted = preview_xml_tabularization(
-            path, artifact, current['record_root_canonical_path'], selected,
-            rules=_rules_for(entry, current['rules']), max_rows=limit,
-            max_child_rows=100 if preview else None,
-            max_output_rows=1000 if preview else 10000,
-        )
-        if not preview and (extracted.main_table is None or extracted.main_table.truncated or any(t.truncated for t in extracted.child_tables)):
-            raise XmlCollectionExportError(f'{rel}: output exceeded C5 limits or was truncated; nothing published')
-        if extracted.main_table is None:
-            raise XmlCollectionExportError(f'{rel}: no tabular main result')
+        if selected:
+            extracted = preview_xml_tabularization(
+                path, artifact, current['record_root_canonical_path'], selected,
+                rules=_rules_for(entry, current['rules']), max_rows=limit,
+                max_child_rows=100 if preview else None,
+                max_output_rows=1000 if preview else 10000,
+                preserve_empty_elements=True, include_empty_leaf_fields=True,
+            )
+            if extracted.main_table is None or (not preview and (
+                    extracted.main_table.truncated or any(t.truncated for t in extracted.child_tables))):
+                raise XmlCollectionExportError(f'{rel}: output exceeded C5 limits or was truncated; nothing published')
+            main_columns = extracted.main_table.columns
+            source_rows = extracted.main_table.rows
+            child_tables = extracted.child_tables
+            source_warnings = extracted.warnings
+            signature = extracted.preview_signature
+        else:
+            # A verified source with no selected field still contains valid
+            # record roots. Materialize their rows as explicit nulls instead
+            # of calling the single-source preview with an empty selection.
+            count = entry['record_root_occurrences']
+            main_columns = ()
+            source_rows = tuple({} for _ in range(min(count, limit or count)))
+            child_tables = ()
+            source_warnings = ()
+            signature = 'no_present_selected_fields'
         # A single output column name must represent the SAME field, strategy and
         # branch in all sources. Different named pivot columns may be aligned.
         def register(table_headers: OrderedDict[str, tuple[Any, ...]], seen: dict[tuple[Any, ...], str], column: Any, *, table: str) -> None:
@@ -142,13 +162,13 @@ def _extract(recipe: Mapping[str, Any], *, preview: bool, max_files: int | None,
                 raise XmlCollectionExportError(f'Column identity maps to different names ({seen[identity]!r}, {name!r}); revise recipe')
             table_headers.setdefault(name, identity)
             seen[identity] = name
-        for column in extracted.main_table.columns:
+        for column in main_columns:
             register(headers, identities, column, table='main')
-        for row_idx, row in enumerate(extracted.main_table.rows, start=1):
+        for row_idx, row in enumerate(source_rows, start=1):
             main_rows.append({'__source_file': rel, '__source_row': row_idx, **row})
             if len(main_rows) > max_total_rows:
                 raise XmlCollectionExportError(f'Main output exceeds C5 row limit ({max_total_rows})')
-        for table in extracted.child_tables:
+        for table in child_tables:
             section = child.setdefault(table.name, {'headers': OrderedDict(), 'identities': {}, 'rows': []})
             for column in table.columns:
                 register(section['headers'], section['identities'], column, table=table.name)
@@ -160,15 +180,45 @@ def _extract(recipe: Mapping[str, Any], *, preview: bool, max_files: int | None,
             raise XmlCollectionExportError(f'XML source changed during extraction: {rel}')
         source_reports.append({'relative_path': rel, 'sha256': artifact.source_sha256,
                                'root_record_count': entry['record_root_occurrences'],
-                               'output_row_count': len(extracted.main_table.rows),
-                               'child_row_counts': {t.name: len(t.rows) for t in extracted.child_tables},
-                               'preview_signature': extracted.preview_signature,
+                               'output_row_count': len(source_rows),
+                               'child_row_counts': {t.name: len(t.rows) for t in child_tables},
+                               'preview_signature': signature,
                                'missing_field_ids': entry['missing_field_ids']})
-        warnings.extend(f'{rel}: {w}' for w in extracted.warnings)
+        warnings.extend(f'{rel}: {w}' for w in source_warnings)
+    # The output contract is rectangular even before CSV serialization:
+    # explicit None, rather than omitted dictionary keys, represents missing
+    # fields. C4 canonical IDs remain available for field-level provenance.
+    for row in main_rows:
+        for name in headers:
+            row.setdefault(name, None)
+    for table in child.values():
+        for row in table['rows']:
+            for name in table['headers']:
+                row.setdefault(name, None)
     if not main_rows:
         raise XmlCollectionExportError('No main table rows were extracted; nothing published')
+    null_observations: dict[str, list[dict[str, Any]]] = {}
+    if preview and current.get('null_alignment'):
+        null_catalog = catalog_xml_null_fields(verified_artifacts, current['record_root_canonical_path'])
+        permitted = set(current['selected_field_ids'])
+        null_catalog['fields'] = [field for field in null_catalog['fields'] if field['field_id'] in permitted]
+        for rel, artifact in verified_artifacts.items():
+            observed = preview_xml_null_provenance(root / rel, artifact, null_catalog, rel, max_records=25)
+            # Record-root lineage is retained independently of output rows:
+            # exploded/pivoted rows do not have a one-to-one row mapping.
+            null_observations[rel] = [
+                {'record_number': record['record_number'],
+                 'cells': [{'field_id': cell['field_id'], 'status': cell['status'],
+                            'occurrence_count': cell['occurrence_count'],
+                            'observations': [
+                                {'status': obs['status'], 'null_reason': obs['null_reason'],
+                                 'occurrence_address': obs['occurrence_address']}
+                                for obs in cell['observations']]} for cell in record['cells']]}
+                for record in observed['records']]
     return {
         'schema': 'ml-lab.xml-collection-extraction@1',
+        'null_alignment': current.get('null_alignment'),
+        'null_observations_by_source': null_observations,
         'main_columns': ['__source_file', '__source_row', *headers],
         'main_rows': main_rows,
         'children': {name: {'columns': ['__source_file', *part['headers']], 'rows': part['rows']}
@@ -191,6 +241,8 @@ def preview_xml_collection_export(recipe: Mapping[str, Any], *, max_files: int |
             'child_tables': {name: {'columns': child['columns'], 'sample_rows': child['rows'][:10]}
                              for name, child in result['children'].items()},
             'sources': result['sources'], 'warnings': result['warnings'],
+            'null_alignment': result['null_alignment'],
+            'null_observations_by_source': result['null_observations_by_source'],
             'truncated_by_design': True, 'no_files_written': True}
 
 

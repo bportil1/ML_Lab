@@ -717,7 +717,7 @@ def create_ui_blueprint(
         acknowledged = request.form.get("acknowledge_variants", "") == "1"
         record_root = request.form.get("record_root", "").strip()
         fields = request.form.getlist("field")
-        allow_missing = request.form.get("allow_missing_fields", "") == "1"
+        allow_missing = request.form.get("reject_missing_fields", "") != "1"
         mode = request.form.get("mode", "inspect")
         auto_all = mode == "auto_all" or request.form.get("auto_all", "") == "1"
         catalog = recipe = None

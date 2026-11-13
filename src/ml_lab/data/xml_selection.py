@@ -46,6 +46,7 @@ def _branch_flags(profile_by_path: dict[str, XmlElementProfile], canonical_path:
 def build_xml_record_selection(
     artifact: XmlStructureArtifact,
     record_root_canonical_path: str,
+    *, include_empty_leaf_fields: bool = False,
 ) -> XmlRecordSelection:
     """Describe selectable scalar fields beneath one explicit XML record root.
 
@@ -73,7 +74,8 @@ def build_xml_record_selection(
         # Mixed-content text is not a safe scalar because flattening only the leading
         # text would silently discard interleaved child/tail content. Attributes and
         # descendant leaf text remain selectable.
-        if profile.text_occurrence_count > 0 and not profile.mixed_content:
+        if (profile.text_occurrence_count > 0 or
+                (include_empty_leaf_fields and not profile.child_paths)) and not profile.mixed_content:
             field_path = profile.path
             relative_path = relative_element
             fields.append(

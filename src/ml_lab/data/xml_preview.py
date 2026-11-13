@@ -62,30 +62,36 @@ def _descendants_at_path(root: ET.Element, relative_parts: tuple[str, ...]) -> l
     return current
 
 
-def _scalar_from_element(element: ET.Element, field: XmlFieldCandidate) -> str | None:
+def _scalar_from_element(element: ET.Element, field: XmlFieldCandidate, *,
+                         preserve_empty_elements: bool = False) -> str | None:
     if field.kind == "attribute":
         value = element.attrib.get(_field_attribute_name(field))
         return value if value is not None else None
+    if preserve_empty_elements and element.attrib.get('{http://www.w3.org/2001/XMLSchema-instance}nil', '').strip().lower() in {'true', '1'}:
+        return None
     text = element.text.strip() if element.text and element.text.strip() else None
-    return text
+    return '' if text is None and preserve_empty_elements else text
 
 
-def _field_values(record: ET.Element, field: XmlFieldCandidate, record_root: str) -> list[str | None]:
+def _field_values(record: ET.Element, field: XmlFieldCandidate, record_root: str,
+                  *, preserve_empty_elements: bool = False) -> list[str | None]:
     elements = _descendants_at_path(record, _relative_element_parts(field, record_root))
-    return [_scalar_from_element(element, field) for element in elements]
+    return [_scalar_from_element(element, field, preserve_empty_elements=preserve_empty_elements)
+            for element in elements]
 
 
 def _field_values_within_branch(
     branch_element: ET.Element,
     field: XmlFieldCandidate,
-    branch_canonical_path: str,
+    branch_canonical_path: str, *, preserve_empty_elements: bool = False,
 ) -> list[str | None]:
     field_parts = _canonical_parts(field.source_element_canonical_path)
     branch_parts = _canonical_parts(branch_canonical_path)
     if field_parts[: len(branch_parts)] != branch_parts:
         return []
     elements = _descendants_at_path(branch_element, field_parts[len(branch_parts) :])
-    return [_scalar_from_element(element, field) for element in elements]
+    return [_scalar_from_element(element, field, preserve_empty_elements=preserve_empty_elements)
+            for element in elements]
 
 
 def _branch_elements(record: ET.Element, branch_canonical_path: str, record_root: str) -> list[ET.Element]:
@@ -226,6 +232,8 @@ def preview_xml_tabularization(
     max_rows: int | None = 25,
     max_child_rows: int | None = 100,
     max_output_rows: int | None = 1000,
+    preserve_empty_elements: bool = False,
+    include_empty_leaf_fields: bool = False,
 ) -> XmlTabularPreview:
     """Build a bounded, non-destructive XML-to-table preview.
 
@@ -250,11 +258,17 @@ def preview_xml_tabularization(
     if current.source_fingerprint != artifact.source_fingerprint:
         raise XmlPreviewError("XML source changed after structural analysis; reload the structure before previewing")
 
-    selection = build_xml_record_selection(artifact, record_root_canonical_path)
+    selection = build_xml_record_selection(
+        artifact, record_root_canonical_path,
+        include_empty_leaf_fields=include_empty_leaf_fields,
+    )
     selected_tuple = tuple(dict.fromkeys(str(field_id) for field_id in selected_field_ids))
     if not selected_tuple:
         raise XmlPreviewError("select at least one XML field before building a table preview")
-    plan = build_xml_collection_plan(artifact, record_root_canonical_path, selected_tuple, rules=rules)
+    plan = build_xml_collection_plan(
+        artifact, record_root_canonical_path, selected_tuple, rules=rules,
+        include_empty_leaf_fields=include_empty_leaf_fields,
+    )
     if not plan.ready_for_preview:
         raise XmlPreviewError(
             "repeated-branch rules are not ready for preview "
@@ -342,7 +356,8 @@ def preview_xml_tabularization(
     for record_index, record in enumerate(raw_records, start=1):
         base: dict[str, Any] = {}
         for field in direct_fields:
-            values = _field_values(record, field, record_root_canonical_path)
+            values = _field_values(record, field, record_root_canonical_path,
+                                   preserve_empty_elements=preserve_empty_elements)
             base[field_column_name[field.field_id]] = _first_non_null(values)
         row_variants = [base]
 
@@ -364,7 +379,8 @@ def preview_xml_tabularization(
                             break
                         next_row = dict(row)
                         for field in branch_fields:
-                            values = [] if branch_element is None else _field_values_within_branch(branch_element, field, branch.canonical_path)
+                            values = [] if branch_element is None else _field_values_within_branch(branch_element, field, branch.canonical_path,
+                                                                                       preserve_empty_elements=preserve_empty_elements)
                             next_row[field_column_name[field.field_id]] = _first_non_null(values)
                         expanded.append(next_row)
                     if output_truncated:
@@ -393,7 +409,8 @@ def preview_xml_tabularization(
                             break
                         child = {"__parent_record": record_index}
                         for field in branch_fields:
-                            values = _field_values_within_branch(branch_element, field, branch.canonical_path)
+                            values = _field_values_within_branch(branch_element, field, branch.canonical_path,
+                                                                                       preserve_empty_elements=preserve_empty_elements)
                             child[field_names[field.field_id]] = _first_non_null(values) if len(values) <= 1 else values
                         rows.append(child)
                 continue
@@ -419,7 +436,8 @@ def preview_xml_tabularization(
                     item: dict[str, Any] = {}
                     for field in branch_fields:
                         relative = field.relative_path.removeprefix(branch.relative_path + "/") or field.name
-                        values = _field_values_within_branch(branch_element, field, branch.canonical_path)
+                        values = _field_values_within_branch(branch_element, field, branch.canonical_path,
+                                                                                       preserve_empty_elements=preserve_empty_elements)
                         item[relative] = values[0] if len(values) <= 1 else values
                     nested_values.append(item)
                 for row in row_variants:
@@ -433,8 +451,10 @@ def preview_xml_tabularization(
                     raise XmlPreviewError("pivot rule references fields that are no longer selected")
                 pivot_pairs: list[tuple[str, Any]] = []
                 for branch_element in branch_elements:
-                    key = _first_non_null(_field_values_within_branch(branch_element, key_field, branch.canonical_path))
-                    value = _first_non_null(_field_values_within_branch(branch_element, value_field, branch.canonical_path))
+                    key = _first_non_null(_field_values_within_branch(branch_element, key_field, branch.canonical_path,
+                                                                                        preserve_empty_elements=preserve_empty_elements))
+                    value = _first_non_null(_field_values_within_branch(branch_element, value_field, branch.canonical_path,
+                                                                                          preserve_empty_elements=preserve_empty_elements))
                     if key is not None:
                         pivot_pairs.append((key, value))
                 for key, value in pivot_pairs:
@@ -464,7 +484,8 @@ def preview_xml_tabularization(
             for field in branch_fields:
                 all_values: list[str | None] = []
                 for branch_element in branch_elements:
-                    all_values.extend(_field_values_within_branch(branch_element, field, branch.canonical_path))
+                    all_values.extend(_field_values_within_branch(branch_element, field, branch.canonical_path,
+                                                                                       preserve_empty_elements=preserve_empty_elements))
                 if strategy == "first":
                     value: Any = _first_non_null(all_values)
                 elif strategy == "last":

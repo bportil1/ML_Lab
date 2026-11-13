@@ -182,6 +182,7 @@ def build_xml_collection_plan(
     selected_field_ids: Iterable[str],
     *,
     rules: Iterable[Mapping[str, Any]] | None = None,
+    include_empty_leaf_fields: bool = False,
 ) -> XmlCollectionPlan:
     """Build/validate one-to-many rules for an XML record selection.
 
@@ -190,7 +191,10 @@ def build_xml_collection_plan(
     read XML values or materialize a table.
     """
 
-    selection = build_xml_record_selection(artifact, record_root_canonical_path)
+    selection = build_xml_record_selection(
+        artifact, record_root_canonical_path,
+        include_empty_leaf_fields=include_empty_leaf_fields,
+    )
     field_by_id = {field.field_id: field for field in selection.fields}
     requested_ids: list[str] = []
     seen_ids: set[str] = set()

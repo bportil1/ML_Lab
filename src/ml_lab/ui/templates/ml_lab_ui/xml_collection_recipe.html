@@ -44,7 +44,7 @@
   {% if catalog.record_root_canonical_path %}
   <section class="panel">
     <h2>2. Select shared fields</h2>
-    <p class="muted">Fields shown here are the union of canonical fields across selected sources. Missing fields are not silently mapped or filled in this sprint.</p>
+    <p class="muted">Fields are the canonical union across selected XML sources. Absent paths are assigned null by default; the validated recipe retains the canonical field identity and the reason for source-wide absence. Empty elements and explicit nils remain distinct in null-provenance inspection.</p>
     <div class="table-wrap"><table class="interactive-table" data-page-size="50">
       <thead><tr><th>Use</th><th>Field / path</th><th>Type</th><th>Present in</th><th>Absent in</th><th>Repeated in</th></tr></thead>
       <tbody>{% for field in catalog.fields %}<tr>
@@ -52,7 +52,7 @@
         <td><code>{{ field.relative_path }}</code></td><td>{{ field.kind }}</td>
         <td>{{ field.present_in|length }}</td><td>{{ field.missing_in|length }}</td><td>{{ field.repeated_in|length }}</td>
       </tr>{% endfor %}</tbody></table></div>
-    <label class="check"><input type="checkbox" name="allow_missing_fields" value="1" {% if allow_missing_fields %}checked{% endif %}> Explicitly permit missing selected fields in some sources (future C5 export must align them as nulls).</label>
+    <label class="check"><input type="checkbox" name="reject_missing_fields" value="1" {% if not allow_missing_fields %}checked{% endif %}> Strict mode: reject missing selected fields instead of filling nulls (optional)</label>
     <button class="button secondary" type="submit" name="mode" value="branches">Inspect required repeated-branch rules</button>
   </section>
   {% endif %}

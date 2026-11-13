@@ -15,6 +15,7 @@ from typing import Any
 from .xml_collection import XmlCollectionInventory
 from .xml_collection_review import _comparison_record, review_xml_collection
 from .xml_ingest import inspect_xml_structure
+from .xml_null_provenance import catalog_xml_null_fields
 from .xml_rules import build_xml_collection_plan
 from .xml_selection import build_xml_record_selection
 
@@ -84,7 +85,7 @@ def _catalog_from_artifacts(inventory: XmlCollectionInventory, artifacts: Mappin
         profiles = [profiles[path] for profiles in all_profiles]
         field_ids: set[str] = set()
         for artifact in artifacts.values():
-            field_ids.update(field.field_id for field in build_xml_record_selection(artifact, path).fields)
+            field_ids.update(field.field_id for field in build_xml_record_selection(artifact, path, include_empty_leaf_fields=True).fields)
         options.append({
             "canonical_path": path,
             "display_path": profiles[0].path,
@@ -101,7 +102,7 @@ def _catalog_from_artifacts(inventory: XmlCollectionInventory, artifacts: Mappin
     catalog: dict[str, dict[str, Any]] = {}
     if chosen:
         for rel, artifact in artifacts.items():
-            for field in build_xml_record_selection(artifact, chosen).fields:
+            for field in build_xml_record_selection(artifact, chosen, include_empty_leaf_fields=True).fields:
                 entry = catalog.setdefault(field.field_id, {
                     "field_id": field.field_id, "relative_path": field.relative_path,
                     "kind": field.kind, "canonical_path": field.canonical_path,
@@ -126,7 +127,7 @@ def _catalog_from_artifacts(inventory: XmlCollectionInventory, artifacts: Mappin
         "record_root_canonical_path": chosen or None,
         "fields": fields,
         "notes": ["Record root must be present in every source.",
-                  "Fields absent from some sources require explicit missing-field approval.",
+                  "Fields absent from some sources are null-aligned by default (strict mode is optional).",
                   "Value-level extraction, preview, and CSV export belong to XML-C5."],
     }
 
@@ -135,7 +136,7 @@ def build_xml_collection_recipe(
     inventory: XmlCollectionInventory, similarity: Mapping[str, Any],
     selected_paths: Iterable[str], record_root_canonical_path: str,
     selected_field_ids: Iterable[str], *, acknowledge_variants: bool = False,
-    allow_missing_fields: bool = False,
+    allow_missing_fields: bool = True,
     rules: Iterable[Mapping[str, Any]] | None = None,
     max_source_bytes: int = 512 * 1024 ** 2,
 ) -> dict[str, Any]:
@@ -177,43 +178,82 @@ def build_xml_collection_recipe(
     # shared branch from path similarity alone.
     for rel in all_sources:
         artifact = artifacts[rel]
-        source_fields = {field.field_id for field in build_xml_record_selection(artifact, root).fields}
+        source_fields = {field.field_id for field in build_xml_record_selection(artifact, root, include_empty_leaf_fields=True).fields}
         present = [field_id for field_id in identifiers if field_id in source_fields]
         missing = [field_id for field_id in identifiers if field_id not in source_fields]
         if missing and not allow_missing_fields:
             blocks.append(f"{rel}: {len(missing)} selected field(s) absent; explicitly allow missing fields.")
-        if not present:
-            blocks.append(f"{rel}: no selected fields present; cannot establish extraction.")
-        # First discover branches without supplying rules, then apply the shared
-        # rule set only to branches that exist in this source.
-        preliminary = build_xml_collection_plan(artifact, root, present)
-        active_branches = {branch.canonical_path for branch in preliminary.repeated_branches}
-        required_branches.update(active_branches)
-        specific_rules = [rule_map[branch] for branch in sorted(active_branches & rule_map.keys())]
-        plan = build_xml_collection_plan(artifact, root, present, rules=specific_rules)
-        issues = []
-        for branch in plan.repeated_branches:
-            if branch.rule is None or not branch.rule.valid:
-                issues.append({"branch": branch.canonical_path,
-                               "errors": list(branch.rule.errors) if branch.rule else ["Missing branch rule"]})
-        if plan.unresolved_branch_count or plan.invalid_rule_count:
-            blocks.append(f"{rel}: unresolved or invalid repeated-branch strategies.")
-        for warning in plan.warnings:
-            if warning not in warnings:
-                warnings.append(warning)
+        # When no selected field exists in this *particular* source, its
+        # verified record roots still yield all-null rows. Do not invent a
+        # repeated-branch plan or reject the source just for missing paths.
+        active_branches: set[str] = set()
+        issues: list[dict[str, Any]] = []
+        source_ready = True
+        if present:
+            preliminary = build_xml_collection_plan(artifact, root, present, include_empty_leaf_fields=True)
+            active_branches = {branch.canonical_path for branch in preliminary.repeated_branches}
+            required_branches.update(active_branches)
+            specific_rules = [rule_map[branch] for branch in sorted(active_branches & rule_map.keys())]
+            plan = build_xml_collection_plan(artifact, root, present, rules=specific_rules,
+                                             include_empty_leaf_fields=True)
+            for branch in plan.repeated_branches:
+                if branch.rule is None or not branch.rule.valid:
+                    issues.append({"branch": branch.canonical_path,
+                                   "errors": list(branch.rule.errors) if branch.rule else ["Missing branch rule"]})
+            if plan.unresolved_branch_count or plan.invalid_rule_count:
+                blocks.append(f"{rel}: unresolved or invalid repeated-branch strategies.")
+            source_ready = plan.ready_for_preview
+            for warning in plan.warnings:
+                if warning not in warnings:
+                    warnings.append(warning)
         per_source.append({
             "relative_path": rel, "source_fingerprint": f"sha256:{artifact.source_sha256}",
             "record_root_occurrences": build_xml_record_selection(artifact, root).record_root_occurrence_count,
             "present_field_ids": present, "missing_field_ids": missing,
             "active_repeated_branches": sorted(active_branches), "rule_issues": issues,
-            "ready_for_preview": plan.ready_for_preview and bool(present),
+            "ready_for_preview": source_ready,
         })
     for branch in sorted(set(rule_map) - required_branches):
         blocks.append(f"Unused or unknown repeated-branch rule: {branch}")
     if any(field_catalog[fid]["missing_in"] for fid in identifiers):
-        warnings.append("Optional/missing source fields require null alignment during future C5 extraction.")
+        warnings.append("Missing fields will be materialized as null; field-level provenance is retained.")
     if any(field_catalog[fid]["repeated_in"] for fid in identifiers):
         warnings.append("Repeated-field value semantics must still be confirmed in XML-C5 previews.")
+    # Use the canonical ML-UW-18 inventory rather than inferring missing-path
+    # reasons from display labels or a flattened union path list.
+    null_inventory = catalog_xml_null_fields(artifacts, root)
+    canonical = {row["field_id"]: row for row in null_inventory["fields"]}
+    unmapped = [fid for fid in identifiers if fid not in canonical]
+    if unmapped:
+        blocks.append("Selected fields lack canonical null provenance: " + ", ".join(unmapped[:5]))
+    null_alignment = {
+        "schema": "ml-lab.xml-null-alignment@1",
+        "policy": "missing_as_null" if allow_missing_fields else "reject_missing",
+        "field_inventory_schema": null_inventory["schema"],
+        "record_root_canonical_path": root,
+        "fields": [
+            {"field_id": fid, "column_key": fid,
+             "kind": canonical[fid]["kind"],
+             "canonical_path": canonical[fid]["canonical_path"],
+             "source_element_canonical_path": canonical[fid]["source_element_canonical_path"],
+             "attribute_qname": canonical[fid]["attribute_qname"],
+             "present_in": list(canonical[fid]["present_in"]),
+             "optional_in": list(canonical[fid]["optional_in"]),
+             "missing_in": list(canonical[fid]["missing_in"]),
+             "absence_reason_by_source": {
+                 rel: ("attribute_absent"
+                       if canonical[fid]["kind"] == "attribute" and
+                       canonical[fid]["source_element_canonical_path"] in
+                       {p.canonical_path for p in artifacts[rel].element_profiles}
+                       else "path_absent")
+                 for rel in canonical[fid]["missing_in"]
+             }}
+            for fid in identifiers if fid in canonical
+        ],
+        "notes": ["Null applies to absent fields; empty elements remain a separate condition.",
+                  "Record-level conditions are observed separately; repeated values are not collapsed.",
+                  "The Comments CSV/TSV column will be introduced in ML-UW-21."],
+    }
     ready = not blocks
     return {
         "schema": "ml-lab.xml-collection-recipe@1",
@@ -224,6 +264,7 @@ def build_xml_collection_recipe(
         "selected_field_ids": identifiers,
         "field_alignment": [field_catalog[fid] for fid in identifiers],
         "allow_missing_fields": bool(allow_missing_fields),
+        "null_alignment": null_alignment,
         "acknowledge_variants": bool(acknowledge_variants),
         "rules": [dict(rule_map[path]) for path in sorted(rule_map)],
         "required_repeated_branches": sorted(required_branches),
@@ -234,6 +275,7 @@ def build_xml_collection_recipe(
         "blocking_reasons": blocks,
         "warnings": warnings,
         "notes": ["Only structural and repeated-branch configuration is validated.",
+                  "Missing paths are allowed by default and preserve their canonical field identities.",
                   "XML-C5 must confirm actual value/type behavior and output schema before CSV export."],
     }
 
@@ -362,7 +404,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--field", action="append", default=[], help="Repeat canonical XML field ID")
     parser.add_argument("--rules-json", help="JSON list of repeated-branch rules")
     parser.add_argument("--acknowledge-variants", action="store_true")
-    parser.add_argument("--allow-missing-fields", action="store_true")
+    parser.add_argument("--allow-missing-fields", action="store_true", default=True,
+                        help="Default: materialize missing fields as null")
+    parser.add_argument("--reject-missing-fields", action="store_false", dest="allow_missing_fields",
+                        help="Strict opt-out: block recipes containing fields absent from any source")
     parser.add_argument("--min-shared-fraction", type=float, default=0.5)
     parser.add_argument("--max-files", type=int, default=1000,
                         help="Explicit inventory source budget (default: 1000; no fixed C3/C4 80-file ceiling)")
