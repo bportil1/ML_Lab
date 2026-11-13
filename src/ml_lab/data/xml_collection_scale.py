@@ -201,7 +201,7 @@ def _child_path(target: Path, name: str) -> Path:
 
 def _materialize_xml_collection_scaled_unlocked(
     recipe: Mapping[str, Any], output: str | Path, *, confirm: bool = False,
-    resume: bool = False, max_files: int = 80, max_source_bytes: int = 64 * 1024**2,
+    resume: bool = False, max_files: int | None = None, max_source_bytes: int = 64 * 1024**2,
     max_source_records: int = 10000, max_child_rows_per_source: int = 50000,
     max_total_rows: int = 2_000_000, max_child_rows: int = 1_000_000,
     progress: ProgressCallback | None = None,
@@ -214,8 +214,8 @@ def _materialize_xml_collection_scaled_unlocked(
     """
     if not confirm:
         raise XmlCollectionExportError('Explicit confirmation is required')
-    if min(max_files, max_source_bytes, max_source_records, max_child_rows_per_source,
-           max_total_rows, max_child_rows) < 1:
+    if min(max_source_bytes, max_source_records, max_child_rows_per_source,
+           max_total_rows, max_child_rows) < 1 or (max_files is not None and max_files < 1):
         raise XmlCollectionExportError('All resource limits must be positive')
     target, state_path, workdir = _paths(output)
     manifest_path = target.with_suffix(target.suffix + '.collection.json')
@@ -387,7 +387,7 @@ def _materialize_xml_collection_scaled_unlocked(
 
 def materialize_xml_collection_scaled(
     recipe: Mapping[str, Any], output: str | Path, *, confirm: bool = False,
-    resume: bool = False, max_files: int = 80, max_source_bytes: int = 64 * 1024**2,
+    resume: bool = False, max_files: int | None = None, max_source_bytes: int = 64 * 1024**2,
     max_source_records: int = 10000, max_child_rows_per_source: int = 50000,
     max_total_rows: int = 2_000_000, max_child_rows: int = 1_000_000,
     progress: ProgressCallback | None = None,
@@ -468,7 +468,8 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument('--resume', action='store_true')
     export.add_argument('--progress-json', action='store_true',
                         help='Write bounded job events as local stderr JSON lines')
-    export.add_argument('--max-files', type=int, default=80)
+    export.add_argument('--max-files', type=int, default=None,
+                        help='Optional explicit source-count budget; omitted means no source-count ceiling')
     export.add_argument('--max-source-bytes', type=int, default=64 * 1024**2)
     export.add_argument('--max-source-records', type=int, default=10000)
     export.add_argument('--max-total-rows', type=int, default=2_000_000)

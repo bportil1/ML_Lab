@@ -21,13 +21,12 @@
       <label class="check"><input type="checkbox" name="include_hidden" value="1" {% if include_hidden %}checked{% endif %}> Include hidden files</label>
       <label>Include glob <input type="text" name="include_glob" value="{{ include_glob }}"></label>
       <label>Exclude glob <input type="text" name="exclude_glob" value="{{ exclude_glob }}"></label>
-      <label>Maximum XML files (up to 80) <input class="medium-input" type="number" name="max_files" min="1" max="80" value="{{ max_files }}"></label>
+      <label>Review at most <input class="medium-input" type="number" name="max_files" min="1" value="{{ max_files }}"></label>
       <label>Minimum shared path fraction <input class="medium-input" type="number" name="min_shared_fraction" min="0" max="1" step="0.05" value="{{ min_shared_fraction }}"></label>
     </div>
     <button class="button" type="submit">Inspect compatibility</button>
   </form>
 </section>
-{% if review_limit_notice %}<div class="tip">{{ review_limit_notice }}</div>{% endif %}
 {% if error %}<div class="alert data-alert" role="alert">{{ error }}</div>{% endif %}
 {% if report %}
 <section class="summary-grid">

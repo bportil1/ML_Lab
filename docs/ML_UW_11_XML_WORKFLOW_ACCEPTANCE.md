@@ -10,7 +10,7 @@ This increment preserves the existing XML-C1–C6 and single-document extraction
 
 ## Deliberate limits
 
-- The synchronous collection comparison/review is capped at **80 XML files** and **does not silently truncate**. Files above the limit require narrower filters or a future scalable review mechanism. Inventory (without pairwise comparison) has its own separate limits.
+- Originally C3 review was limited to 80 XML files. ML-UW-17 removes that ceiling and propagates the caller-selected inventory budget through C3 and C4; comparison remains synchronous and quadratic. The inventory's explicit count, size, and parser-safety limits remain applicable.
 - Typed XML materialization remains an independent structured artifact, not automatically flattened into a numeric dataset.
 - Back-navigation preserves filters but not a persisted review approval; returning to an earlier stage requires deliberate reinspection.
 - Source files are never modified by the added UI handoffs. `workbench_select_file` remains responsible for verifying the generated dataset, provenance, schema, and generation before user-confirmed activation.

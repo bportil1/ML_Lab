@@ -364,7 +364,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--acknowledge-variants", action="store_true")
     parser.add_argument("--allow-missing-fields", action="store_true")
     parser.add_argument("--min-shared-fraction", type=float, default=0.5)
-    parser.add_argument("--max-files", type=int, default=80)
+    parser.add_argument("--max-files", type=int, default=1000,
+                        help="Explicit inventory source budget (default: 1000; no fixed C3/C4 80-file ceiling)")
     parser.add_argument("--inspect", action="store_true", help="Display shared root/field choices as JSON")
     parser.add_argument("--output", default="analysis/data/xml_collection_recipe.json")
     args = parser.parse_args(argv)

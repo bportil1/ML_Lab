@@ -94,8 +94,9 @@ def test_review_validates_request_bounds_and_modified_sources(tmp_path: Path):
     client = create_app(config={"TESTING": True}).test_client()
     url = "/data/xml/collection/review"
     settings = {"directory": str(tmp_path), "recursive": "1"}
-    capped = client.post(url, data={**settings, "max_files": "1000"})
-    assert capped.status_code == 200
-    assert b"limited to 80 XML files" in capped.data
+    uncapped = client.post(url, data={**settings, "max_files": "1000"})
+    assert uncapped.status_code == 200
+    assert b"limited to 80 XML files" not in uncapped.data
+    assert b'name="max_files"' in uncapped.data
     assert client.post(url, data={**settings, "min_shared_fraction": "nan"}).status_code == 400
     assert client.post(url, data={**settings, "mode": "review", "selected": ["bogus.xml"]}).status_code == 400

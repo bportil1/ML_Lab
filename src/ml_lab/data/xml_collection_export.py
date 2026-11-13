@@ -42,12 +42,14 @@ def _sha(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _verify_recipe(recipe: Mapping[str, Any], *, max_files: int, max_source_bytes: int) -> tuple[dict[str, Any], dict[str, Any]]:
+def _verify_recipe(recipe: Mapping[str, Any], *, max_files: int | None, max_source_bytes: int) -> tuple[dict[str, Any], dict[str, Any]]:
     if recipe.get('schema') != 'ml-lab.xml-collection-recipe@1' or not recipe.get('structural_recipe_validated') or recipe.get('status') != 'ready_for_collection_preview':
         raise XmlCollectionExportError('C5 requires a C4 validated and ready collection recipe')
     sources = recipe.get('selected_sources')
-    if not isinstance(sources, list) or not 2 <= len(sources) <= max_files:
-        raise XmlCollectionExportError('The collection must contain 2 or more reviewed sources within the file limit')
+    if not isinstance(sources, list) or len(sources) < 2:
+        raise XmlCollectionExportError('The collection must contain at least 2 reviewed sources')
+    if max_files is not None and (max_files < 1 or len(sources) > max_files):
+        raise XmlCollectionExportError('The collection exceeds the explicitly requested file limit')
     if any(not isinstance(item, dict) for item in sources):
         raise XmlCollectionExportError('Invalid C4 source evidence')
     rels = [item.get('relative_path') for item in sources]
@@ -70,7 +72,7 @@ def _verify_recipe(recipe: Mapping[str, Any], *, max_files: int, max_source_byte
             raise XmlCollectionExportError(f'XML source changed since C4 validation: {rel}')
     # Reconstruct the same reviewed semantics; do not trust JSON readiness flags alone.
     inventory = inventory_xml_collection(root, recursive=True, include_hidden=True,
-                                         max_files=max(1000, max_files),
+                                         max_files=max(1000, len(sources), max_files or 0),
                                          max_file_bytes=max_source_bytes)
     report = compare_xml_collection(inventory)
     try:
@@ -95,7 +97,7 @@ def _rules_for(source: Mapping[str, Any], shared_rules: list[dict[str, Any]]) ->
     return [rule for rule in shared_rules if rule['branch_canonical_path'] in active]
 
 
-def _extract(recipe: Mapping[str, Any], *, preview: bool, max_files: int,
+def _extract(recipe: Mapping[str, Any], *, preview: bool, max_files: int | None,
              max_source_bytes: int, max_source_records: int,
              max_total_rows: int, max_child_rows: int) -> dict[str, Any]:
     current, context = _verify_recipe(recipe, max_files=max_files, max_source_bytes=max_source_bytes)
@@ -177,7 +179,7 @@ def _extract(recipe: Mapping[str, Any], *, preview: bool, max_files: int,
     }
 
 
-def preview_xml_collection_export(recipe: Mapping[str, Any], *, max_files: int = 80,
+def preview_xml_collection_export(recipe: Mapping[str, Any], *, max_files: int | None = None,
                                   max_source_bytes: int = 64 * 1024**2) -> dict[str, Any]:
     """Revalidate C4 and return a bounded, non-persisted view of the combined table."""
     result = _extract(recipe, preview=True, max_files=max_files,
@@ -204,7 +206,7 @@ def _write_csv(path: Path, columns: list[str], rows: list[dict[str, Any]], delim
 
 def materialize_xml_collection(recipe: Mapping[str, Any], output: str | Path, *,
                                overwrite: bool = False, confirm: bool = False,
-                               max_files: int = 80, max_source_bytes: int = 64 * 1024**2,
+                               max_files: int | None = None, max_source_bytes: int = 64 * 1024**2,
                                max_source_records: int = 10000,
                                max_total_rows: int = 100000,
                                max_child_rows: int = 50000,

@@ -234,7 +234,7 @@ def inspect_collection_recovery(output: str | Path) -> dict[str, Any]:
     if not existing:
         from .xml_collection_export import _verify_recipe
         try:
-            _verify_recipe(payload['recipe'], max_files=80, max_source_bytes=64 * 1024**2)
+            _verify_recipe(payload['recipe'], max_files=None, max_source_bytes=64 * 1024**2)
         except (ValueError, OSError) as exc:
             result['status'] = 'blocked_source_or_recipe'
             result['problems'] = [str(exc)]

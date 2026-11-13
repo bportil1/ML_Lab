@@ -14,7 +14,7 @@ XML-generated CSV/TSV datasets can still be selected explicitly and analyzed in 
 
 The previous 100-source UI default and 200-source hard ceiling are removed. By default, C2 compares **all successfully parsed sources contained in the XML-C1 inventory**. The optional `max_sources` argument is retained for advanced callers who want an explicit safety budget; it is no longer implicitly supplied by the XML-C2 UI or CLI. Inventory discovery retains its independently user-configurable `max_files`, size and parser-safety guards.
 
-**Scale caveat:** C2 still materializes pairwise evidence (`n * (n-1) / 2`) and is synchronous. This patch does not provide streaming or paginated comparison artifacts. C3 compatibility review still has its independent 80-file limit. Future performance work should address these distinct limitations without silently discarding source files or claiming a full comparison when one was not performed.
+**Scale caveat:** C2 still materializes pairwise evidence (`n * (n-1) / 2`) and is synchronous. This patch does not provide streaming or paginated comparison artifacts. C3 and C4 formerly had an independent 80-file limit; ML-UW-17 removes that ceiling. Full pairwise comparisons remain quadratic and synchronous. Future performance work must explicitly distinguish sampled evidence from complete evidence without silently excluding sources.
 
 ## Acceptance / rollback
 

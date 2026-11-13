@@ -35,10 +35,10 @@
       <label class="check"><input type="checkbox" name="recursive" value="1" checked> Include nested directories</label>
       <label>Include glob <input name="include_glob" value="*.xml"></label>
       <label>Exclude glob <input name="exclude_glob" placeholder="*.backup.xml"></label>
-      <label>Review at most <input type="number" name="max_files" min="1" max="80" value="40"></label>
+      <label>Review at most <input type="number" name="max_files" min="1" value="40"></label>
       <label>Shared-path fraction <input type="number" name="min_shared_fraction" min="0" max="1" step="0.05" value="0.5"></label>
     </div>
-    <p class="muted">The interactive comparison currently caps review at 80 files to bound pairwise work. This is an analysis limit, not a silent truncation or a limit on your XML directory.</p>
+    <p class="muted">Review at most is a user-selected inventory budget, not a fixed 80-file cap. Full pairwise comparison grows quadratically and may be slow for large collections.</p>
     <button class="button" type="submit">Review XML collection</button>
     <a class="button secondary" href="{{ url_for(request.blueprint + '.xml_collection_inventory') }}">Inspect source inventory first</a>
   </form>

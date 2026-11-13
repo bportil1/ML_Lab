@@ -644,9 +644,8 @@ def create_ui_blueprint(
             requested_max_files = int(values.get("max_files", 40))
         except (TypeError, ValueError):
             requested_max_files = 40
-        max_files = min(requested_max_files, 80)
-        review_limit_notice = ("Review is limited to 80 XML files per request. Narrow the include/exclude filters "
-                               "if the directory contains more than 80 matching files.") if requested_max_files > 80 else None
+        # The operator-selected inventory budget is not an implicit C3 hard ceiling.
+        max_files = requested_max_files
         include_glob = values.get("include_glob", "*.xml").strip() or "*.xml"
         exclude_glob = values.get("exclude_glob", "").strip()
         fraction_raw = values.get("min_shared_fraction", "0.5")
@@ -661,7 +660,8 @@ def create_ui_blueprint(
             min_shared_fraction = float(fraction_raw)
             if not 0 <= min_shared_fraction <= 1:
                 raise ValueError("Minimum shared fraction must be between 0 and 1.")
-            # C2 emits all pair combinations; keep synchronous HTML work bounded.
+            # C2 emits every pair; large selections can be expensive until a
+            # future explicitly labeled sampling mode is implemented.
             if requested_max_files < 1:
                 raise ValueError("Review must allow at least one XML file.")
             if request.method == "POST":
@@ -696,7 +696,7 @@ def create_ui_blueprint(
             min_shared_fraction=fraction_raw, selected=selected,
             acknowledge_variants=acknowledge_variants, report=report, review=review,
             max_visible_pairs=200, structure_urls=structure_urls,
-            review_limit_notice=review_limit_notice, error=error,
+            error=error,
         ), (400 if error else 200)
 
     @blueprint.route("/data/xml/collection/recipe", methods=["GET", "POST"])
@@ -711,7 +711,7 @@ def create_ui_blueprint(
         include_hidden = request.form.get("include_hidden", "") == "1"
         include_glob = request.form.get("include_glob", "*.xml").strip() or "*.xml"
         exclude_glob = request.form.get("exclude_glob", "").strip()
-        max_files = min(_form_int("max_files", 40), 80)
+        max_files = _form_int("max_files", 40)
         fraction = request.form.get("min_shared_fraction", "0.5")
         selected = request.form.getlist("selected")
         acknowledged = request.form.get("acknowledge_variants", "") == "1"
@@ -724,8 +724,8 @@ def create_ui_blueprint(
         error = None
         try:
             if request.method == "POST":
-                if not directory or not 1 <= max_files <= 80:
-                    raise ValueError("Choose an XML directory and a maximum of 1–80 files.")
+                if not directory or max_files < 1:
+                    raise ValueError("Choose an XML directory and a positive maximum file count.")
                 shared_fraction = float(fraction)
                 if not 0 <= shared_fraction <= 1:
                     raise ValueError("Minimum shared fraction must be between 0 and 1.")

@@ -74,13 +74,13 @@
       <td>{{ group.members|join(', ') }}</td>
       <td>{{ group.shared_record_root_candidates|join(', ') or 'Review needed' }}</td>
       <td>
-        <a class="button mini secondary" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=[max_files, 80]|min, min_shared_fraction=minimum_similarity) }}">Review collection</a>
+        <a class="button mini secondary" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=max_files, min_shared_fraction=minimum_similarity) }}">Review collection</a>
         {% if group.members|length > 1 %}
         <form method="post" action="{{ url_for(request.blueprint + '.xml_collection_recipe') }}" class="inline-form">
           <input type="hidden" name="directory" value="{{ directory }}">
           <input type="hidden" name="include_glob" value="{{ include_glob }}">
           <input type="hidden" name="exclude_glob" value="{{ exclude_glob }}">
-          <input type="hidden" name="max_files" value="{{ [max_files, 80]|min }}">
+          <input type="hidden" name="max_files" value="{{ max_files }}">
           <input type="hidden" name="min_shared_fraction" value="{{ minimum_similarity }}">
           <input type="hidden" name="mode" value="auto_all">
           <input type="hidden" name="auto_all" value="1">
@@ -93,7 +93,7 @@
       </td></tr>
     {% endfor %}</tbody>
   </table></div>
-  <div class="button-row"><a class="button" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=[max_files, 80]|min, min_shared_fraction=minimum_similarity) }}">Continue to compatibility review</a></div>
+  <div class="button-row"><a class="button" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=max_files, min_shared_fraction=minimum_similarity) }}">Continue to compatibility review</a></div>
 </section>
 <section class="panel inventory-panel">
   <h2>Pairwise structural differences</h2>
