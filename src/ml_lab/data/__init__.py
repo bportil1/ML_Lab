@@ -9,6 +9,9 @@ remain immutable by default.
 from .artifacts import load_persisted_profile, load_profile_run, persist_profile_run, recent_profile_runs
 from .comparison import compare_files, compare_paths, save_comparison
 from .intake import inspect_file, inspect_paths
+from .xml_null_provenance import (
+    XmlNullProvenanceError, catalog_xml_null_fields, preview_xml_null_provenance,
+)
 from .xml_ingest import XmlSafetyError, analyze_xml_structure, inspect_xml_structure, load_xml_structure
 from .xml_collection import XmlCollectionInventory, XmlCollectionSource, inventory_xml_collection, save_xml_collection_inventory
 from .xml_similarity import XmlCollectionComparison, compare_xml_collection, save_xml_collection_comparison
@@ -99,6 +102,9 @@ __all__ = [
     "XmlCollectionComparison",
     "compare_xml_collection",
     "save_xml_collection_comparison",
+    "XmlNullProvenanceError",
+    "catalog_xml_null_fields",
+    "preview_xml_null_provenance",
     "XmlSafetyError",
     "XmlSelectionError",
     "XmlCollectionRuleError",
