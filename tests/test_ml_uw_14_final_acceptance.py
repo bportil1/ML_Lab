@@ -47,9 +47,13 @@ def test_every_ui_template_parses_without_optional_flask():
 
 def test_scientific_sections_and_data_area_split_are_preserved():
     navigation = (TEMPLATES.parent.parent / 'workbench_navigation.py').read_text(encoding='utf-8')
-    labels = ('Tabular Data', 'XML Data', 'Postcollection Utilities', 'Feature Profiling', 'Representation', 'Comparison', 'General ML Tools')
-    positions = [navigation.index(f'"{label}"') for label in labels]
+    primary = ('Data', 'Feature Profiling', 'Representation', 'Comparison', 'General ML Tools')
+    positions = [navigation.index(f'"{label}"') for label in primary]
     assert positions == sorted(positions)
+    secondary = ('Tabular Data', 'XML Data', 'Post-Collection Utilities')
+    child_positions = [navigation.index(f'"{label}"') for label in secondary]
+    assert child_positions == sorted(child_positions)
+    assert min(child_positions) > max(positions)
     assert '"Planned"' in navigation  # Held-out benchmarking must not claim availability.
     methods = {item['id']: item for item in method_catalog()}
     assert {'pca', 'truncated_svd', 'fast_ica', 'nmf', 'kernel_pca', 'isomap', 'tsne'} <= set(methods)
@@ -149,7 +153,7 @@ def test_mounted_page_navigation_is_read_only_and_prefix_safe(tmp_path):
         response = client.get('/pah/labs/ml-lab' + path)
         assert response.status_code == 200, path
         html = response.get_data(as_text=True)
-        assert html.count('class="mlwb-primary-link') == 7, path
+        assert html.count('class="mlwb-primary-link') == 5, path
         assert '/pah/labs/ml-lab/api/workbench/context' in html
     tools = client.get('/pah/labs/ml-lab/workbench/general-ml-tools').get_data(as_text=True)
     for anchor in ('#models', '#ebm', '#optimization', '#generative'):

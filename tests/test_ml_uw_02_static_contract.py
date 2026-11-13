@@ -16,11 +16,15 @@ def test_workbench_templates_parse_without_server():
 def test_sidebar_order_and_no_legacy_horizontal_bar():
     contract = (UI / 'workbench_navigation.py').read_text(encoding='utf-8')
     positions = [contract.index('("' + key + '", "' + title + '"') for key, title in (
-        ('tabular', 'Tabular Data'), ('xml', 'XML Data'),
-        ('postcollection', 'Postcollection Utilities'), ('profiling', 'Feature Profiling'),
+        ('data', 'Data'), ('profiling', 'Feature Profiling'),
         ('representation', 'Representation'), ('comparison', 'Comparison'),
         ('tools', 'General ML Tools'))]
     assert positions == sorted(positions)
+    data_children = [contract.index('("' + key + '", "' + title + '"') for key, title in (
+        ('tabular', 'Tabular Data'), ('xml', 'XML Data'),
+        ('postcollection', 'Post-Collection Utilities'))]
+    assert data_children == sorted(data_children)
+    assert min(data_children) > max(positions)  # Children never enter primary navigation.
     template = (UI / 'templates' / 'ml_lab_ui' / 'base.html').read_text(encoding='utf-8')
     assert '<nav class="module-nav' not in template
     assert 'mlwb-primary-nav' in template

@@ -77,6 +77,24 @@
   border-color: var(--pah-teal-600);
   background: #e4f1f7;
 }
+/* ML-UW-16B: three quiet Data children appear below all five primary tabs. */
+.mlwb-data-subsections {
+  margin-top: 11px;
+  padding-top: 8px;
+  border-top: 1px solid var(--pah-border);
+}
+.mlwb-data-subsections a {
+  color: var(--pah-muted);
+  font-size: 11px;
+  font-weight: 450;
+  padding-left: 21px;
+}
+.mlwb-data-subsections a[aria-current="page"] {
+  color: var(--pah-text);
+  font-weight: 600;
+  background: var(--pah-surface-2);
+  border-left-color: var(--pah-teal-600);
+}
 .mlwb-layout > .mlwb-main.shell {
   width: 100%;
   min-width: 0;

@@ -13,37 +13,26 @@ from ml_lab import __version__
 from .workspace import active_tool, tool_records
 
 
+# Five primary Tools entries. The Data subnavigation appears *beneath* the
+# primary list, only while the active page belongs to the Data family.
 SECTION_SPEC = (
-    ("tabular", "Tabular Data", "data_lab"),
-    ("xml", "XML Data", "xml_workbench"),
-    ("postcollection", "Postcollection Utilities", "workbench_postcollection"),
+    ("data", "Data", "data_lab"),
     ("profiling", "Feature Profiling", "workbench_feature_profiling"),
     ("representation", "Representation", "workbench_representation"),
     ("comparison", "Comparison", "workbench_comparison"),
     ("tools", "General ML Tools", "workbench_general_ml_tools"),
 )
 
+DATA_SUBSECTIONS = (
+    ("tabular", "Tabular Data", "data_lab"),
+    ("xml", "XML Data", "xml_workbench"),
+    ("postcollection", "Post-Collection Utilities", "workbench_postcollection"),
+)
+
+
 # All links point to already-existing, working routes or the new read-only
 # landing pages. A planned capability never receives an executable link.
 SECTION_LINKS = {
-    "tabular": (
-        ("Tabular intake and inventory", "data_lab", {}),
-        ("Active dataset and history", "workspace", {}),
-    ),
-    "xml": (
-        ("XML data workspace", "xml_workbench", {}),
-        ("XML collection analysis", "xml_collection_inventory", {}),
-        ("XML collection review", "xml_collection_review", {}),
-        ("XML extraction provenance", "xml_collection_provenance", {}),
-        ("Indexed XML catalog", "xml_catalog_browser", {}),
-    ),
-    "postcollection": (
-        ("Postcollection utilities", "workbench_postcollection", {}),
-        ("Transform and clean", "data_transform", {}),
-        ("Trace provenance", "data_provenance", {}),
-        ("Compare collected datasets", "data_compare", {}),
-        ("Recorded experiment datasets", "experiment_dataset", {}),
-    ),
     "profiling": (
         ("Feature Profiling", "workbench_feature_profiling", {}),
         ("Run tabular profiles", "data_lab", {}),
@@ -71,9 +60,6 @@ SECTION_LINKS = {
 # Preserve the existing P5-13 tool entrypoints and browser navigation context,
 # but show them within their corresponding primary workflow sections.
 SECTION_TOOL_IDS = {
-    "tabular": frozenset({"data"}),
-    "xml": frozenset({"xml"}),
-    "postcollection": frozenset(),
     "profiling": frozenset(),
     "representation": frozenset({"representation"}),
     "comparison": frozenset({"results"}),
@@ -81,9 +67,13 @@ SECTION_TOOL_IDS = {
 }
 
 
-def section_for_request(endpoint: str | None, view_args: dict | None, family: str | None = None) -> str:
+def section_for_request(endpoint: str | None, view_args: dict | None, family: str | None = None) -> str | None:
     """Identify active section using route identity, not mount-prefix strings."""
     name = (endpoint or "").rsplit(".", 1)[-1]
+    if name in {"index", "workspace", "workspace_context"}:
+        # No workflow selected on the landing page: Data children stay hidden
+        # until the user enters Data or one of its existing workflow routes.
+        return None
     if name in {"workbench_feature_profiling", "workbench_feature_profiling_json",
                 "workbench_feature_role", "profile_view", "profile_job_view",
                 "profile_json", "profile_job_status"}:
@@ -102,15 +92,27 @@ def section_for_request(endpoint: str | None, view_args: dict | None, family: st
         if capability == "representation":
             return "representation"
         if capability == "data":
-            return "tabular"
+            return "data"
         return "tools"
     if name.startswith("xml_"):
-        return "xml"
+        return "data"
     if name in {"data_transform", "data_provenance", "data_compare", "workbench_postcollection",
                 "workbench_select_file", "workbench_activate_experiment", "experiment_dataset"}:
-        return "postcollection"
+        return "data"
     if name == "workbench_general_ml_tools" or name.startswith("experiment_"):
         return "tools"
+    return "data"
+
+
+def data_subsection_for_request(endpoint: str | None) -> str:
+    """Choose the Data child link for legacy and new routes without URL guessing."""
+    name = (endpoint or "").rsplit(".", 1)[-1]
+    if name.startswith("xml_"):
+        return "xml"
+    if name in {"workbench_postcollection", "data_transform", "data_provenance",
+                "data_compare", "workbench_select_file", "workbench_activate_experiment",
+                "experiment_dataset"}:
+        return "postcollection"
     return "tabular"
 
 
@@ -126,18 +128,27 @@ def install_workbench_navigation(blueprint: Blueprint, *, project_root: Path,
              "active": key == active}
             for key, label, endpoint in SECTION_SPEC
         ]
+        # Data has one concise, muted submenu. Individual XML and tabular
+        # workflows already provide their own detailed in-page navigation.
+        selected_data_area = data_subsection_for_request(request.endpoint) if active == "data" else None
+        data_subsections = [
+            {"id": key, "label": label,
+             "url": url_for(request.blueprint + "." + endpoint),
+             "active": key == selected_data_area}
+            for key, label, endpoint in DATA_SUBSECTIONS
+        ] if active == "data" else []
         links = [
             {"label": label, "url": url_for(request.blueprint + "." + endpoint, **kwargs),
              "current": request.endpoint == request.blueprint + "." + endpoint and
                         (not kwargs or kwargs == (request.view_args or {}))}
-            for label, endpoint, kwargs in SECTION_LINKS[active]
+            for label, endpoint, kwargs in SECTION_LINKS.get(active, ())
         ]
         current_tool = active_tool((request.endpoint or "").rsplit(".", 1)[-1], request.args.get("family"))
         tools = []
         for tool in tool_records():
             # General ML Tools now has one grouped launcher; the former four
             # individual entries remain reachable from its category cards.
-            if active == "tools" or tool["id"] not in SECTION_TOOL_IDS[active]:
+            if active not in SECTION_TOOL_IDS or active == "tools" or tool["id"] not in SECTION_TOOL_IDS[active]:
                 continue
             tool_url = url_for(request.blueprint + "." + tool["endpoint"], **tool["query"])
             if tool["anchor"]:
@@ -145,8 +156,9 @@ def install_workbench_navigation(blueprint: Blueprint, *, project_root: Path,
             tools.append({**tool, "url": tool_url, "current": tool["id"] == current_tool})
         return {"mlwb_navigation": {
             "active": active,
-            "active_label": next(label for key, label, _ in SECTION_SPEC if key == active),
+            "active_label": next((label for key, label, _ in SECTION_SPEC if key == active), "Tools"),
             "sections": sections,
+            "data_subsections": data_subsections,
             "links": links,
             "tools": tools,
         }}
@@ -200,7 +212,7 @@ def install_workbench_navigation(blueprint: Blueprint, *, project_root: Path,
         )
         return render_template(
             "ml_lab_ui/workbench_section.html", version=__version__,
-            section_title="Postcollection Utilities",
+            section_title="Post-Collection Utilities",
             section_description="Clean, validate, compare and trace already-collected or XML-extracted tabular datasets without re-running source collection.",
             cards=[{"title": title, "description": description,
                     "url": url_for(request.blueprint + "." + endpoint), "status": "Available"}

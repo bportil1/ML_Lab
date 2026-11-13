@@ -81,7 +81,7 @@ def test_workspace_templates_separate_three_sections():
     comparison = (TEMPLATES / 'ml_lab_ui/xml_collection_inventory.html').read_text()
     assert 'maximum 100 parsed sources' not in comparison
     nav = (UI / 'workbench_navigation.py').read_text()
-    for label in ('Tabular Data', 'XML Data', 'Postcollection Utilities'):
+    for label in ('Tabular Data', 'XML Data', 'Post-Collection Utilities'):
         assert label in nav
     assert 'workbench_postcollection' in nav
 
@@ -97,19 +97,19 @@ def test_mounted_workbench_routes_and_explicit_xml_handoff(tmp_path):
     app.register_blueprint(create_ui_blueprint(name='uw16', experiment_project_root=str(tmp_path)),
                            url_prefix='/pah/ml')
     client = app.test_client()
-    assert section_for_request('uw16.xml_collection_inventory', None) == 'xml'
-    assert section_for_request('uw16.data_lab', None) == 'tabular'
-    assert section_for_request('uw16.data_provenance', None) == 'postcollection'
+    assert section_for_request('uw16.xml_collection_inventory', None) == 'data'
+    assert section_for_request('uw16.data_lab', None) == 'data'
+    assert section_for_request('uw16.data_provenance', None) == 'data'
     for route, title in (
         ('/data', 'Tabular Data'),
         ('/data/xml/workbench', 'XML Data'),
-        ('/workbench/postcollection', 'Postcollection Utilities'),
+        ('/workbench/postcollection', 'Post-Collection Utilities'),
     ):
         response = client.get('/pah/ml' + route)
         assert response.status_code == 200, route
         html = response.get_data(as_text=True)
         assert title in html
-        assert html.count('class="mlwb-primary-link') == 7
+        assert html.count('class="mlwb-primary-link') == 5
     tabular = client.post('/pah/ml/data', data={'paths': str(tmp_path), 'recursive': '1'})
     assert tabular.status_code == 200
     assert b'values.csv' in tabular.data

@@ -214,7 +214,7 @@ def test_mounted_five_section_navigation_and_explicit_saved_revision(tmp_path):
                  'workbench/comparison', 'workbench/general-ml-tools'):
         response = client.get('/pah/ml-lab/' + page)
         assert response.status_code == 200, page
-        assert response.get_data(as_text=True).count('class="mlwb-primary-link') == 7
+        assert response.get_data(as_text=True).count('class="mlwb-primary-link') == 5
     profile = client.get('/pah/ml-lab/workbench/feature-profiling?inspect=1')
     assert profile.status_code == 200 and b'Per-feature metadata' in profile.data
     represented = client.post('/pah/ml-lab/workbench/representation', data={

@@ -32,7 +32,7 @@ def test_new_sections_render_and_mark_planned_honestly(tmp_path, route, title):
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert title in html
-    assert html.count('class="mlwb-primary-link') == 7
+    assert html.count('class="mlwb-primary-link') == 5
     assert '<nav class="module-nav' not in html
     assert 'any order' not in html.lower()
     assert 'ml_lab_workbench.css' in html
@@ -59,15 +59,15 @@ def test_stable_routes_and_prefix(tmp_path):
 
 def test_active_section_maps_both_legacy_and_new_routes():
     examples = [
-        ('my_plugin.data_lab', None, 'tabular'),
-        ('my_plugin.xml_collection_inventory', None, 'xml'),
-        ('my_plugin.data_transform', None, 'postcollection'),
-        ('my_plugin.data_provenance', None, 'postcollection'),
+        ('my_plugin.data_lab', None, 'data'),
+        ('my_plugin.xml_collection_inventory', None, 'data'),
+        ('my_plugin.data_transform', None, 'data'),
+        ('my_plugin.data_provenance', None, 'data'),
         ('my_plugin.profile_view', None, 'profiling'),
         ('my_plugin.workbench_representation', None, 'representation'),
         ('my_plugin.task', {'capability_id': 'representation'}, 'representation'),
         ('my_plugin.task', {'capability_id': 'rbm'}, 'tools'),
-        ('my_plugin.data_compare', None, 'postcollection'),
+        ('my_plugin.data_compare', None, 'data'),
         ('my_plugin.experiment_compare', None, 'comparison'),
         ('my_plugin.experiment_model', None, 'tools'),
         ('my_plugin.workspace_results', None, 'comparison'),
@@ -75,6 +75,7 @@ def test_active_section_maps_both_legacy_and_new_routes():
     for endpoint, args, expected in examples:
         assert section_for_request(endpoint, args) == expected
     assert section_for_request('my_plugin.experiment_model', None, 'representation') == 'representation'
+    assert section_for_request('my_plugin.index', None) is None
 
 
 def test_context_status_api_is_scoped_and_read_only(tmp_path):

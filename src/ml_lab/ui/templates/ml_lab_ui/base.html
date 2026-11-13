@@ -41,15 +41,36 @@
           {% endfor %}
         {% else %}
           {# The older direct blueprint factory lacks the new section routes. #}
-          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_lab') }}">Tabular Data</a>
-          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.xml_workbench') }}">XML Data</a>
-          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_transform') }}">Postcollection Utilities</a>
+          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_lab') }}">Data</a>
           <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_lab') }}">Feature Profiling</a>
           <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.task', capability_id='representation') }}">Representation</a>
           <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_compare') }}">Comparison</a>
           <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.experiment_model') }}">General ML Tools</a>
         {% endif %}
       </nav>
+      {% if mlwb_navigation is defined %}
+        {% set data_subsections = mlwb_navigation.data_subsections %}
+      {% else %}
+        {# Legacy direct Blueprint factory: keep equivalent navigation without
+           relying on the newer workbench context processor or its routes. #}
+        {% set legacy_page = (request.endpoint or '').rsplit('.', 1)[-1] %}
+        {% if legacy_page.startswith('xml_') or legacy_page in ['data_lab', 'source_view', 'matrix_editor', 'data_transform', 'data_provenance', 'data_compare'] %}
+          {% set data_subsections = [
+            {'id': 'tabular', 'label': 'Tabular Data', 'url': url_for(request.blueprint + '.data_lab'), 'active': not legacy_page.startswith('xml_') and legacy_page not in ['data_transform', 'data_provenance', 'data_compare']},
+            {'id': 'xml', 'label': 'XML Data', 'url': url_for(request.blueprint + '.xml_workbench'), 'active': legacy_page.startswith('xml_')},
+            {'id': 'postcollection', 'label': 'Post-Collection Utilities', 'url': url_for(request.blueprint + '.data_transform'), 'active': legacy_page in ['data_transform', 'data_provenance', 'data_compare']}
+          ] %}
+        {% else %}
+          {% set data_subsections = [] %}
+        {% endif %}
+      {% endif %}
+      {% if data_subsections %}
+      <nav class="mlwb-secondary-nav mlwb-data-subsections" aria-label="Data subsections">
+        {% for item in data_subsections %}
+        <a href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.label }}</a>
+        {% endfor %}
+      </nav>
+      {% endif %}
       {% if mlwb_navigation is defined and mlwb_navigation.links %}
       <div class="mlwb-subtitle">{{ mlwb_navigation.active_label }}</div>
       <nav class="mlwb-secondary-nav" aria-label="{{ mlwb_navigation.active_label }} options">
