@@ -252,7 +252,7 @@ def build_xml_collection_recipe(
         ],
         "notes": ["Null applies to absent fields; empty elements remain a separate condition.",
                   "Record-level conditions are observed separately; repeated values are not collapsed.",
-                  "The Comments CSV/TSV column will be introduced in ML-UW-21."],
+                  "ML-UW-21 CSV/TSV exports include a Comments null-reason column and manifest-pinned null encoding."],
     }
     ready = not blocks
     return {

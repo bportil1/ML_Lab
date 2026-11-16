@@ -32,7 +32,7 @@ def _matches(row: list[str], *, search: str, filters: Mapping[str, str], columns
 
 
 def _sort_value(value: str) -> tuple[int, Any]:
-    text = value.strip()
+    text = _normalise(value).strip()
     if text == "":
         return (2, "")
     try:
@@ -75,6 +75,11 @@ def read_table_page(
     if record.parse_status == "failed" or record.encoding is None or record.delimiter is None:
         raise ValueError(f"source table could not be parsed: {record.error or record.path}")
 
+    from .xml_null_export import is_null_aware_collection_main, verify_null_aware_collection_table, decode_value
+    xml_null_aware = is_null_aware_collection_main(record.path)
+    if xml_null_aware:
+        # Verify the artifact and its encoding manifest before interpreting tokens.
+        verify_null_aware_collection_table(record.path)
     columns = tuple(record.columns)
     if sort_column is not None and sort_column not in columns:
         raise ValueError(f"unknown sort column: {sort_column}")
@@ -104,6 +109,9 @@ def read_table_page(
                 skipped_malformed += 1
                 continue
             valid_count += 1
+            if xml_null_aware:
+                row = [raw if columns[index] == 'Comments' else decode_value(raw)
+                       for index, raw in enumerate(row)]
             if not _matches(row, search=search.strip(), filters=active_filters, columns=columns):
                 continue
             if all_matching is not None:

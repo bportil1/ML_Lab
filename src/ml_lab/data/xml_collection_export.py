@@ -24,7 +24,10 @@ from .xml_collection import inventory_xml_collection
 from .xml_collection_recipe import build_xml_collection_recipe
 from .xml_ingest import inspect_xml_structure
 from .xml_null_provenance import catalog_xml_null_fields, preview_xml_null_provenance
+from .xml_null_export import (COMMENTS, encode_value, encoding_manifest,
+                              collect_record_null_reasons, explain_row_nulls)
 from .xml_preview import preview_xml_tabularization
+from .xml_collection_columns import register_collection_columns, align_collection_row
 from .xml_similarity import compare_xml_collection
 from .xml_collection_provenance import (
     checkpoint_path, make_collection_event, provenance_path, start_checkpoint,
@@ -110,6 +113,9 @@ def _extract(recipe: Mapping[str, Any], *, preview: bool, max_files: int | None,
     source_reports: list[dict[str, Any]] = []
     warnings: list[str] = []
     verified_artifacts: dict[str, Any] = {}
+    source_conditions: dict[str, list[dict[str, str]]] = {}
+    one_row_per_record: dict[str, bool] = {}
+    absence_by_field = {field['field_id']: field for field in current.get('null_alignment', {}).get('fields', [])}
     limit = 25 if preview else None
     for entry in current['selected_sources']:
         rel = entry['relative_path']
@@ -148,32 +154,40 @@ def _extract(recipe: Mapping[str, Any], *, preview: bool, max_files: int | None,
             child_tables = ()
             source_warnings = ()
             signature = 'no_present_selected_fields'
-        # A single output column name must represent the SAME field, strategy and
-        # branch in all sources. Different named pivot columns may be aligned.
-        def register(table_headers: OrderedDict[str, tuple[Any, ...]], seen: dict[tuple[Any, ...], str], column: Any, *, table: str) -> None:
-            name = column.name
-            if name in {'__source_file', '__source_row'} or (table != 'main' and name == '__parent_record' and column.strategy != 'link'):
-                raise XmlCollectionExportError(f'XML column collides with reserved provenance column: {name}')
-            identity = (column.strategy, column.repeated_branch_canonical_path,
-                        tuple(column.source_field_ids), tuple(column.source_element_canonical_paths))
-            if name in table_headers and table_headers[name] != identity:
-                raise XmlCollectionExportError(f'Column {name!r} has conflicting meanings across XML sources; revise recipe')
-            if identity in seen and seen[identity] != name:
-                raise XmlCollectionExportError(f'Column identity maps to different names ({seen[identity]!r}, {name!r}); revise recipe')
-            table_headers.setdefault(name, identity)
-            seen[identity] = name
-        for column in main_columns:
-            register(headers, identities, column, table='main')
+        # C5 uses the same canonical field-ID alignment as checkpointed C7.
+        # Prefix aliases (d:value / q:value) do not create separate fields.
+        try:
+            main_aliases = register_collection_columns(main_columns, headers, identities)
+        except ValueError as exc:
+            raise XmlCollectionExportError(str(exc)) from exc
+        source_rows = tuple(align_collection_row(row, main_aliases) for row in source_rows)
+        aligned_children = []
+        for table in child_tables:
+            section = child.setdefault(table.name, {'headers': OrderedDict(), 'identities': {}, 'rows': []})
+            try:
+                aliases = register_collection_columns(
+                    table.columns, section['headers'], section['identities'], child=True
+                )
+            except ValueError as exc:
+                raise XmlCollectionExportError(str(exc)) from exc
+            aligned_children.append((table, aliases))
+        source_conditions[rel] = collect_record_null_reasons(
+            path, artifact=artifact, record_root=current['record_root_canonical_path'],
+            aligned_fields=current['null_alignment']['fields'], max_records=max_source_records,
+            stop_after=25 if preview else None)
+        # Only one-row-per-record extraction may use a record-indexed null reason.
+        # Exploded branches do not retain an unambiguous row-number mapping.
+        one_row_per_record[rel] = (len(source_rows) == len(source_conditions[rel]) and
+            not any(rule['strategy'] == 'explode' for rule in _rules_for(entry, current['rules'])))
         for row_idx, row in enumerate(source_rows, start=1):
             main_rows.append({'__source_file': rel, '__source_row': row_idx, **row})
             if len(main_rows) > max_total_rows:
                 raise XmlCollectionExportError(f'Main output exceeds C5 row limit ({max_total_rows})')
-        for table in child_tables:
-            section = child.setdefault(table.name, {'headers': OrderedDict(), 'identities': {}, 'rows': []})
-            for column in table.columns:
-                register(section['headers'], section['identities'], column, table=table.name)
+        for table, aliases in aligned_children:
+            section = child[table.name]
             for row in table.rows:
-                section['rows'].append({'__source_file': rel, **row})
+                section['rows'].append({'__source_file': rel,
+                                        **align_collection_row(row, aliases)})
                 if len(section['rows']) > max_child_rows:
                     raise XmlCollectionExportError(f'Child table {table.name!r} exceeds C5 row limit ({max_child_rows})')
         if _sha(path) != artifact.source_sha256:
@@ -195,6 +209,16 @@ def _extract(recipe: Mapping[str, Any], *, preview: bool, max_files: int | None,
         for row in table['rows']:
             for name in table['headers']:
                 row.setdefault(name, None)
+    for row in main_rows:
+        rel = row['__source_file']
+        index = row['__source_row'] - 1
+        conditions = source_conditions[rel][index] if one_row_per_record[rel] else None
+        explain_row_nulls(row, headers, source_id=rel, record_reasons=conditions,
+                          alignment=absence_by_field)
+    for part in child.values():
+        for row in part['rows']:
+            explain_row_nulls(row, part['headers'], source_id=row['__source_file'],
+                              record_reasons=None, alignment=absence_by_field)
     if not main_rows:
         raise XmlCollectionExportError('No main table rows were extracted; nothing published')
     null_observations: dict[str, list[dict[str, Any]]] = {}
@@ -218,10 +242,11 @@ def _extract(recipe: Mapping[str, Any], *, preview: bool, max_files: int | None,
     return {
         'schema': 'ml-lab.xml-collection-extraction@1',
         'null_alignment': current.get('null_alignment'),
+        'null_encoding': encoding_manifest(),
         'null_observations_by_source': null_observations,
-        'main_columns': ['__source_file', '__source_row', *headers],
+        'main_columns': ['__source_file', '__source_row', *headers, COMMENTS],
         'main_rows': main_rows,
-        'children': {name: {'columns': ['__source_file', *part['headers']], 'rows': part['rows']}
+        'children': {name: {'columns': ['__source_file', *part['headers'], COMMENTS], 'rows': part['rows']}
                      for name, part in child.items()},
         'sources': source_reports, 'warnings': list(dict.fromkeys(warnings)),
         'root_path': str(root), 'recipe': current,
@@ -241,7 +266,7 @@ def preview_xml_collection_export(recipe: Mapping[str, Any], *, max_files: int |
             'child_tables': {name: {'columns': child['columns'], 'sample_rows': child['rows'][:10]}
                              for name, child in result['children'].items()},
             'sources': result['sources'], 'warnings': result['warnings'],
-            'null_alignment': result['null_alignment'],
+            'null_alignment': result['null_alignment'], 'null_encoding': result['null_encoding'],
             'null_observations_by_source': result['null_observations_by_source'],
             'truncated_by_design': True, 'no_files_written': True}
 
@@ -251,9 +276,8 @@ def _write_csv(path: Path, columns: list[str], rows: list[dict[str, Any]], delim
         writer = csv.DictWriter(f, fieldnames=columns, delimiter=delimiter, extrasaction='raise')
         writer.writeheader()
         for row in rows:
-            writer.writerow({name: (json.dumps(value, sort_keys=True, ensure_ascii=False)
-                                     if isinstance(value, (dict, list, tuple)) else value)
-                             for name, value in row.items()})
+            writer.writerow({name: (row.get(name, '') if name == COMMENTS
+                                    else encode_value(row.get(name))) for name in columns})
 
 
 def materialize_xml_collection(recipe: Mapping[str, Any], output: str | Path, *,
@@ -329,10 +353,12 @@ def materialize_xml_collection(recipe: Mapping[str, Any], output: str | Path, *,
             'root_path': result['root_path'],
             'recipe': result['recipe'],
             'main_dataset': {'path': str(target), 'sha256': _sha(staged[target]),
-                             'columns': result['main_columns'], 'row_count': len(result['main_rows'])},
+                             'columns': result['main_columns'], 'row_count': len(result['main_rows']),
+                             'null_encoding': result['null_encoding']},
             'child_datasets': [{'name': name, 'path': str(path),
                                 'sha256': _sha(staged[path]), 'columns': result['children'][name]['columns'],
-                                'row_count': len(result['children'][name]['rows'])}
+                                'row_count': len(result['children'][name]['rows']),
+                                'null_encoding': result['null_encoding']}
                                for name, path in children.items()],
             'sources': result['sources'], 'warnings': result['warnings'],
             'provenance': {'status': 'not_recorded',

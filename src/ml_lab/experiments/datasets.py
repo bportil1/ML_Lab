@@ -131,6 +131,12 @@ def describe_selection(
     try:
         identity = describe_dataset(absolute)
     except (OSError, ValueError) as exc:
+        # XML collection tables have a checksum-pinned null-encoding manifest.
+        # Report a changed source as stale provenance, not as an arbitrary CSV
+        # parsing failure, so the workbench's existing recovery UI is useful.
+        from ml_lab.data.xml_null_export import is_null_aware_collection_main
+        if is_null_aware_collection_main(absolute):
+            raise DatasetSelectionError("XML collection dataset changed or its null-encoding manifest is invalid") from exc
         raise DatasetSelectionError("Dataset could not be read as a complete table") from exc
     if identity["sha256"] != original_sha or _digest(absolute) != original_sha:
         raise DatasetSelectionError("Dataset changed during selection")
@@ -140,7 +146,11 @@ def describe_selection(
     targets = _columns(target_columns, names, label="target_columns") or []
     features = _columns(feature_columns, names, label="feature_columns")
     if features is None:
-        features = [column for column in names if column not in targets]
+        # XML collection comments explain null provenance; they are not model
+        # features unless the user chooses them explicitly.
+        from ml_lab.data.xml_null_export import is_null_aware_collection_main
+        reserved = {'Comments'} if is_null_aware_collection_main(absolute) else set()
+        features = [column for column in names if column not in targets and column not in reserved]
     if not features or set(features).intersection(targets):
         raise DatasetSelectionError("Choose at least one feature and do not reuse target columns as features")
     lineage = _lineage(store, absolute, identity)

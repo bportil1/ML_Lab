@@ -46,6 +46,7 @@ def _reservoir_rows(
     expected_width: int,
     max_rows: int | None,
     random_state: int,
+    preserve_xml_encoding: bool = False,
 ) -> tuple[list[list[str | None]], int, int]:
     """Read rectangular rows, optionally keeping a deterministic reservoir sample.
 
@@ -68,7 +69,7 @@ def _reservoir_rows(
             if len(row) != expected_width:
                 skipped += 1
                 continue
-            normalized = [_clean_cell(value) for value in row]
+            normalized = (list(row) if preserve_xml_encoding else [_clean_cell(value) for value in row])
             valid_rows += 1
             if limit is None:
                 rows.append(normalized)
@@ -86,6 +87,13 @@ def _load_frame(record: Any, *, max_rows: int | None, random_state: int) -> tupl
         raise ValueError(f"unsupported profile source: {record.path}")
     if record.column_count is None or record.encoding is None or record.delimiter is None:
         raise ValueError(f"source could not be structurally parsed: {record.path}")
+    from .xml_null_export import is_null_aware_collection_main, decode_value
+    xml_null_aware = is_null_aware_collection_main(record.path)
+    if xml_null_aware:
+        # Fail closed on a stale or malformed manifest, rather than interpreting
+        # arbitrary CSV text as XML sentinel values.
+        from .xml_null_export import verify_null_aware_collection_table
+        verify_null_aware_collection_table(record.path)
     rows, valid_rows, skipped = _reservoir_rows(
         Path(record.path),
         encoding=record.encoding,
@@ -94,7 +102,11 @@ def _load_frame(record: Any, *, max_rows: int | None, random_state: int) -> tupl
         expected_width=int(record.column_count),
         max_rows=max_rows,
         random_state=random_state,
+        preserve_xml_encoding=xml_null_aware,
     )
+    if xml_null_aware:
+        rows = [[cell if name == 'Comments' else decode_value(cell) if cell is not None else None
+                 for name, cell in zip(record.columns, row)] for row in rows]
     frame = pd.DataFrame(rows, columns=list(record.columns), dtype=object)
     return frame, valid_rows, skipped
 

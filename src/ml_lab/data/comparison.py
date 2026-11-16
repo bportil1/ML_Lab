@@ -23,6 +23,9 @@ def _read_frame(path: str | Path) -> tuple[pd.DataFrame, Any]:
         raise ValueError(f"unsupported comparison source: {source}")
     if record.parse_status == "failed" or record.encoding is None or record.delimiter is None:
         raise ValueError(f"source could not be parsed: {record.error or source}")
+    from .xml_null_export import is_null_aware_collection_main, read_null_aware_collection_frame
+    if is_null_aware_collection_main(source):
+        return read_null_aware_collection_frame(source), record
     frame = pd.read_csv(
         source,
         sep=record.delimiter,

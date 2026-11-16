@@ -7,6 +7,7 @@
   <p class="eyebrow">XML Data · XML-C5</p>
   <h1>Consolidated XML collection export</h1>
   <p class="lede">The validated recipe flows here from shared-recipe design. Review sampled rows, then explicitly authorize a combined CSV/TSV. You can also paste a saved recipe JSON. Source XML files remain unchanged.</p>
+  <p class="muted">Consolidated exports include a <code>Comments</code> metadata column identifying the XML reason for each null. CSV/TSV uses <code>\N</code> for null and <code>\E</code> for an empty string (literal backslashes are escaped); ML_Lab reimports these values using the checksummed export manifest. Comments are excluded from model features unless explicitly selected.</p>
 </div></section>
 {% if error %}<div class="alert data-alert" role="alert">{{ error }}</div>{% endif %}
 <form method="post" action="{{ url_for(request.blueprint + '.xml_collection_export') }}">

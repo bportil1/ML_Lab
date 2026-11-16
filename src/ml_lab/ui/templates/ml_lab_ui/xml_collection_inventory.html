@@ -74,6 +74,7 @@
       <td>{{ group.members|join(', ') }}</td>
       <td>{{ group.shared_record_root_candidates|join(', ') or 'Review needed' }}</td>
       <td>
+        <button class="button mini secondary" type="button" data-xml-open-group="{{ group.group_id }}">View structure</button>
         <a class="button mini secondary" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=max_files, min_shared_fraction=minimum_similarity) }}">Review collection</a>
         {% if group.members|length > 1 and group.classification != "review_required" %}
         <form method="post" action="{{ url_for(request.blueprint + '.xml_collection_recipe') }}" class="inline-form">
@@ -95,6 +96,33 @@
   </table></div>
   <div class="button-row"><a class="button" href="{{ url_for(request.blueprint + '.xml_collection_review', directory=directory, recursive=('1' if recursive else '0'), include_hidden=('1' if include_hidden else '0'), include_glob=include_glob, exclude_glob=exclude_glob, max_files=max_files, min_shared_fraction=minimum_similarity) }}">Continue to compatibility review</a></div>
 </section>
+{% if comparison.union_structure and comparison.union_structure.groups %}
+<section class="panel inventory-panel xml-group-viewer" data-xml-group-viewer id="xml-group-structure">
+  <h2>Graphical structure — individual XML groups</h2>
+  <p class="tiny muted">Explore the observed elements and attributes in a candidate group. Branches open on demand; optional paths, repetition, namespace information and source coverage are derived from XML-C2. This display does not approve a merge or change the source files.</p>
+  <div class="xml-group-toolbar">
+    <label>Candidate group
+      <select data-xml-group-select aria-label="Select XML structure group">
+        {% for group in comparison.union_structure.groups %}<option value="{{ group.group_id }}">{{ group.group_id }} ({{ group.members|length }} sources)</option>{% endfor %}
+      </select>
+    </label>
+    <label>Find element or attribute path <input type="search" class="table-search" data-xml-group-search placeholder="name, namespace, or canonical path"></label>
+    <button class="button mini secondary" type="button" data-xml-group-collapse>Collapse to roots</button>
+  </div>
+  <p class="tiny muted" data-xml-group-summary></p>
+  <div class="xml-group-matches" data-xml-group-matches aria-label="Matching XML structure paths"></div>
+  <div class="xml-group-layout">
+    <div class="xml-group-tree-panel">
+      <h3>Observed hierarchy</h3>
+      <div class="xml-group-tree" data-xml-group-tree></div>
+    </div>
+    <aside class="xml-group-inspector" data-xml-group-inspector aria-label="Selected XML structure field">
+      <p class="muted">Select a path to inspect its observed structural evidence.</p>
+    </aside>
+  </div>
+  <p class="tiny muted" data-xml-group-status role="status" aria-live="polite"></p>
+</section>
+{% endif %}
 <section class="panel inventory-panel">
   <h2>Pairwise structural differences</h2>
   <div class="table-wrap"><table class="interactive-table" data-page-size="50">
@@ -114,12 +142,36 @@
 </section>
 {% endif %}
 {% if comparison.union_structure %}
+<section class="panel inventory-panel xml-group-viewer" data-xml-union-viewer id="xml-union-structure">
+  <h2>Graphical structure — entire XML collection</h2>
+  <p class="tiny muted">One observed union of all compared XML sources and candidate groups. Paths are namespace-aware; missing paths do not split the view. Select any element or attribute to inspect group-by-group source coverage. Root filters and search only change the display, not the analysis.</p>
+  <div class="xml-group-toolbar">
+    <label>Root partition
+      <select data-xml-union-root aria-label="Filter XML union by root"><option value="">All observed roots</option></select>
+    </label>
+    <label>Find element or attribute path <input type="search" class="table-search" data-xml-union-search placeholder="name, namespace, or canonical path"></label>
+    <button class="button mini secondary" type="button" data-xml-union-collapse>Collapse to roots</button>
+  </div>
+  <p class="tiny muted" data-xml-union-summary></p>
+  <div class="xml-group-matches" data-xml-union-matches aria-label="Matching consolidated XML paths"></div>
+  <div class="xml-group-layout">
+    <div class="xml-group-tree-panel">
+      <h3>Consolidated hierarchy</h3>
+      <div class="xml-group-tree" data-xml-union-tree></div>
+    </div>
+    <aside class="xml-group-inspector" data-xml-union-inspector aria-label="Selected consolidated XML field">
+      <p class="muted">Select a path to inspect collection-wide and group-by-group structural evidence.</p>
+    </aside>
+  </div>
+  <p class="tiny muted" data-xml-union-status role="status" aria-live="polite"></p>
+</section>
 <section class="panel inventory-panel">
   <h2>Observed consolidated XML union</h2>
-  <p class="tiny muted">{{ comparison.union_structure.path_count }} canonical paths across {{ comparison.union_structure.source_count }} verified sources; optional paths retain source-level occurrence counts. This is observed structure, not an approved recipe. A graphical view will be added in a later sprint. Groups without an identified shared record root remain review-required and cannot auto-prepare a recipe.</p>
-  <details class="json-details"><summary><strong>Inspect canonical union structure (JSON)</strong></summary><pre>{{ comparison.union_structure|tojson(indent=2) }}</pre></details>
+  <p class="tiny muted">{{ comparison.union_structure.path_count }} canonical paths across {{ comparison.union_structure.source_count }} verified sources; optional paths retain source-level occurrence counts. This is observed structure, not an approved recipe. Both individual-group and consolidated graphical exploration are available above. Groups without an identified shared record root remain review-required and cannot auto-prepare a recipe.</p>
+  <details class="json-details"><summary><strong>Inspect canonical union structure (JSON)</strong></summary><pre data-xml-group-union>{{ comparison.union_structure|tojson(indent=2) }}</pre></details>
 </section>
 {% endif %}
 <details class="panel json-details"><summary><strong>Machine-readable XML-C2 similarity report</strong></summary><pre>{{ comparison|tojson(indent=2) }}</pre></details>
 {% endif %}
 {% endblock %}
+{% block scripts %}{% if comparison and comparison.union_structure %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_xml_group_viewer.js') }}"></script>{% endif %}{% endblock %}

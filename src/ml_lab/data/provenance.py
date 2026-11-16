@@ -94,6 +94,9 @@ def _read_frame(path: Path) -> tuple[pd.DataFrame, Any]:
         raise ValueError(f"unsupported provenance dataset: {path}")
     if record.parse_status == "failed" or record.encoding is None or record.delimiter is None:
         raise ValueError(f"dataset could not be parsed: {record.error or path}")
+    from .xml_null_export import is_null_aware_collection_main, read_null_aware_collection_frame
+    if is_null_aware_collection_main(path):
+        return read_null_aware_collection_frame(path), record
     frame = pd.read_csv(
         path,
         sep=record.delimiter,

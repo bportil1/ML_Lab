@@ -73,7 +73,7 @@ def test_record_null_observations_and_rectangular_main_rows(tmp_path):
     recipe = _recipe(tmp_path)
     preview = preview_xml_collection_export(recipe)
     assert preview["no_files_written"] and preview["null_alignment"] == recipe["null_alignment"]
-    assert preview["columns"] == ["__source_file", "__source_row", "name", "value", "@code"]
+    assert preview["columns"] == ["__source_file", "__source_row", "name", "value", "@code", "Comments"]
     assert len(preview["rows"]) == 6
     assert all(set(row) == set(preview["columns"]) for row in preview["rows"])
     a1, a2, b1, b2, c1, c2 = preview["rows"]
@@ -102,9 +102,12 @@ def test_materialization_preserves_source_rows_and_contract(tmp_path):
         rows = list(csv.DictReader(handle, delimiter="\t"))
     assert len(rows) == 6
     assert rows[-1]["__source_file"] == "c.xml"
-    assert rows[-1]["name"] == rows[-1]["value"] == ""
-    # Until ML-UW-21, CSV/TSV cannot distinguish an empty string from None:
-    # the canonical recipe is the authoritative null provenance contract.
+    assert rows[-1]["name"] == rows[-1]["value"] == r"\N"
+    assert json.loads(rows[-1]["Comments"]) == {
+        "name": "path_absent", "value": "path_absent", "@code": "attribute_absent",
+    }
+    # ML-UW-21 encodes nulls separately from empty elements (\E) and
+    # records the exact missing-field reason in the Comments metadata column.
     assert manifest["recipe"]["null_alignment"]["policy"] == "missing_as_null"
     assert set(manifest["recipe"]["null_alignment"]["fields"][0]) >= {"field_id", "canonical_path", "missing_in"}
 

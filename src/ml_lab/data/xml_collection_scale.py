@@ -27,14 +27,18 @@ from pathlib import Path
 from typing import Any
 
 from .xml_collection_export import XmlCollectionExportError, _sha, _verify_recipe, _rules_for
+from .xml_null_export import (COMMENTS, encode_value, encoding_manifest,
+                              collect_record_null_reasons, explain_row_nulls)
 from .xml_collection_provenance import (
     _atomic_json, _hash, make_collection_event, provenance_path, verify_collection_event,
 )
 from .xml_ingest import inspect_xml_structure
 from .xml_preview import preview_xml_tabularization
+from .xml_collection_columns import register_collection_columns, align_collection_row
 
 STATE_SCHEMA = 'ml-lab.xml-collection-scaled-state@1'
 HANDOFF_SCHEMA = 'ml-lab.xml-collection-sqlite-handoff@1'
+PART_SCHEMA = 'ml-lab.xml-collection-source-part@2'
 ProgressCallback = Callable[[dict[str, Any]], None]
 
 
@@ -129,33 +133,50 @@ def _extract_part(path: Path, source: dict[str, Any], recipe: dict[str, Any], *,
     artifact = inspect_xml_structure(path, max_source_bytes=max_source_bytes)
     if artifact.source_fingerprint != source['source_fingerprint']:
         raise XmlCollectionExportError(f'{rel}: source changed before extraction')
-    extracted = preview_xml_tabularization(
-        path, artifact, recipe['record_root_canonical_path'],
-        source['present_field_ids'], rules=_rules_for(source, recipe['rules']),
-        max_rows=None, max_child_rows=None, max_output_rows=10000,
-    )
-    if extracted.main_table is None or extracted.main_table.truncated or any(t.truncated for t in extracted.child_tables):
-        raise XmlCollectionExportError(f'{rel}: per-source extract was truncated; no partial rows are accepted')
-    if any(len(table.rows) > max_child_rows_per_source for table in extracted.child_tables):
-        raise XmlCollectionExportError(f'{rel}: child table exceeds per-source row limit')
+    if source['present_field_ids']:
+        extracted = preview_xml_tabularization(
+            path, artifact, recipe['record_root_canonical_path'],
+            source['present_field_ids'], rules=_rules_for(source, recipe['rules']),
+            max_rows=None, max_child_rows=None, max_output_rows=10000,
+            preserve_empty_elements=True, include_empty_leaf_fields=True,
+        )
+        if extracted.main_table is None or extracted.main_table.truncated or any(t.truncated for t in extracted.child_tables):
+            raise XmlCollectionExportError(f'{rel}: per-source extract was truncated; no partial rows are accepted')
+        if any(len(table.rows) > max_child_rows_per_source for table in extracted.child_tables):
+            raise XmlCollectionExportError(f'{rel}: child table exceeds per-source row limit')
+        source_columns, source_rows, source_children = (extracted.main_table.columns,
+                                                       extracted.main_table.rows, extracted.child_tables)
+        preview_signature, source_warnings = extracted.preview_signature, extracted.warnings
+    else:
+        # Null-tolerant C4 recipes may include a source with no selected fields.
+        source_columns = ()
+        source_rows = tuple({} for _ in range(source['record_root_occurrences']))
+        source_children = ()
+        preview_signature, source_warnings = 'no_present_selected_fields', ()
+    conditions = collect_record_null_reasons(
+        path, artifact=artifact, record_root=recipe['record_root_canonical_path'],
+        aligned_fields=recipe['null_alignment']['fields'], max_records=max_source_records)
     if _sha(path) != artifact.source_sha256:
         raise XmlCollectionExportError(f'{rel}: source changed during extraction')
     return {
-        'schema': 'ml-lab.xml-collection-source-part@1', 'relative_path': rel,
+        'schema': PART_SCHEMA, 'relative_path': rel,
         'sha256': artifact.source_sha256,
-        'main': {'columns': [_column_record(c) for c in extracted.main_table.columns],
-                 'rows': extracted.main_table.rows},
+        'main': {'columns': [_column_record(c) for c in source_columns],
+                 'rows': source_rows},
         'children': [{'name': table.name, 'columns': [_column_record(c) for c in table.columns],
-                      'rows': table.rows} for table in extracted.child_tables],
+                      'rows': table.rows} for table in source_children],
+        'null_record_reasons': conditions,
+        'one_row_per_record': (len(source_rows) == len(conditions) and
+                               not any(rule['strategy'] == 'explode' for rule in _rules_for(source, recipe['rules']))),
         'source_report': {
             'relative_path': rel, 'sha256': artifact.source_sha256,
             'root_record_count': source['record_root_occurrences'],
-            'output_row_count': len(extracted.main_table.rows),
-            'child_row_counts': {t.name: len(t.rows) for t in extracted.child_tables},
-            'preview_signature': extracted.preview_signature,
+            'output_row_count': len(source_rows),
+            'child_row_counts': {t.name: len(t.rows) for t in source_children},
+            'preview_signature': preview_signature,
             'missing_field_ids': source['missing_field_ids'],
         },
-        'warnings': [f'{rel}: {w}' for w in extracted.warnings],
+        'warnings': [f'{rel}: {w}' for w in source_warnings],
     }
 
 
@@ -164,32 +185,24 @@ def _load_part(directory: Path, index: int, entry: Mapping[str, Any]) -> dict[st
     if path.is_symlink() or not path.is_file() or _sha(path) != entry.get('part_sha256'):
         raise XmlCollectionExportError(f'Completed source checkpoint is missing or corrupted: {path.name}')
     part = json.loads(path.read_text(encoding='utf-8'))
-    if part.get('schema') != 'ml-lab.xml-collection-source-part@1' or (
+    if part.get('schema') != PART_SCHEMA or (
         part.get('relative_path') != entry['relative_path'] or part.get('sha256') != entry['sha256']
     ):
-        raise XmlCollectionExportError('Checkpoint part identity is inconsistent')
+        raise XmlCollectionExportError('Checkpoint part identity is inconsistent or uses a pre-ML-UW-21 format; restart this export')
     return part
 
 
 def _register(columns: list[dict[str, Any]], headers: OrderedDict[str, tuple[Any, ...]],
-              seen: dict[tuple[Any, ...], str], *, child: bool = False) -> None:
-    for column in columns:
-        name = column['name']
-        if name in {'__source_file', '__source_row'} or (child and name == '__parent_record' and column['strategy'] != 'link'):
-            raise XmlCollectionExportError(f'Column conflicts with a reserved source identifier: {name}')
-        identity = (column['strategy'], column['branch'], tuple(column['field_ids']),
-                    tuple(column['element_paths']))
-        if name in headers and headers[name] != identity:
-            raise XmlCollectionExportError(f'Column {name!r} has conflicting meanings across files')
-        if identity in seen and seen[identity] != name:
-            raise XmlCollectionExportError(f'Column identity changes names: {name!r}')
-        headers.setdefault(name, identity)
-        seen[identity] = name
+              seen: dict[tuple[Any, ...], str], *, child: bool = False) -> dict[str, str]:
+    try:
+        return register_collection_columns(columns, headers, seen, child=child)
+    except ValueError as exc:
+        raise XmlCollectionExportError(str(exc)) from exc
 
 
 def _write_row(writer: csv.DictWriter, values: Mapping[str, Any]) -> None:
-    writer.writerow({k: json.dumps(v, ensure_ascii=False, sort_keys=True) if isinstance(v, (dict, list, tuple)) else v
-                     for k, v in values.items()})
+    writer.writerow({key: (values.get(key, '') if key == COMMENTS else encode_value(values.get(key)))
+                     for key in writer.fieldnames})
 
 
 def _child_path(target: Path, name: str) -> Path:
@@ -316,8 +329,8 @@ def _materialize_xml_collection_scaled_unlocked(
             stage = Path(stage_name)
             staged = {destination: stage / f'{idx:04d}_{destination.name}'
                       for idx, destination in enumerate(destinations)}
-            main_columns = ['__source_file', '__source_row', *main_headers]
-            child_columns = {name: ['__source_file', *info['headers']] for name, info in children.items()}
+            main_columns = ['__source_file', '__source_row', *main_headers, COMMENTS]
+            child_columns = {name: ['__source_file', *info['headers'], COMMENTS] for name, info in children.items()}
             with staged[target].open('w', encoding='utf-8', newline='') as main_stream:
                 main_writer = csv.DictWriter(main_stream, fieldnames=main_columns,
                                              delimiter=delimiter, extrasaction='raise')
@@ -330,14 +343,27 @@ def _materialize_xml_collection_scaled_unlocked(
                         child_writers[name] = csv.DictWriter(child_streams[name], fieldnames=child_columns[name],
                                                               delimiter=delimiter, extrasaction='raise')
                         child_writers[name].writeheader()
+                    alignment = {f['field_id']: f for f in current['null_alignment']['fields']}
                     for i, entry in enumerate(state['completed']):
                         part = _load_part(workdir, i, entry)
                         rel = part['relative_path']
-                        for index, row in enumerate(part['main']['rows'], start=1):
-                            _write_row(main_writer, {'__source_file': rel, '__source_row': index, **row})
+                        main_aliases = _register(part['main']['columns'], main_headers, main_seen)
+                        for index, raw in enumerate(part['main']['rows'], start=1):
+                            row = {'__source_file': rel, '__source_row': index,
+                                   **align_collection_row(raw, main_aliases)}
+                            conditions = (part['null_record_reasons'][index - 1]
+                                          if part['one_row_per_record'] else None)
+                            explain_row_nulls(row, main_headers, source_id=rel,
+                                              record_reasons=conditions, alignment=alignment)
+                            _write_row(main_writer, row)
                         for table in part['children']:
-                            for row in table['rows']:
-                                _write_row(child_writers[table['name']], {'__source_file': rel, **row})
+                            info = children[table['name']]
+                            aliases = _register(table['columns'], info['headers'], info['seen'], child=True)
+                            for raw in table['rows']:
+                                row = {'__source_file': rel, **align_collection_row(raw, aliases)}
+                                explain_row_nulls(row, children[table['name']]['headers'],
+                                                  source_id=rel, record_reasons=None, alignment=alignment)
+                                _write_row(child_writers[table['name']], row)
                 finally:
                     for stream in child_streams.values():
                         stream.close()
@@ -346,9 +372,11 @@ def _materialize_xml_collection_scaled_unlocked(
                 'created_at': datetime.now(timezone.utc).isoformat(),
                 'root_path': str(root), 'recipe': current,
                 'main_dataset': {'path': str(target), 'sha256': _sha(staged[target]),
-                                 'columns': main_columns, 'row_count': n_main},
+                                 'columns': main_columns, 'row_count': n_main,
+                                 'null_encoding': encoding_manifest()},
                 'child_datasets': [{'name': name, 'path': str(path), 'sha256': _sha(staged[path]),
-                                    'columns': child_columns[name], 'row_count': children[name]['row_count']}
+                                    'columns': child_columns[name], 'row_count': children[name]['row_count'],
+                                    'null_encoding': encoding_manifest()}
                                    for name, path in child_paths.items()],
                 'sources': sources, 'warnings': list(dict.fromkeys(warnings)),
                 'provenance': {'status': 'not_recorded'},

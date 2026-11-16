@@ -119,6 +119,9 @@ def _read_frame(path: str | Path, *, allow_malformed_rows: bool = False) -> tupl
             f"source contains {record.malformed_row_count} malformed row(s); "
             "repair them first or set allow_malformed_rows=true explicitly"
         )
+    from .xml_null_export import is_null_aware_collection_main, read_null_aware_collection_frame
+    if is_null_aware_collection_main(source):
+        return read_null_aware_collection_frame(source), record
     frame = pd.read_csv(
         source,
         sep=record.delimiter,

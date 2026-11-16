@@ -48,10 +48,11 @@ def test_two_file_consolidation_alignment_and_source_lineage(tmp_path: Path):
     assert manifest['main_dataset']['row_count'] == 2
     with out.open(newline='', encoding='utf-8') as handle:
         reader = csv.DictReader(handle)
-        assert reader.fieldnames == ['__source_file', '__source_row', 'name', 'tag']
+        assert reader.fieldnames == ['__source_file', '__source_row', 'name', 'tag', 'Comments']
         rows = list(reader)
-    assert rows == [{'__source_file': 'a.xml', '__source_row': '1', 'name': 'Alpha', 'tag': 'red|blue'},
-                    {'__source_file': 'b.xml', '__source_row': '1', 'name': 'Beta', 'tag': ''}]
+    assert rows == [{'__source_file': 'a.xml', '__source_row': '1', 'name': 'Alpha', 'tag': 'red|blue', 'Comments': ''},
+                    {'__source_file': 'b.xml', '__source_row': '1', 'name': 'Beta', 'tag': r'\N',
+                     'Comments': '{"tag": "path_absent"}'}]
     assert [x['relative_path'] for x in manifest['sources']] == ['a.xml', 'b.xml']
     assert (tmp_path / 'combined.csv.collection.json').exists()
     assert (tmp_path / 'a.xml').read_text().startswith('<rows>')
