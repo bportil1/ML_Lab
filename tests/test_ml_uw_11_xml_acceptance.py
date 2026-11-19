@@ -132,8 +132,11 @@ def test_single_xml_materialization_explicit_project_scoped_workbench_link(tmp_p
     link = inside.get_json()['workbench_select_url']
     assert link.startswith('/pah/ml-lab/workbench/dataset/select-file?')
     assert client.get(link).status_code == 200
-    assert client.get('/pah/ml-lab/api/workbench/context').get_json()['status'] == 'empty'
-    assert not ExperimentStore(project).list_experiments()
+    active = client.get('/pah/ml-lab/api/workbench/context').get_json()
+    assert active['status'] == 'ready'
+    assert active['active_dataset']['rows'] == 2
+    assert inside.get_json()['workbench_activated'] is True
+    assert len(ExperimentStore(project).list_experiments()) == 1
 
     outside_output = tmp_path / 'outside.csv'
     outside = client.post(materialize_url, json={**payload, 'output': str(outside_output)})

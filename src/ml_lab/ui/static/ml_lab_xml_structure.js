@@ -844,7 +844,10 @@
       return;
     }
     if (result) result.hidden = false;
-    if (status) status.textContent = "Dataset created. The main CSV/TSV is ready for ordinary Data Lab workflows.";
+    if (status) status.textContent = materializationResult.workbench_activated
+      ? "Dataset created and activated across all five workbench sections."
+      : "Dataset created. " + (materializationResult.workbench_activation_error ||
+          "Select this output in the workbench if it belongs to another project.");
     panel.querySelector("[data-xml-materialize-path]").textContent = materializationResult.dataset?.path || "";
     panel.querySelector("[data-xml-materialize-rows]").textContent = String(materializationResult.dataset?.rows ?? "—");
     panel.querySelector("[data-xml-materialize-columns]").textContent = String(materializationResult.dataset?.columns ?? "—");
@@ -853,13 +856,16 @@
     if (transformLink && materializationResult.transform_url) transformLink.href = materializationResult.transform_url;
     const workbenchLink = panel.querySelector("[data-xml-materialize-workbench]");
     if (workbenchLink) {
-      const url = materializationResult.workbench_select_url;
+      const selected = Boolean(materializationResult.workbench_activated);
+      const url = selected ? materializationResult.workbench_feature_url :
+        materializationResult.workbench_select_url;
       workbenchLink.hidden = !url;
+      workbenchLink.textContent = selected ? "Continue to Feature Profiling" : "Select in workbench";
       if (url) workbenchLink.href = url;
       else workbenchLink.removeAttribute("href");
     }
     const note = panel.querySelector("[data-xml-materialize-workbench-note]");
-    if (note) note.hidden = Boolean(materializationResult.workbench_select_url);
+    if (note) note.hidden = Boolean(materializationResult.workbench_activated || materializationResult.workbench_select_url);
     panel.querySelector("[data-xml-materialize-json]").textContent = JSON.stringify(materializationResult, null, 2);
   };
 

@@ -364,6 +364,54 @@ def create_ui_blueprint(
             return None
         return url_for(endpoint, path=path)
 
+    def _active_workbench_experiment_id():
+        """Read the current browser's verified experiment; never guess from history."""
+        reader = getattr(blueprint, "ml_lab_workbench_reader", None)
+        if reader is None:
+            return None
+        from ml_lab.experiments import ExperimentStoreError
+        try:
+            context = reader()
+            return context["experiment_id"] if context["status"] == "ready" else None
+        except (ExperimentStoreError, OSError, ValueError):
+            return None
+
+    def _generation_before_materialization():
+        """Capture the workbench generation before a potentially long write.
+
+        A missing or unavailable optional UI context must not prevent the
+        actual extraction or transformation from being written.
+        """
+        reader = getattr(blueprint, "ml_lab_workbench_reader", None)
+        if reader is None:
+            return None
+        from ml_lab.experiments import ExperimentStoreError
+        try:
+            return reader()["generation"]
+        except (ExperimentStoreError, OSError, ValueError):
+            return None
+
+    def _activate_materialized_dataset(path: str, expected_generation):
+        """Bind successful project-local output, never an arbitrary input path.
+
+        Standalone legacy Blueprint users retain their explicit selection
+        workflow. A failure to activate does not undo a successful export:
+        callers show the reason and preserve a manual selection link.
+        """
+        if expected_generation is None:
+            return False, None
+        if experiment_dataset_url(path) is None:
+            return False, "Output is outside this workbench's project; export within the project to activate it"
+        activator = getattr(blueprint, "ml_lab_activate_generated_dataset", None)
+        if activator is None:
+            return False, None
+        from ml_lab.experiments import ExperimentStoreError
+        try:
+            activator(path, expected_generation=expected_generation)
+            return True, None
+        except (ExperimentStoreError, OSError, ValueError, TypeError) as exc:
+            return False, str(exc)
+
     def provenance_url(path: str) -> str:
         return url_for(request.blueprint + ".data_provenance", source_token=sign_path(path))
 
@@ -382,14 +430,13 @@ def create_ui_blueprint(
 
     @blueprint.get("/workspace")
     def workspace():
-        """Free-navigation launcher. Selection is optional and non-mutating."""
-        from ml_lab.experiments import ExperimentStore
-        store = ExperimentStore(project_root)
-        experiments = [row for row in store.list_experiments(limit=100)
-                       if row["dataset_ref"].get("schema") == "ml-lab.experiment-dataset@1"]
-        # Never silently default to a different experiment after project switch.
-        return render_template("ml_lab_ui/workspace.html", version=__version__,
-                               experiments=experiments, workspace_mode="workspace")
+        """Compatibility URL for the superseded legacy workspace launcher.
+
+        The old results and read-only context APIs remain available to
+        existing callers, but the duplicate browser workspace is no longer
+        shown as an alternative to the five-tab workbench.
+        """
+        return redirect(url_for(request.blueprint + ".data_lab"))
 
     @blueprint.get("/workspace/context")
     def workspace_context():
@@ -455,12 +502,9 @@ def create_ui_blueprint(
 
     @blueprint.get("/")
     def index():
-        return render_template(
-            "ml_lab_ui/index.html",
-            version=__version__,
-            groups=capability_groups(enable_experimental=enable_experimental),
-            experimental_enabled=enable_experimental,
-        )
+        # The old capability dashboard is superseded by the five-tab workbench.
+        # Keep the route for host-mounted links, but never render the legacy UI.
+        return redirect(url_for(request.blueprint + ".data_lab"))
 
     @blueprint.route("/data", methods=["GET", "POST"])
     def data_lab():
@@ -800,6 +844,10 @@ def create_ui_blueprint(
         output = request.form.get("output", str(project_root / "analysis/data/xml_collection.csv")).strip()
         mode = request.form.get("mode", "preview")
         preview = result = error = None
+        activation_error = None
+        activated = False
+        starting_generation = (_generation_before_materialization()
+                               if request.method == "POST" and mode == "export" else None)
         try:
             if request.method == "POST":
                 if len(recipe_text) > 1_000_000:
@@ -816,6 +864,9 @@ def create_ui_blueprint(
                         recipe, output, confirm=True,
                         overwrite=request.form.get("overwrite", "") == "1",
                     )
+                    activated, activation_error = _activate_materialized_dataset(
+                        result["main_dataset"]["path"], starting_generation,
+                    )
                 else:
                     raise ValueError("Unsupported XML collection export action")
         except (OSError, KeyError, TypeError, ValueError) as exc:
@@ -824,6 +875,7 @@ def create_ui_blueprint(
             "ml_lab_ui/xml_collection_export.html", version=__version__,
             recipe_text=recipe_text, output=output, preview=preview,
             result=result, error=error,
+            workbench_activated=activated, workbench_activation_error=activation_error,
             collection_provenance_url=(url_for(request.blueprint + ".xml_collection_provenance",
                                                provenance_path=result["provenance"]["path"],
                                                output=result["main_dataset"]["path"])
@@ -844,6 +896,10 @@ def create_ui_blueprint(
         event_path = values.get("provenance_path", "").strip()
         output = values.get("output", "").strip()
         result = error = None
+        activated, activation_error = False, None
+        starting_generation = (_generation_before_materialization()
+                               if request.method == "POST" and action in {"resume", "regenerate"}
+                               else None)
         try:
             if request.method == "POST":
                 if any(len(str(value)) > 4096 for value in (event_path, output)):
@@ -867,6 +923,14 @@ def create_ui_blueprint(
                         if not event_path or not output:
                             raise ValueError("Provide the provenance file and a new output path")
                         result = regenerate_xml_collection(event_path, output, confirm=True)
+                    if isinstance(result, dict):
+                        manifest = result.get("new_manifest", result)
+                        if isinstance(manifest, dict) and isinstance(manifest.get("main_dataset"), dict):
+                            dataset_path = manifest["main_dataset"].get("path")
+                            if dataset_path:
+                                activated, activation_error = _activate_materialized_dataset(
+                                    dataset_path, starting_generation,
+                                )
                 else:
                     raise ValueError("Unrecognized C6 action")
         except (OSError, ValueError, TypeError, KeyError) as exc:
@@ -874,6 +938,7 @@ def create_ui_blueprint(
         return render_template(
             "ml_lab_ui/xml_collection_provenance.html", version=__version__,
             action=action, event_path=event_path, output=output, result=result, error=error,
+            workbench_activated=activated, workbench_activation_error=activation_error,
         ), (400 if error else 200)
 
     @blueprint.get("/data/xml/<token>")
@@ -1156,6 +1221,7 @@ def create_ui_blueprint(
             return jsonify({"error": "ValueError: rules must be a list"}), 400
         if not output:
             output = str(Path(derived_output_root).expanduser().resolve() / f"{path.stem}-tabular.csv")
+        starting_generation = _generation_before_materialization()
         try:
             record = data.inspect_file(path)
             if record.format != "xml" or record.parse_status == "failed" or record.xml_structure is None:
@@ -1176,8 +1242,16 @@ def create_ui_blueprint(
         response = result.to_record()
         response["transform_url"] = transform_url(result.dataset_path)
         response["data_url"] = url_for(request.blueprint + ".data_lab")
-        # Same explicit, project-scoped handoff as collection export. Do not
-        # mutate the active dataset or create experiments during extraction.
+        # A successful explicit materialization activates its project-local
+        # output across all five tools. Keep the manual link if activation
+        # failed, e.g. because another tab changed the workbench generation.
+        activated, activation_error = _activate_materialized_dataset(
+            result.dataset_path, starting_generation,
+        )
+        response["workbench_activated"] = activated
+        response["workbench_activation_error"] = activation_error
+        response["workbench_feature_url"] = (url_for(request.blueprint + ".workbench_feature_profiling")
+                                            if activated else None)
         response["workbench_select_url"] = workbench_dataset_url(result.dataset_path)
         return jsonify(response)
 
@@ -1400,7 +1474,11 @@ def create_ui_blueprint(
         source_table = None
         source_table_error = None
         applied = False
+        activated = False
+        activation_error = None
         mode = request.form.get("mode", "preview")
+        starting_generation = (_generation_before_materialization()
+                               if request.method == "POST" and mode == "apply" else None)
         if request.method == "POST":
             try:
                 if not source:
@@ -1423,6 +1501,9 @@ def create_ui_blueprint(
                         payload["overwrite"] = request.form.get("overwrite", "") == "1"
                         result = execute_task("data.transform.apply", payload)["result"]
                         applied = True
+                        activated, activation_error = _activate_materialized_dataset(
+                            result["derived"]["path"], starting_generation,
+                        )
                     else:
                         result = execute_task("data.transform.preview", payload)["result"]
             except (PayloadError, OSError, UnicodeError, ValueError, TypeError, KeyError, FileExistsError, json.JSONDecodeError) as exc:
@@ -1454,6 +1535,7 @@ def create_ui_blueprint(
             result_json=(_pretty(result) if result is not None else None),
             error=error,
             applied=applied,
+            workbench_activated=activated, workbench_activation_error=activation_error,
             column_catalog=column_catalog,
             column_catalog_error=column_catalog_error,
             source_table=source_table,
@@ -1586,6 +1668,9 @@ def create_ui_blueprint(
         identifier = (request.form if request.method == "POST" else request.args).get("experiment_id", "").strip()
         selected = None
         error = None
+        activated, activation_error = False, None
+        starting_generation = (_generation_before_materialization()
+                               if request.method == "POST" else None)
         try:
             experiment = store.get_experiment(identifier) if identifier else None
             if experiment is not None and experiment["metadata"].get("adapter") == "ml-lab.recorded-legacy-task@1":
@@ -1611,6 +1696,16 @@ def create_ui_blueprint(
                     expected_revision=expected,
                 )
                 experiment = selected
+                activate = getattr(blueprint, "ml_lab_activate_selected_experiment", None)
+                if activate is not None and starting_generation is not None:
+                    try:
+                        activate(selected["experiment_id"], selected["revision"],
+                                 expected_generation=starting_generation)
+                        activated = True
+                    except (ExperimentStoreError, OSError, ValueError) as exc:
+                        # The selected experiment is still valid and saved; a
+                        # concurrent tab change must never be overwritten.
+                        activation_error = str(exc)
         except (ExperimentStoreError, OSError, ValueError) as exc:
             error = str(exc)
             selected = None
@@ -1627,13 +1722,14 @@ def create_ui_blueprint(
         previous_targets = current_ref.get("target_columns", [])
         default_targets = [col for col in previous_targets if col in available_columns]
         default_features = ([col for col in previous_features if col in available_columns]
-                            if experiment is not None else list(preview["column_names"]))
+                            if experiment is not None else list(preview["feature_columns"]))
         choices = [entry for entry in store.list_experiments(limit=100)
                    if entry["metadata"].get("adapter") != "ml-lab.recorded-legacy-task@1"]
         return render_template(
             "ml_lab_ui/experiment_dataset.html", version=__version__,
             error=error, preview=preview, source_token=token,
             experiment=experiment, experiments=choices, selected=selected,
+            workbench_activated=activated, workbench_activation_error=activation_error,
             default_features=default_features, default_targets=default_targets,
             source_url=source_url(str(source_path)),
         ), (400 if error else 200)
@@ -1657,6 +1753,10 @@ def create_ui_blueprint(
                        and row["metadata"].get("adapter") != "ml-lab.recorded-legacy-task@1"]
         params = request.form if request.method == "POST" else request.args
         identifier = params.get("experiment_id", "").strip()
+        if not identifier and request.method == "GET":
+            active_id = _active_workbench_experiment_id()
+            if active_id and any(row["experiment_id"] == active_id for row in experiments):
+                identifier = active_id
         family = params.get("family", "").strip()
         method = params.get("method", "").strip()
         error = None
@@ -1764,6 +1864,10 @@ def create_ui_blueprint(
         experiments = [row for row in store.list_experiments(limit=100)
                        if row["dataset_ref"].get("schema") == "ml-lab.experiment-dataset@1"]
         identifier = request.args.get("experiment_id", "").strip()
+        if not identifier:
+            active_id = _active_workbench_experiment_id()
+            if active_id and any(row["experiment_id"] == active_id for row in experiments):
+                identifier = active_id
         try:
             experiment = (store.get_experiment(identifier) if identifier else
                           store.get_experiment(experiments[0]["experiment_id"]) if experiments else None)
@@ -2092,6 +2196,7 @@ def create_ui_blueprint(
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
             return jsonify({"error": "Expected JSON object"}), 400
+        starting_generation = _generation_before_materialization()
         try:
             result = data.commit_matrix_draft(
                 path, output_root=derived_output_root,
@@ -2100,6 +2205,13 @@ def create_ui_blueprint(
             )
         except (OSError, UnicodeError, ValueError, TypeError) as exc:
             return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 400
+        activated, activation_error = _activate_materialized_dataset(
+            result["path"], starting_generation,
+        )
+        result["workbench_activated"] = activated
+        result["workbench_activation_error"] = activation_error
+        result["workbench_feature_url"] = (url_for(request.blueprint + ".workbench_feature_profiling")
+                                          if activated else None)
         result["source_url"] = source_url(result["path"])
         result["provenance_url"] = provenance_url(result["path"])
         result["experiment_url"] = experiment_dataset_url(result["path"])

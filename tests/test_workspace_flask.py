@@ -30,13 +30,15 @@ def _experiment(store, name):
 def test_workspace_available_without_dataset_or_stage_completion(tmp_path):
     client = _app(tmp_path).test_client()
     page = client.get("/lab/workspace")
-    assert page.status_code == 200
-    for title in (b"Data", b"Models", b"Representation", b"EBM", b"Optimization",
-                  b"Generative", b"XML", b"Results"):
-        assert title in page.data
-    assert b"No experiment selected" in page.data
-    assert b"/lab/static/ml_lab_workspace.js" in page.data
-    assert b"data-workspace-scope=" in page.data
+    assert page.status_code == 302
+    assert page.headers["Location"] == "/lab/data"
+    landing = client.get(page.headers["Location"])
+    assert landing.status_code == 200
+    for title in (b"Data", b"Feature Profiling", b"Representation",
+                  b"Comparison", b"General ML Tools"):
+        assert title in landing.data
+    assert b"ml_lab_workspace.js" not in landing.data
+    assert b"data-workspace-scope=" in landing.data
     assert client.get("/lab/workspace/results").status_code == 200
     assert client.get("/lab/task/clustering").status_code == 200
     assert client.get("/lab/workspace/context").status_code == 400
@@ -83,6 +85,7 @@ def test_legacy_tasks_and_host_mount_routes_remain_unchanged(tmp_path):
     assert client.get("/lab/data").status_code == 200
     assert client.get("/lab/experiments/models").status_code == 200
     assert client.get("/lab/data/xml/collection").status_code == 200
-    assert b'data-pah-tool-nav' in client.get("/lab/").data
-    assert b'/lab/workspace' in client.get("/lab/").data
+    landing = client.get("/lab/", follow_redirects=True)
+    assert b'data-pah-tool-nav' in landing.data
+    assert b'/lab/workbench/feature-profiling' in landing.data
     assert client.get("/lab/task/representation").status_code == 200

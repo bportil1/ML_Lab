@@ -10,7 +10,6 @@
   <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_workbench.css') }}">
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_tables.js') }}"></script>
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_path_input.js') }}"></script>
-  <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_workspace.js') }}"></script>
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_workbench_context.js') }}"></script>
   {% block styles %}{% endblock %}
 </head>
@@ -27,7 +26,7 @@
       Active dataset: checking…
     </span>
     {% else %}<span class="mlwb-dataset-status">Dataset context unavailable in legacy UI</span>{% endif %}
-    <a class="mlwb-header-workspace" href="{{ url_for(request.blueprint + '.workspace') }}">Workspace</a>
+
     <span class="mode">local · optional UI</span>
   </header>
   <div class="mlwb-layout">

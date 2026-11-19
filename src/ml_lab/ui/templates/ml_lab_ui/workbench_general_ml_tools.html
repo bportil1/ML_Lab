@@ -15,7 +15,11 @@
   {% if context.status == 'ready' %}
   <p><code>{{ context.active_dataset.path }}</code> · rev {{ context.experiment_revision }} · generation {{ context.generation }}</p>
   <p class="tiny muted">Opening a model configuration does not change this selection. To profile or compare a different saved experiment, explicitly activate its verified dataset below.</p>
-  <a class="button secondary" href="{{ url_for(request.blueprint + '.workbench_feature_profiling') }}">Inspect active dataset</a>
+  <div class="button-row">
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.workbench_feature_profiling') }}">Inspect active dataset</a>
+    <a class="button" href="{{ url_for(request.blueprint + '.experiment_model', experiment_id=context.experiment_id) }}">Configure model using this dataset</a>
+    <a class="button secondary" href="{{ url_for(request.blueprint + '.experiment_synthetic', experiment_id=context.experiment_id) }}">Generate using this dataset</a>
+  </div>
   {% else %}
   <p>{{ context.validation_error or 'No dataset selected for this workbench instance.' }}</p>
   <a class="button secondary" href="{{ url_for(request.blueprint + '.data_lab') }}">Select a dataset in Tabular Data</a>

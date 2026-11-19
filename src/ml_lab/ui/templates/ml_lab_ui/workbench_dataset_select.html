@@ -39,7 +39,7 @@
     <p class="muted">Choose the columns you want to analyze. Change the selection later by creating a new dataset revision; the original source is not altered.</p>
     <div class="table-wrap"><table class="interactive-table" data-page-size="50"><thead><tr><th>Feature</th><th>Column</th><th>Type</th><th>Target</th></tr></thead><tbody>
     {% for column in preview.column_names %}<tr>
-      <td><input type="checkbox" name="features" value="{{ column }}" checked aria-label="Use {{ column }} as feature"></td>
+      <td><input type="checkbox" name="features" value="{{ column }}" {% if column in preview.feature_columns %}checked{% endif %} aria-label="Use {{ column }} as feature"></td>
       <td>{{ column }}</td><td>{{ preview.dtypes[loop.index0] }}</td>
       <td><input type="checkbox" name="targets" value="{{ column }}" aria-label="Use {{ column }} as target"></td>
     </tr>{% endfor %}

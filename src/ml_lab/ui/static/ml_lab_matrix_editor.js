@@ -32,6 +32,12 @@
         if(payload.source_url)a(payload.source_url,'Open derived dataset');
         if(payload.provenance_url)a(payload.provenance_url,'View provenance');
         if(payload.experiment_url)a(payload.experiment_url,'Use in experiment');
+        if(payload.workbench_activated){
+          box.append(document.createTextNode(' · Active in all five workbench sections'));
+          if(payload.workbench_feature_url)a(payload.workbench_feature_url,'Feature Profiling');
+        } else if(payload.workbench_activation_error){
+          box.append(document.createTextNode(' · Not activated: '+payload.workbench_activation_error));
+        }
       },
     });
   }).catch(error => {root.textContent=`Shared matrix editor unavailable: ${error.message}`;});

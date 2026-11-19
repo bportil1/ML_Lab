@@ -14,12 +14,13 @@ def test_standalone_ui_renders_dashboard_and_capability_api():
     client = app.test_client()
 
     response = client.get("/")
-    assert response.status_code == 200
-    assert b"Machine Learning Lab" in response.data
-    assert b"Data Lab" in response.data
-    assert b">Compare</a>" in response.data
-    assert b">Transform</a>" in response.data
-    assert b">Provenance</a>" in response.data
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/data")
+    landing = client.get(response.headers["Location"])
+    assert landing.status_code == 200
+    assert b"Tabular Data" in landing.data
+    assert b"mlwb-primary-nav" in landing.data
+    assert b"Machine Learning Lab" not in landing.data
 
     payload = client.get("/api/capabilities").get_json()
     assert payload["version"]
@@ -32,7 +33,10 @@ def test_ui_blueprint_mounts_under_host_prefix_without_route_assumptions():
     host.register_blueprint(create_ui_blueprint(name="mounted_ml_lab"), url_prefix="/tools/ml-lab")
     client = host.test_client()
 
-    response = client.get("/tools/ml-lab/")
+    initial = client.get("/tools/ml-lab/")
+    assert initial.status_code == 302
+    assert initial.headers["Location"] == "/tools/ml-lab/data"
+    response = client.get(initial.headers["Location"])
     assert response.status_code == 200
     assert b"ML Lab" in response.data
     assert b"/tools/ml-lab/static/ml_lab.css" in response.data

@@ -46,6 +46,9 @@
   <strong>Dataset selected for {{ selected.name }}</strong>
   <span>Experiment {{ selected.experiment_id }} · revision {{ selected.revision }}</span>
   <span>No existing run was changed.</span>
+  {% if workbench_activated %}<span>Also active throughout the five-tab workbench.</span>
+  <a class="button mini secondary" href="{{ url_for(request.blueprint + '.workbench_feature_profiling') }}">Open Feature Profiling</a>
+  {% elif workbench_activation_error %}<span class="alert" role="alert">Saved, but not activated: {{ workbench_activation_error }}</span>{% endif %}
   <a class="button mini secondary" href="{{ url_for(request.blueprint + '.experiment_model', experiment_id=selected.experiment_id) }}">Configure model →</a>
 </section>{% endif %}
 {% endif %}

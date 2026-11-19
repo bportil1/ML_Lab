@@ -43,7 +43,10 @@ def test_new_sections_render_and_mark_planned_honestly(tmp_path, route, title):
 
 def test_stable_routes_and_prefix(tmp_path):
     client = _client(tmp_path, prefix='/tools/ml-lab')
-    home = client.get('/tools/ml-lab/')
+    start = client.get('/tools/ml-lab/')
+    assert start.status_code == 302
+    assert start.headers['Location'] == '/tools/ml-lab/data'
+    home = client.get(start.headers['Location'])
     assert home.status_code == 200
     html = home.get_data(as_text=True)
     for suffix in ('data', 'data/xml/workbench', 'workbench/postcollection', 'workbench/feature-profiling', 'workbench/representation',

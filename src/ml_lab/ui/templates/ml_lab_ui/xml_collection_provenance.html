@@ -26,6 +26,8 @@
     </div>
   </section>
 </form>
+{% if workbench_activated %}<div class="tip" role="status">Recovered XML dataset is now active throughout the five-tab workbench. <a href="{{ url_for(request.blueprint + '.workbench_feature_profiling') }}">Continue to Feature Profiling</a></div>
+{% elif workbench_activation_error %}<div class="alert" role="alert">Dataset written, but not activated: {{ workbench_activation_error }}</div>{% endif %}
 {% if result %}
 <section class="panel">
   <h2>Operation result</h2>

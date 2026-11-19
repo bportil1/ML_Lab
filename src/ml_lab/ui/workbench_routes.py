@@ -32,6 +32,60 @@ def install_workbench_routes(blueprint: Blueprint, *, name: str, project_root: P
         g.ml_lab_workbench_instance_id = context["instance_id"]
         return context
 
+    def activate_generated_dataset(path, *, expected_generation: int):
+        """Pin an explicitly materialized local table in this browser instance.
+
+        Producing a dataset is the user's selection action.  The generation
+        guard prevents a slow export from overriding a newer tab selection.
+        No existing experiment is rewritten and no training starts.
+        """
+        from ml_lab.experiments import (
+            ExperimentStore, WorkbenchConflict, describe_selection,
+            select_workbench_dataset,
+        )
+        store = ExperimentStore(project_root)
+        current = workbench_context(store)
+        if current["generation"] != expected_generation:
+            raise WorkbenchConflict("The active dataset changed during export; use the selection link to choose this output")
+        selected = describe_selection(store, path)
+        active = current.get("active_dataset")
+        if active and all(active[key] == selected[key] for key in
+                          ("path", "dataset_id", "sha256", "provenance", "column_names")):
+            # Preserve an intentionally customized feature/target selection
+            # when the output identity and provenance have not changed.
+            return current
+        return select_workbench_dataset(
+            store, current["instance_id"], path,
+            expected_generation=expected_generation,
+        )
+
+    def activate_selected_experiment(experiment_id: str, revision: int, *, expected_generation: int):
+        """Make an explicitly chosen experiment revision the active dataset.
+
+        Unlike activation of a freshly materialized file, this must not create
+        another experiment or discard the user's selected feature/target split.
+        """
+        from ml_lab.experiments import (
+            ExperimentStore, WorkbenchConflict, activate_workbench_experiment,
+        )
+        store = ExperimentStore(project_root)
+        current = workbench_context(store)
+        if current["generation"] != expected_generation:
+            raise WorkbenchConflict("Workbench dataset changed while selecting the experiment")
+        if (current["status"] == "ready" and current["experiment_id"] == experiment_id
+                and current["experiment_revision"] == revision):
+            return current
+        return activate_workbench_experiment(
+            store, current["instance_id"], experiment_id,
+            revision=revision, expected_generation=expected_generation,
+        )
+
+    # The legacy route registrations share this Blueprint, but do not import
+    # Flask-independent experiment code or carry a second cookie identity.
+    blueprint.ml_lab_workbench_reader = workbench_context
+    blueprint.ml_lab_activate_generated_dataset = activate_generated_dataset
+    blueprint.ml_lab_activate_selected_experiment = activate_selected_experiment
+
     @blueprint.after_request
     def workbench_cookie(response):
         identifier = getattr(g, "ml_lab_workbench_instance_id", None)

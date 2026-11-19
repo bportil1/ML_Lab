@@ -32,7 +32,8 @@ def test_sidebar_order_and_no_legacy_horizontal_bar():
     assert 'data-mlwb-context-url' in template
     assert 'data-workspace-tool="{{ tool.id }}"' in template
     assert 'data-workspace-scope="{{ workspace_scope }}"' in template
-    assert "filename='ml_lab_workspace.js'" in template
+    assert "filename='ml_lab_workspace.js'" not in template
+    assert "filename='ml_lab_workbench_context.js'" in template
     assert '<nav class="scientific-tool-list' not in template
 
 
