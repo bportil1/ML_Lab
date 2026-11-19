@@ -9,8 +9,10 @@ def test_table_filters_use_distinct_classes_from_transform_column_filter_control
     css = (static_root / "ml_lab.css").read_text(encoding="utf-8")
     compat_css = (static_root / "ml_lab_pah_compat.css").read_text(encoding="utf-8")
 
-    assert 'filterRow.className = "table-column-filter-row"' in tables_js
-    assert 'input.className = "table-column-filter"' in tables_js
+    assert "filterRow.className='mlwb-grid-filter-row'" in tables_js
+    assert "table.classList.add('mlwb-grid')" in tables_js
+    assert "table.classList.contains('source-table')" in tables_js
+    assert '.mlwb-page .mlwb-grid-filter-row th' in (static_root / 'ml_lab_pypique_visual.css').read_text()
     assert 'filters.className = "table-column-filter-row"' in source_js
     assert 'input.className = "table-column-filter"' in source_js
     assert ".table-column-filter-row th" in css

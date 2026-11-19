@@ -101,6 +101,32 @@ def install_workbench_routes(blueprint: Blueprint, *, name: str, project_root: P
         """Get the active pinned dataset, revalidating its source before use."""
         return jsonify(workbench_context())
 
+    @blueprint.get("/api/workbench/preflight")
+    def workbench_preflight_api():
+        """Artifact-derived readiness and verified existing datasets, read only.
+
+        pyPIQUE's workflow inventory inspired this status endpoint: it checks
+        saved outputs before suggesting any new computation. Reuse requires
+        the existing explicit, fingerprint-verified activation endpoint.
+        """
+        from ml_lab.experiments import ExperimentStore, ExperimentStoreError
+        from ml_lab.experiments.workbench_preflight import inspect_existing_work
+
+        try:
+            store = ExperimentStore(project_root)
+            result = inspect_existing_work(store, workbench_context(store))
+        except (ExperimentStoreError, OSError, ValueError) as exc:
+            return jsonify({"error": str(exc)}), 400
+        for item in result["saved"]:
+            if item["status"] in {"ready", "found"}:
+                item["url"] = url_for(request.blueprint + ".workbench_activate_experiment",
+                    experiment_id=item["experiment_id"], revision=item["revision"])
+        for item in result["derived"]:
+            item["url"] = url_for(request.blueprint + ".workbench_select_file", path=item["path"])
+        for run in result["recent_runs"]:
+            run["url"] = url_for(request.blueprint + ".experiment_model_run_view", run_id=run["run_id"])
+        return jsonify(result)
+
     @blueprint.post("/api/workbench/context/activate")
     def workbench_activate_api():
         from ml_lab.experiments import (

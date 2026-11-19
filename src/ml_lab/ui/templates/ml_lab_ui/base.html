@@ -8,7 +8,9 @@
   <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='pah-module-theme.css') }}">
   <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_pah_compat.css') }}">
   <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_workbench.css') }}">
+  <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_pypique_visual.css') }}">
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_tables.js') }}"></script>
+  <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_pypique_preflight.js') }}"></script>
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_path_input.js') }}"></script>
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_workbench_context.js') }}"></script>
   {% block styles %}{% endblock %}
@@ -93,6 +95,16 @@
            href="{% if tool.url is defined %}{{ tool.url }}{% else %}{{ url_for(request.blueprint + '.' + tool.endpoint, **tool.query) }}{% if tool.anchor %}#{{ tool.anchor }}{% endif %}{% endif %}">{{ tool.title }}</a>
         {% endfor %}
       </nav>
+      {% endif %}
+      {% if mlwb_navigation is defined %}
+      <section class="mlwb-preflight" aria-label="Existing data and workflow readiness"
+        data-mlwb-preflight-url="{{ url_for(request.blueprint + '.workbench_preflight_api') }}">
+        <h2 class="mlwb-preflight-head">Existing work</h2>
+        <p class="mlwb-preflight-state" role="status" aria-live="polite">Checking saved project data…</p>
+        <div class="mlwb-preflight-steps" aria-label="Workflow stages"></div>
+        <div class="mlwb-preflight-list" aria-label="Reusable saved datasets"></div>
+        <p class="mlwb-preflight-note">Read-only checks. Opening a dataset verifies its source; nothing is recomputed automatically.</p>
+      </section>
       {% endif %}
     </aside>
     <main class="shell mlwb-main scientific-workspace-main" id="mlwb-main" tabindex="-1">
