@@ -33,22 +33,27 @@ DATA_SUBSECTIONS = (
 # All links point to already-existing, working routes or the new read-only
 # landing pages. A planned capability never receives an executable link.
 SECTION_LINKS = {
+    "data": (("Structured data", "workbench_structured", {"section": "data"}),),
     "profiling": (
         ("Feature Profiling", "workbench_feature_profiling", {}),
+        ("Structured uncertainty", "workbench_structured", {"section": "profiling"}),
         ("Run tabular profiles", "data_lab", {}),
     ),
     "representation": (
         ("Representation", "workbench_representation", {}),
+        ("Structured transformations", "workbench_structured", {"section": "representation"}),
         ("Trainable autoencoders", "workbench_autoencoder", {}),
         ("PCA / autoencoder task", "task", {"capability_id": "representation"}),
     ),
     "comparison": (
         ("Comparison", "workbench_comparison", {}),
+        ("Structural comparison", "workbench_structured", {"section": "comparison"}),
         ("Dataset comparison", "data_compare", {}),
         ("Model workspace", "experiment_model", {}),
     ),
     "tools": (
         ("General ML Tools", "workbench_general_ml_tools", {}),
+        ("Probabilistic graphs", "workbench_structured", {"section": "tools"}),
         ("Models", "workbench_general_ml_tools", {"_anchor": "models"}),
         ("Energy-based models", "workbench_general_ml_tools", {"_anchor": "ebm"}),
         ("Optimization", "workbench_general_ml_tools", {"_anchor": "optimization"}),
@@ -70,6 +75,8 @@ SECTION_TOOL_IDS = {
 def section_for_request(endpoint: str | None, view_args: dict | None, family: str | None = None) -> str | None:
     """Identify active section using route identity, not mount-prefix strings."""
     name = (endpoint or "").rsplit(".", 1)[-1]
+    if name == "workbench_structured":
+        return family if family in {"data", "profiling", "representation", "comparison", "tools"} else "data"
     if name in {"index", "workspace", "workspace_context"}:
         # No workflow selected on the landing page: Data children stay hidden
         # until the user enters Data or one of its existing workflow routes.
@@ -122,7 +129,9 @@ def install_workbench_navigation(blueprint: Blueprint, *, project_root: Path,
 
     @blueprint.context_processor
     def workbench_navigation_context():
-        active = section_for_request(request.endpoint, request.view_args, request.args.get("family"))
+        active = section_for_request(request.endpoint, request.view_args,
+            request.values.get("section") if (request.endpoint or "").endswith(".workbench_structured")
+            else request.args.get("family"))
         sections = [
             {"id": key, "label": label, "url": url_for(request.blueprint + "." + endpoint),
              "active": key == active}
@@ -140,7 +149,8 @@ def install_workbench_navigation(blueprint: Blueprint, *, project_root: Path,
         links = [
             {"label": label, "url": url_for(request.blueprint + "." + endpoint, **kwargs),
              "current": request.endpoint == request.blueprint + "." + endpoint and
-                        (not kwargs or kwargs == (request.view_args or {}))}
+                        (not kwargs or all(request.values.get(k) == v for k, v in kwargs.items()
+                                           if not k.startswith("_")))}
             for label, endpoint, kwargs in SECTION_LINKS.get(active, ())
         ]
         current_tool = active_tool((request.endpoint or "").rsplit(".", 1)[-1], request.args.get("family"))

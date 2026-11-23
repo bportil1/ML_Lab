@@ -44,6 +44,8 @@ def create_ui_blueprint(
     install_autoencoder_routes(blueprint, project_root=root, workbench_context=context_reader)
     from .workbench_comparison_routes import install_comparison_routes
     install_comparison_routes(blueprint, project_root=root, workbench_context=context_reader)
+    from .workbench_structured_routes import install_structured_routes
+    install_structured_routes(blueprint, name=name, project_root=root)
     from .workbench_navigation import install_workbench_navigation
 
     install_workbench_navigation(
