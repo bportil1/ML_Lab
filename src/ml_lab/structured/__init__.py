@@ -20,6 +20,9 @@ from .probabilistic import (
 from .probabilistic_inference import (
     FIT_SCHEMA, QUERY_SCHEMA, FittingResult, fit_categorical_model, query_exact,
 )
+from .comparison import (
+    STUDY_SCHEMA, ComparisonCandidate, ComparisonStudy, compare_representations,
+)
 from .descriptive import (
     STRUCTURE_SCHEMA, COLLECTION_SCHEMA, OBSERVATION_SCHEMA, VARIANCE_SCHEMA,
     describe_structure, describe_collection, describe_observations, describe_nested_variance,
@@ -39,4 +42,5 @@ __all__ = [
     'MODEL_SCHEMA', 'MODEL_TYPE', 'MODEL_MISSING_POLICIES',
     'ProbabilisticModelSpec', 'source_reference',
     'FIT_SCHEMA', 'QUERY_SCHEMA', 'FittingResult', 'fit_categorical_model', 'query_exact',
+    'STUDY_SCHEMA', 'ComparisonCandidate', 'ComparisonStudy', 'compare_representations',
 ]
