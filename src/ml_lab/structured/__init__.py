@@ -13,6 +13,10 @@ from .information import (
     estimate_information, estimate_entropy, estimate_conditional_entropy,
     estimate_mutual_information, estimate_conditional_mutual_information,
 )
+from .probabilistic import (
+    MODEL_SCHEMA, MODEL_TYPE, MISSING_POLICIES as MODEL_MISSING_POLICIES,
+    ProbabilisticModelSpec, source_reference,
+)
 from .descriptive import (
     STRUCTURE_SCHEMA, COLLECTION_SCHEMA, OBSERVATION_SCHEMA, VARIANCE_SCHEMA,
     describe_structure, describe_collection, describe_observations, describe_nested_variance,
@@ -29,4 +33,6 @@ __all__ = [
     'INFORMATION_SCHEMA', 'MEASURES', 'MISSING_POLICIES', 'BINNING_MODES',
     'estimate_information', 'estimate_entropy', 'estimate_conditional_entropy',
     'estimate_mutual_information', 'estimate_conditional_mutual_information',
+    'MODEL_SCHEMA', 'MODEL_TYPE', 'MODEL_MISSING_POLICIES',
+    'ProbabilisticModelSpec', 'source_reference',
 ]
