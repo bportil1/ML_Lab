@@ -1,0 +1,91 @@
+{
+  "edges": [
+    {
+      "id": "e1",
+      "kind": "structural",
+      "ordinal": null,
+      "source_id": "upstream_a",
+      "target_id": "shared"
+    },
+    {
+      "id": "e2",
+      "kind": "structural",
+      "ordinal": null,
+      "source_id": "upstream_b",
+      "target_id": "shared"
+    },
+    {
+      "id": "e3",
+      "kind": "structural",
+      "ordinal": null,
+      "source_id": "shared",
+      "target_id": "sink"
+    }
+  ],
+  "fixture_id": "shared_child_dag",
+  "nodes": [
+    {
+      "attributes": {},
+      "id": "upstream_a",
+      "kind": "uninterpreted"
+    },
+    {
+      "attributes": {},
+      "id": "upstream_b",
+      "kind": "uninterpreted"
+    },
+    {
+      "attributes": {},
+      "id": "shared",
+      "kind": "uninterpreted"
+    },
+    {
+      "attributes": {},
+      "id": "sink",
+      "kind": "uninterpreted"
+    }
+  ],
+  "observation_unit": "graph",
+  "observations": [
+    {
+      "observation_id": "g1",
+      "values": {
+        "shared": {
+          "status": "present",
+          "value": 3
+        },
+        "upstream_a": {
+          "status": "present",
+          "value": 1
+        }
+      }
+    },
+    {
+      "observation_id": "g2",
+      "values": {
+        "shared": {
+          "status": "present",
+          "value": 4
+        },
+        "upstream_a": {
+          "status": "present",
+          "value": 2
+        }
+      }
+    }
+  ],
+  "provenance": {
+    "fixture_only": true,
+    "source_fingerprint": "sha256:e40e50b326f0492e721ea86af6cfabefb545d4938bf04455e67b524afaccd522"
+  },
+  "schema": "ml-lab.structured-object@1",
+  "topology": {
+    "capabilities": [
+      "graph_edges",
+      "directed_edges",
+      "acyclic",
+      "aligned_observations"
+    ],
+    "kind": "dag"
+  }
+}

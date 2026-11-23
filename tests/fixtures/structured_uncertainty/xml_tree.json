@@ -1,0 +1,121 @@
+{
+  "edges": [
+    {
+      "id": "e1",
+      "kind": "structural",
+      "ordinal": 0,
+      "source_id": "root",
+      "target_id": "section"
+    },
+    {
+      "id": "e2",
+      "kind": "structural",
+      "ordinal": 1,
+      "source_id": "section",
+      "target_id": "item"
+    },
+    {
+      "id": "e3",
+      "kind": "structural",
+      "ordinal": 2,
+      "source_id": "item",
+      "target_id": "name"
+    },
+    {
+      "id": "e4",
+      "kind": "structural",
+      "ordinal": 3,
+      "source_id": "item",
+      "target_id": "value"
+    }
+  ],
+  "fixture_id": "xml_tree",
+  "nodes": [
+    {
+      "attributes": {},
+      "id": "root",
+      "kind": "uninterpreted"
+    },
+    {
+      "attributes": {},
+      "id": "section",
+      "kind": "uninterpreted"
+    },
+    {
+      "attributes": {},
+      "id": "item",
+      "kind": "uninterpreted"
+    },
+    {
+      "attributes": {},
+      "id": "name",
+      "kind": "uninterpreted"
+    },
+    {
+      "attributes": {},
+      "id": "value",
+      "kind": "uninterpreted"
+    }
+  ],
+  "observation_unit": "record",
+  "observations": [
+    {
+      "observation_id": "r1",
+      "values": {
+        "name": {
+          "status": "present",
+          "value": "Alpha"
+        },
+        "value": {
+          "status": "present",
+          "value": 11
+        }
+      }
+    },
+    {
+      "observation_id": "r2",
+      "values": {
+        "name": {
+          "status": "empty",
+          "value": ""
+        },
+        "value": {
+          "source_reason": "path_absent",
+          "status": "missing",
+          "value": null
+        }
+      }
+    },
+    {
+      "observation_id": "r3",
+      "values": {
+        "name": {
+          "status": "present",
+          "value": "Gamma"
+        },
+        "value": {
+          "source_reason": "explicit_xsi_nil",
+          "status": "explicit_null",
+          "value": null
+        }
+      }
+    }
+  ],
+  "provenance": {
+    "fixture_only": true,
+    "source_fingerprint": "sha256:cd965b4670eab8c299fd0aacfcfae66cac6a7eb8f2faf47cd6e4aa876ebcc7f4"
+  },
+  "schema": "ml-lab.structured-object@1",
+  "topology": {
+    "capabilities": [
+      "graph_edges",
+      "directed_edges",
+      "acyclic",
+      "rooted_hierarchy",
+      "unique_parent",
+      "ordered_children",
+      "aligned_observations"
+    ],
+    "kind": "tree"
+  }
+}

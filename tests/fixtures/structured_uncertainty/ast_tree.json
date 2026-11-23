@@ -1,0 +1,95 @@
+{
+  "edges": [
+    {
+      "id": "e1",
+      "kind": "structural",
+      "ordinal": 0,
+      "source_id": "program",
+      "target_id": "statement"
+    },
+    {
+      "id": "e2",
+      "kind": "structural",
+      "ordinal": 1,
+      "source_id": "statement",
+      "target_id": "expression"
+    },
+    {
+      "id": "e3",
+      "kind": "structural",
+      "ordinal": 2,
+      "source_id": "expression",
+      "target_id": "identifier"
+    }
+  ],
+  "fixture_id": "ast_tree",
+  "nodes": [
+    {
+      "attributes": {},
+      "id": "program",
+      "kind": "uninterpreted"
+    },
+    {
+      "attributes": {},
+      "id": "statement",
+      "kind": "uninterpreted"
+    },
+    {
+      "attributes": {},
+      "id": "expression",
+      "kind": "uninterpreted"
+    },
+    {
+      "attributes": {},
+      "id": "identifier",
+      "kind": "uninterpreted"
+    }
+  ],
+  "observation_unit": "source",
+  "observations": [
+    {
+      "observation_id": "p1",
+      "values": {
+        "expression": {
+          "status": "present",
+          "value": "call"
+        },
+        "identifier": {
+          "status": "present",
+          "value": "foo"
+        }
+      }
+    },
+    {
+      "observation_id": "p2",
+      "values": {
+        "expression": {
+          "status": "present",
+          "value": "assign"
+        },
+        "identifier": {
+          "source_reason": "unresolved_null",
+          "status": "unknown",
+          "value": null
+        }
+      }
+    }
+  ],
+  "provenance": {
+    "fixture_only": true,
+    "source_fingerprint": "sha256:510a164adc63ba70bf453ed9260b7571505499d3d203e64fe0526e41adf58526"
+  },
+  "schema": "ml-lab.structured-object@1",
+  "topology": {
+    "capabilities": [
+      "graph_edges",
+      "directed_edges",
+      "acyclic",
+      "rooted_hierarchy",
+      "unique_parent",
+      "ordered_children",
+      "aligned_observations"
+    ],
+    "kind": "tree"
+  }
+}
