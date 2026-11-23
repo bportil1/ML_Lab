@@ -8,10 +8,14 @@ from .contracts import (
     StructuredContractError, require_capabilities, require_observation_alignment,
 )
 from .object import StructuredObject
+from .transformations import (
+    PLAN_SCHEMA, REPORT_SCHEMA, TransformationPlan, TransformationResult, transform,
+)
 
 __all__ = [
     'CONTRACT_SCHEMA', 'CONTRACT_VERSION', 'TOPOLOGIES', 'OBSERVATION_UNITS',
     'CELL_STATES', 'NULL_REASONS', 'CAPABILITIES', 'OPERATION_REQUIREMENTS',
     'StructuredContractError', 'require_capabilities', 'require_observation_alignment',
-    'StructuredObject',
+    'StructuredObject', 'PLAN_SCHEMA', 'REPORT_SCHEMA',
+    'TransformationPlan', 'TransformationResult', 'transform',
 ]
