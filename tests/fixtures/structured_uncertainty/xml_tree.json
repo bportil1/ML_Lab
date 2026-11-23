@@ -29,7 +29,6 @@
       "target_id": "value"
     }
   ],
-  "fixture_id": "xml_tree",
   "nodes": [
     {
       "attributes": {},
@@ -102,6 +101,7 @@
     }
   ],
   "provenance": {
+    "fixture_id": "xml_tree",
     "fixture_only": true,
     "source_fingerprint": "sha256:cd965b4670eab8c299fd0aacfcfae66cac6a7eb8f2faf47cd6e4aa876ebcc7f4"
   },

@@ -22,7 +22,6 @@
       "target_id": "identifier"
     }
   ],
-  "fixture_id": "ast_tree",
   "nodes": [
     {
       "attributes": {},
@@ -76,6 +75,7 @@
     }
   ],
   "provenance": {
+    "fixture_id": "ast_tree",
     "fixture_only": true,
     "source_fingerprint": "sha256:510a164adc63ba70bf453ed9260b7571505499d3d203e64fe0526e41adf58526"
   },

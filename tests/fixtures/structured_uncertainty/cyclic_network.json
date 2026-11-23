@@ -22,7 +22,6 @@
       "target_id": "alpha"
     }
   ],
-  "fixture_id": "cyclic_network",
   "nodes": [
     {
       "attributes": {},
@@ -43,6 +42,7 @@
   "observation_unit": "graph",
   "observations": [],
   "provenance": {
+    "fixture_id": "cyclic_network",
     "fixture_only": true,
     "source_fingerprint": "sha256:3f243d837a31f46cffce38a29e9329192c30ca39ecd91c3b2b7527218e3710e7"
   },

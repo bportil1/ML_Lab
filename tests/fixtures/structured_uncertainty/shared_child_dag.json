@@ -22,7 +22,6 @@
       "target_id": "sink"
     }
   ],
-  "fixture_id": "shared_child_dag",
   "nodes": [
     {
       "attributes": {},
@@ -75,6 +74,7 @@
     }
   ],
   "provenance": {
+    "fixture_id": "shared_child_dag",
     "fixture_only": true,
     "source_fingerprint": "sha256:e40e50b326f0492e721ea86af6cfabefb545d4938bf04455e67b524afaccd522"
   },
