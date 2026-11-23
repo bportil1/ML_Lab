@@ -17,6 +17,9 @@ from .probabilistic import (
     MODEL_SCHEMA, MODEL_TYPE, MISSING_POLICIES as MODEL_MISSING_POLICIES,
     ProbabilisticModelSpec, source_reference,
 )
+from .probabilistic_inference import (
+    FIT_SCHEMA, QUERY_SCHEMA, FittingResult, fit_categorical_model, query_exact,
+)
 from .descriptive import (
     STRUCTURE_SCHEMA, COLLECTION_SCHEMA, OBSERVATION_SCHEMA, VARIANCE_SCHEMA,
     describe_structure, describe_collection, describe_observations, describe_nested_variance,
@@ -35,4 +38,5 @@ __all__ = [
     'estimate_mutual_information', 'estimate_conditional_mutual_information',
     'MODEL_SCHEMA', 'MODEL_TYPE', 'MODEL_MISSING_POLICIES',
     'ProbabilisticModelSpec', 'source_reference',
+    'FIT_SCHEMA', 'QUERY_SCHEMA', 'FittingResult', 'fit_categorical_model', 'query_exact',
 ]
