@@ -17,9 +17,11 @@ from ml_lab.structured import (
     estimate_information, ProbabilisticModelSpec, fit_categorical_model,
     query_exact, ComparisonCandidate, ComparisonStudy, compare_representations,
 )
-from ml_lab.structured.adapters import default_adapters
+from ml_lab.structured.adapters import cross_module_adapters
 
-KINDS = ('structured', 'json', 'node_edge', 'xml_structure')
+KINDS = ('structured', 'json', 'node_edge', 'xml_structure',
+         'hierarchy_handoff', 'pypique_graph', 'pypique_graph_directed',
+         'pypique_graph_undirected', 'pypique_backing', 'shared_graph')
 MAX_FILE = 2 * 1024 * 1024
 
 
@@ -68,7 +70,7 @@ def read_source(root, path, kind, sha256=None):
         obj = StructuredObject.from_json(text)
         warnings, losses = [], []
     else:
-        result = default_adapters().adapt(kind, _strict_json(text))
+        result = cross_module_adapters().adapt(kind, _strict_json(text))
         obj, warnings, losses = result.object, list(result.warnings), list(result.losses)
     if len(obj.observations) > 10000:
         raise StructuredContractError('over 10,000 observation rows: use headless API')
