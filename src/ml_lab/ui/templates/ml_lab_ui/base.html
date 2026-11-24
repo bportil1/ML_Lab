@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_pah_compat.css') }}">
   <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_workbench.css') }}">
   <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_pypique_visual.css') }}">
+  <link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_pypique_sidebar.css') }}">
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_tables.js') }}"></script>
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_pypique_preflight.js') }}"></script>
   <script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_path_input.js') }}"></script>
@@ -33,20 +34,49 @@
   </header>
   <div class="mlwb-layout">
     <aside class="mlwb-sidebar" aria-label="ML Lab tools">
+      <div class="mlwb-rail-heading">
+        <strong>Workflow</strong>
+        <span>Dataset-aware scientific tools</span>
+      </div>
+      {% if mlwb_navigation is defined %}
+      <section class="mlwb-sidebar-dataset" aria-label="Selected workbench dataset"
+               data-mlwb-dataset-summary data-state="unknown">
+        <span class="mlwb-sidebar-dataset-label">Active dataset</span>
+        <strong class="mlwb-sidebar-dataset-name" data-mlwb-dataset-name>Checking selection…</strong>
+        <span class="mlwb-sidebar-dataset-detail" data-mlwb-dataset-detail>
+          Workflow readiness follows your selected dataset.
+        </span>
+      </section>
+      {% endif %}
       <div class="mlwb-sidebar-title">Tools</div>
       <nav class="mlwb-primary-nav pah-tool-nav" data-pah-tool-nav aria-label="Research workflow">
         {% if mlwb_navigation is defined %}
           {% for item in mlwb_navigation.sections %}
-          <a href="{{ item.url }}" class="mlwb-primary-link{% if item.active %} active{% endif %}"
-             {% if item.active %}aria-current="page"{% endif %}>{{ item.label }}</a>
+          <div class="mlwb-nav-stage{% if item.active %} active{% endif %}"
+               data-mlwb-stage="{{ item.id }}" data-state="unknown">
+            <span class="mlwb-nav-led" aria-hidden="true"></span>
+            <a href="{{ item.url }}" class="mlwb-primary-link{% if item.active %} active{% endif %}"
+               aria-describedby="mlwb-stage-summary-{{ item.id }}"
+               {% if item.active %}aria-current="page"{% endif %}>{{ item.label }}</a>
+            <small class="mlwb-stage-summary" id="mlwb-stage-summary-{{ item.id }}"
+                   data-mlwb-step-summary>Checking dataset readiness…</small>
+          </div>
           {% endfor %}
         {% else %}
           {# The older direct blueprint factory lacks the new section routes. #}
-          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_lab') }}">Data</a>
-          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_lab') }}">Feature Profiling</a>
-          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.task', capability_id='representation') }}">Representation</a>
-          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.data_compare') }}">Comparison</a>
-          <a class="mlwb-primary-link" href="{{ url_for(request.blueprint + '.experiment_model') }}">General ML Tools</a>
+          {% for item in [
+            {'label': 'Data', 'url': url_for(request.blueprint + '.data_lab')},
+            {'label': 'Feature Profiling', 'url': url_for(request.blueprint + '.data_lab')},
+            {'label': 'Representation', 'url': url_for(request.blueprint + '.task', capability_id='representation')},
+            {'label': 'Comparison', 'url': url_for(request.blueprint + '.data_compare')},
+            {'label': 'General ML Tools', 'url': url_for(request.blueprint + '.experiment_model')}
+          ] %}
+          <div class="mlwb-nav-stage" data-state="unknown">
+            <span class="mlwb-nav-led" aria-hidden="true"></span>
+            <a class="mlwb-primary-link" href="{{ item.url }}">{{ item.label }}</a>
+            <small class="mlwb-stage-summary">Use the selected workbench dataset</small>
+          </div>
+          {% endfor %}
         {% endif %}
       </nav>
       {% if mlwb_navigation is defined %}
@@ -101,9 +131,12 @@
         data-mlwb-preflight-url="{{ url_for(request.blueprint + '.workbench_preflight_api') }}">
         <h2 class="mlwb-preflight-head">Existing work</h2>
         <p class="mlwb-preflight-state" role="status" aria-live="polite">Checking saved project data…</p>
-        <div class="mlwb-preflight-steps" aria-label="Workflow stages"></div>
         <div class="mlwb-preflight-list" aria-label="Reusable saved datasets"></div>
-        <p class="mlwb-preflight-note">Read-only checks. Opening a dataset verifies its source; nothing is recomputed automatically.</p>
+        <details class="mlwb-sidebar-details">
+          <summary>Workflow status details</summary>
+          <div class="mlwb-preflight-steps" aria-label="Workflow stages"></div>
+          <p class="mlwb-preflight-note">Read-only checks. Opening a dataset verifies its source; nothing is recomputed automatically.</p>
+        </details>
       </section>
       {% endif %}
     </aside>

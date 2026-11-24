@@ -1,0 +1,212 @@
+/* ML_Lab sidebar — pyPIQUE workflow-rail visual grammar (2026-11-24).
+   This file ONLY restyles the rail; the five routes, contextual subpanels,
+   status API and module ownership stay unchanged. Load after the existing
+   visual stylesheet so legacy PAH selectors do not override the rail. */
+.mlwb-page .mlwb-sidebar {
+  background: #e3ebf2;
+  color: #263a4b;
+  border-right: 1px solid #b7c7d4;
+  padding: .75rem;
+}
+.mlwb-page .mlwb-rail-heading {
+  display: grid;
+  gap: .08rem;
+  padding: .2rem .25rem;
+  margin-bottom: .65rem;
+}
+.mlwb-page .mlwb-rail-heading strong { color: var(--mlwb-navy); font-size: .95rem; }
+.mlwb-page .mlwb-rail-heading span { color: var(--mlwb-muted); font-size: .72rem; }
+
+/* The current dataset is always visible, even while the saved-work drawer
+   is collapsed. Its contents are populated by the existing read-only API. */
+.mlwb-page .mlwb-sidebar-dataset {
+  display: grid;
+  gap: .22rem;
+  min-width: 0;
+  margin: 0 0 .8rem;
+  padding: .6rem .65rem;
+  border: 1px solid #aebfcd;
+  border-left: 4px solid var(--mlwb-sky);
+  border-radius: 3px;
+  background: #fff;
+}
+.mlwb-page .mlwb-sidebar-dataset[data-state="blocked"] { border-left-color: #aa3e46; }
+.mlwb-page .mlwb-sidebar-dataset[data-state="complete"] { border-left-color: #2f8a57; }
+.mlwb-page .mlwb-sidebar-dataset-label {
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #657585;
+  font-size: .68rem;
+}
+.mlwb-page .mlwb-sidebar-dataset-name {
+  min-width: 0;
+  color: #102d4f;
+  font-size: .84rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mlwb-page .mlwb-sidebar-dataset-detail {
+  color: #657585;
+  font-size: .68rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.mlwb-page .mlwb-sidebar-title,
+.mlwb-page .mlwb-subtitle,
+.mlwb-page .mlwb-preflight-head {
+  font-size: .68rem;
+  color: #536779;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 700;
+  margin: .75rem .3rem .3rem;
+  padding: 0;
+}
+
+/* Match pyPIQUE's left-gutter LED and two-level title/availability copy.
+   Data is explicitly actionable without prerequisites; the other stage
+   status labels are hydrated from the active workbench preflight response. */
+.mlwb-page .mlwb-sidebar .mlwb-primary-nav.pah-tool-nav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .22rem;
+  align-items: stretch;
+  background: transparent;
+  border: 0;
+  min-height: 0;
+}
+.mlwb-page .mlwb-nav-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  column-gap: .5rem;
+  align-items: center;
+  min-width: 0;
+  padding: .48rem .5rem;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+}
+.mlwb-page .mlwb-nav-stage:hover,
+.mlwb-page .mlwb-nav-stage:focus-within {
+  background: #f2f6f9;
+  border-color: #c5d2dc;
+}
+.mlwb-page .mlwb-nav-stage.active {
+  background: #fff;
+  border-color: #aebfcd;
+  box-shadow: inset 3px 0 var(--mlwb-sky);
+}
+.mlwb-page .mlwb-nav-led {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #8998a5;
+  border: 1px solid #6f7d89;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / .55);
+}
+.mlwb-page .mlwb-nav-stage[data-state="complete"] .mlwb-nav-led { background: #2f8a57; border-color: #236b43; }
+.mlwb-page .mlwb-nav-stage[data-state="ready"] .mlwb-nav-led { background: #3f86b6; border-color: #326c92; }
+.mlwb-page .mlwb-nav-stage[data-state="partial"] .mlwb-nav-led { background: #b7892c; border-color: #8f6a21; }
+.mlwb-page .mlwb-nav-stage[data-state="blocked"] .mlwb-nav-led { background: #aa3e46; border-color: #842f35; }
+.mlwb-page .mlwb-sidebar .mlwb-nav-stage > .mlwb-primary-link {
+  grid-column: 2;
+  min-width: 0;
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  color: #263a4b;
+  font-size: .82rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+  white-space: normal;
+}
+.mlwb-page .mlwb-nav-stage > .mlwb-primary-link:hover,
+.mlwb-page .mlwb-nav-stage > .mlwb-primary-link.active { background: transparent; box-shadow: none; }
+/* Extend the actual anchor's hit target over the entire workflow card. */
+.mlwb-page .mlwb-nav-stage > .mlwb-primary-link::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+}
+.mlwb-page .mlwb-nav-stage > .mlwb-primary-link:focus-visible {
+  outline: 2px solid #3f86b6;
+  outline-offset: 3px;
+}
+.mlwb-page .mlwb-stage-summary {
+  grid-column: 2;
+  min-width: 0;
+  color: #657585;
+  font-size: .68rem;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mlwb-page .mlwb-nav-stage[data-state="blocked"] .mlwb-stage-summary { color: #85505a; }
+.mlwb-page .mlwb-nav-stage[data-state="partial"] .mlwb-stage-summary { color: #79622f; }
+
+/* Keep nested Data subpanels below all FIVE parent cards. Other sections'
+   contextual links and existing tools remain visible in their own groups. */
+.mlwb-page .mlwb-data-subsections,
+.mlwb-page .mlwb-subtitle { border-top: 1px solid #c3d0da; }
+.mlwb-page .mlwb-data-subsections {
+  margin-top: .75rem;
+  padding-top: .6rem;
+}
+.mlwb-page .mlwb-secondary-nav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .17rem;
+}
+.mlwb-page .mlwb-secondary-nav a {
+  border-radius: 3px;
+  padding: .42rem .5rem .42rem 1.1rem;
+  font-size: .76rem;
+  text-decoration: none;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mlwb-page .mlwb-secondary-nav a:hover { background: #f2f6f9; }
+.mlwb-page .mlwb-secondary-nav a[aria-current="page"] {
+  border-left: 3px solid var(--mlwb-sky);
+  background: #fff;
+  color: var(--mlwb-navy);
+  font-weight: 700;
+}
+.mlwb-page .mlwb-subtitle { margin-top: .8rem; padding-top: .65rem; }
+.mlwb-page .mlwb-preflight { margin-top: .8rem; padding-top: .65rem; }
+.mlwb-page .mlwb-preflight-state { color: #405568; font-size: .72rem; line-height: 1.4; }
+.mlwb-page .mlwb-preflight-list { display: grid; gap: .35rem; margin-bottom: .55rem; }
+.mlwb-page .mlwb-preflight-list a { border-radius: 3px; }
+.mlwb-page .mlwb-sidebar-details {
+  margin-top: .75rem;
+  padding-top: .55rem;
+  border-top: 1px solid #c3d0da;
+}
+.mlwb-page .mlwb-sidebar-details > summary {
+  cursor: pointer;
+  color: #405568;
+  font-weight: 650;
+  font-size: .75rem;
+}
+.mlwb-page .mlwb-sidebar-details[open] > summary { margin-bottom: .5rem; }
+.mlwb-page .mlwb-preflight-steps { margin-top: .4rem; }
+@media (max-width: 820px) {
+  .mlwb-page .mlwb-sidebar { padding: .75rem; }
+  .mlwb-page .mlwb-sidebar .mlwb-primary-nav.pah-tool-nav {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  }
+  /* Preserve the nested section relationship even when the rail stacks. */
+  .mlwb-page .mlwb-secondary-nav { display: grid; grid-template-columns: minmax(0, 1fr); }
+}
