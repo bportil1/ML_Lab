@@ -17,6 +17,7 @@ def create_ui_blueprint(
     derived_output_root: str = "analysis/data/derived",
     experiment_project_root: str | None = None,
     path_autocomplete_roots=None,
+    workbench_cookie_scope: str | None = None,
 ):
     from .blueprint import create_ui_blueprint as _create_ui_blueprint
 
@@ -35,7 +36,10 @@ def create_ui_blueprint(
 
     root = Path(experiment_project_root if experiment_project_root is not None else Path.cwd())
     root = root.expanduser().resolve()
-    context_reader = install_workbench_routes(blueprint, name=name, project_root=root)
+    context_reader = install_workbench_routes(
+        blueprint, name=name, project_root=root,
+        cookie_scope=workbench_cookie_scope,
+    )
     from .workbench_feature_routes import install_feature_routes
     install_feature_routes(blueprint, project_root=root, workbench_context=context_reader)
     from .workbench_representation_routes import install_representation_routes

@@ -7,3 +7,23 @@ build/
 dist/
 *.egg-info/
 ml_lab_results/
+
+# Generated analysis and per-project runtime output (never version these).
+# Root anchors preserve source packages such as src/ml_lab/.../analysis.
+/analysis/
+/.pah/
+/ml_lab_results/
+/runtime/
+/cache/
+/tmp/
+/logs/
+/exports/
+/scratch/
+/.coverage
+/htmlcov/
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite-wal
+*.sqlite-shm
+*.db-wal
+*.db-shm

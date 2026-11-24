@@ -11,10 +11,19 @@ from pathlib import Path
 from flask import Blueprint, g, jsonify, request, render_template, url_for
 
 
-def install_workbench_routes(blueprint: Blueprint, *, name: str, project_root: Path):
+def install_workbench_routes(
+    blueprint: Blueprint, *, name: str, project_root: Path,
+    cookie_scope: str | None = None,
+):
     """Install workbench HTTP endpoints and return a context reader for pages."""
+    # Browsers share cookies across localhost ports. Independent process UIs
+    # must not reuse the same workbench cookie when they share a project root.
+    # Keep the original cookie name unchanged for legacy/standalone hosting.
+    cookie_identity = f"{name}:{project_root}"
+    if cookie_scope:
+        cookie_identity += f":{cookie_scope}"
     cookie_name = "ml_lab_workbench_" + hashlib.sha256(
-        f"{name}:{project_root}".encode("utf-8")
+        cookie_identity.encode("utf-8")
     ).hexdigest()[:20]
 
     def workbench_context(store=None):

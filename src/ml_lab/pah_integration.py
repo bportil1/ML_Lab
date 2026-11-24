@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import sys
 import threading
 from pathlib import Path
 from typing import Any, Mapping
@@ -328,6 +329,27 @@ class MLLabRuntimeAdapter:
                 "bound_project": self._binding[2] if self._binding else None,
                 "bound_results_root": self._binding[3] if self._binding else None,
             },
+        }
+
+    def process_launch_spec(self, *, context: Any = None) -> dict[str, Any]:
+        """Offer PAH a module-owned recipe for an independent UI process.
+
+        PAH supplies a unique instance ID, port, and runtime paths through the
+        standard process environment. ML Lab retains complete ownership of
+        project selection, experiment storage, and generated outputs.
+        """
+        project, results = _roots(context)
+        environment: dict[str, str] = {}
+        if project is not None:
+            environment["ML_LAB_PROJECT_ROOT"] = str(project)
+            environment["ML_LAB_RESULTS_ROOT"] = str(results)
+        # With no selected project, the child uses PAH_MODULE_RUNTIME_DIR as a
+        # standalone project. Do not resolve a default analysis/ into PAH's cwd.
+        return {
+            "command": [sys.executable, "-m", "ml_lab.process_ui"],
+            "env": environment,
+            "requested_port": 0,
+            "ui_path": "/",
         }
 
     def launch(self, *, context: Any = None, detached: bool = False) -> dict[str, Any]:
