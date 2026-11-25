@@ -47,6 +47,7 @@
      data-hia-neighbors-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy_neighbors') }}"
      data-hia-branch-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy_branch_information') }}"
      data-hia-level-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy_level_information') }}"
+     data-hia-conditional-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy_conditional_information') }}"
      data-graph-module-url="{{ url_for(request.blueprint + '.pah_shared_asset', asset='interactive_graph_view.mjs', v=shared_graph_revision) }}">
   <div class="button-row"><button type="button" class="button" data-graph-action="open">Explore source graph</button>
   <span data-graph-status role="status" aria-live="polite">No graph loaded. Opening does not run statistical analysis.</span></div>
@@ -211,6 +212,38 @@
       <details><summary>Full level identities, observation support, estimator settings and provenance</summary><pre class="mlwb-structured-json" data-hia-level-report></pre></details>
     </div>
   </section>
+  <section class="mlwb-hia-conditional" data-hia-conditional hidden aria-label="Information conditioned on preceding structural levels">
+    <h3>Conditional level information <small>HIA-08 · empirical joint estimates</small></h3>
+    <p class="tiny muted">Structural level <strong data-hia-conditional-depth>None</strong>. Estimate H(level | mapped prior nodes), I(level; mapped prior nodes), and optional I(target; level | mapped prior nodes). Original source membership is preserved, including unmapped nodes. No source edge implies a probability or conditional independence.</p>
+    <p class="tiny muted" data-hia-conditional-coverage></p>
+    <div class="mlwb-hia-branch-controls">
+      <label>Mapping role <select data-hia-conditional-role>
+        <option value="level">Selected level L</option><option value="prior">Earlier level Z</option><option value="target">Optional target Y</option>
+      </select></label>
+      <label>Exact original source node ID <input type="search" data-hia-conditional-node placeholder="Select a level member below or enter an earlier-level / target ID"></label>
+      <label>Observed column <select data-hia-conditional-column><option value="">Select observed column…</option></select></label>
+      <button class="button secondary" type="button" data-hia-conditional-action="add">Add explicit mapping</button>
+    </div>
+    <div class="mlwb-hia-neighbor-mappings" data-hia-conditional-mappings aria-label="Level, prior and target observation mappings"></div>
+    <details><summary>Empirical estimator and support settings</summary>
+      <p class="tiny muted">The conditioning vector consists of all explicitly mapped earlier-level columns JOINTLY. There is no independence factorization. A level above zero requires at least one earlier-level mapping. Any optional target must be outside the selected level and cannot also be a conditioner.</p>
+      <div class="mlwb-hia-branch-controls">
+        <label>Repeated values <select data-hia-conditional-occurrences><option value="preserve">Preserve unresolved</option><option value="scalar_only">Reject repeated cells</option><option value="mean_numeric">Explicit numeric mean</option></select></label>
+        <label>Minimum complete rows <input type="number" min="2" value="2" data-hia-conditional-min-samples></label>
+        <label>Minimum support per joint prior stratum <input type="number" min="1" value="2" data-hia-conditional-min-stratum></label>
+      </div>
+      <label>Explicit numeric discretization JSON (observed column → {"mode":"quantile","bins":4})
+        <textarea rows="2" data-hia-conditional-bins spellcheck="false">{}</textarea></label>
+    </details>
+    <div class="button-row"><button type="button" class="button" data-hia-conditional-action="compute" disabled>Compute conditional information</button>
+      <button type="button" class="button secondary" data-hia-conditional-action="export" disabled>Export full conditional report JSON</button></div>
+    <p role="status" aria-live="polite" data-hia-conditional-status>Select Inspect level, then explicitly declare level members and preceding-level conditioning variables. Computation is opt-in.</p>
+    <div data-hia-conditional-results hidden>
+      <div data-hia-conditional-summary class="mlwb-hia-level-summary"></div>
+      <div class="mlwb-hia-neighbor-results-scroll"><table class="mlwb-hia-neighbor-table" aria-label="Mapped node conditioned information contributions"><thead><tr><th>Original level node</th><th>Observed column</th><th>H(X | prior), bits</th><th>I(X; other level nodes | prior), bits</th></tr></thead><tbody data-hia-conditional-table></tbody></table></div>
+      <details><summary>Complete level and prior identities, separate cohorts, estimator settings and provenance</summary><pre class="mlwb-structured-json" data-hia-conditional-report></pre></details>
+    </div>
+  </section>
   <div class="mlwb-structured-grid">
     <section aria-label="Original graph record inspector"><h3>Selected source record</h3><pre class="mlwb-structured-json" data-graph-inspector>Select a node or edge to inspect its original metadata.</pre></section>
     <section aria-label="Linked graph records"><h3>Linked source records</h3>
@@ -361,4 +394,4 @@
 {% for item in chart %}<div class="mlwb-structured-bar"><p><strong>{{ item.label }}</strong> · {{ item.nodes }}% node identities · {{ item.edges if item.edges is not none else 'N/A' }}% edge identities · holdout log loss {{ item.loss if item.loss is not none else 'unavailable' }} ({{ item.status }})</p><meter min="0" max="100" value="{{ item.nodes }}">{{ item.nodes }}%</meter></div>{% endfor %}<details><summary>Inspect full scientific report JSON</summary><pre class="mlwb-structured-json">{{ report_json[:120000] }}{% if report_json|length > 120000 %}\n[Display shortened; export for complete JSON]{% endif %}</pre></details><p class="tiny muted">No analysis ran until explicitly requested. No results were automatically written into other module databases or source files.</p></section>{% endif %}
 {% endblock %}
 
-{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_graph.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_workspace.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_atomic.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_neighbors.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_branch.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_level.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_sandbox.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_network.js', v=graph_controller_revision) }}"></script>{% endblock %}
+{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_graph.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_workspace.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_atomic.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_neighbors.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_branch.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_level.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_conditional.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_sandbox.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_network.js', v=graph_controller_revision) }}"></script>{% endblock %}

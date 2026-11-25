@@ -424,3 +424,11 @@ body.mlwb-hia-popout .mlwb-shared-graph [data-graph-surface] { min-height: 65vh;
 .mlwb-hia-level-stats textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
 .mlwb-hia-level-stats details { margin: .85rem 0; }
 .mlwb-hia-level-summary .mlwb-hia-branch-metric { background: #f6faff; color: #17324d; }
+
+
+/* HIA-08: source-level conditioning inspector; same readable scientific palette. */
+.mlwb-hia-conditional { padding: 1rem; margin: .8rem 0; border: 1px solid #b0c5d8; border-radius: .65rem; }
+.mlwb-hia-conditional[hidden], [data-hia-conditional-results][hidden] { display: none !important; }
+.mlwb-hia-conditional .mlwb-hia-branch-controls label { color: var(--pah-text,#17324d); }
+.mlwb-hia-conditional textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
+.mlwb-hia-conditional details { margin: .85rem 0; }

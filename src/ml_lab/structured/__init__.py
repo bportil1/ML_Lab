@@ -147,3 +147,10 @@ __all__ += ['HIA_BRANCH_SCHEMA', 'analyze_hierarchical_branch']
 # HIA-07: full level inventory with opt-in joint statistics over mapped nodes.
 from .hierarchical_level_statistics import LEVEL_SCHEMA as HIA_LEVEL_SCHEMA, analyze_hierarchical_level
 __all__ += ['HIA_LEVEL_SCHEMA', 'analyze_hierarchical_level']
+
+# HIA-08: empirical information of a level conditioned on explicitly mapped prior levels.
+from .hierarchical_conditional_levels import (
+    CONDITIONAL_LEVEL_SCHEMA as HIA_CONDITIONAL_LEVEL_SCHEMA,
+    analyze_hierarchical_conditional_level,
+)
+__all__ += ['HIA_CONDITIONAL_LEVEL_SCHEMA', 'analyze_hierarchical_conditional_level']
