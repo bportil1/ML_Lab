@@ -377,3 +377,15 @@
 .mlwb-shared-graph:fullscreen { overflow-y: auto; box-sizing: border-box; padding: 1.2rem; background: #edf4fa; color: #193657; }
 .mlwb-shared-graph:fullscreen [data-graph-surface] { min-height: 60vh; }
 body.mlwb-hia-popout .mlwb-shared-graph [data-graph-surface] { min-height: 65vh; }
+
+/* HIA-04: atomic observation panel, aligned with HIA-03 and readable in PAH. */
+.mlwb-hia-atomic { margin: .85rem 0; padding: 1rem; border: 1px solid #a9bdd0;
+  border-radius: .65rem; background: var(--pah-surface-2,#f7fbff); color: var(--pah-text,#17324d); }
+.mlwb-hia-atomic[hidden], .mlwb-hia-atomic-results[hidden] { display: none !important; }
+.mlwb-hia-atomic-controls { display: grid; gap: .65rem;
+  grid-template-columns: repeat(auto-fit,minmax(min(100%,175px),1fr)); margin: .75rem 0; }
+.mlwb-hia-atomic-controls label { display: grid; gap: .3rem; font-size: .85rem; }
+.mlwb-hia-atomic-controls input, .mlwb-hia-atomic-controls select { max-width: 100%; min-width: 0; }
+.mlwb-hia-atomic-metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,160px),1fr)); gap: .6rem; margin: .65rem 0; }
+.mlwb-hia-atomic-metrics > div { padding: .6rem; border: 1px solid #adbed0; border-radius: .45rem; }
+.mlwb-hia-atomic-metrics strong { display: block; overflow-wrap: anywhere; }

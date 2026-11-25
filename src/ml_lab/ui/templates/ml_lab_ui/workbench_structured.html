@@ -43,6 +43,7 @@
      data-graph-payload-url="{{ url_for(request.blueprint + '.workbench_structured_graph') }}"
      data-hia-overview-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy') }}"
      data-hia-inspect-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy_inspect') }}"
+     data-hia-atomic-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy_atomic') }}"
      data-graph-module-url="{{ url_for(request.blueprint + '.pah_shared_asset', asset='interactive_graph_view.mjs', v=shared_graph_revision) }}">
   <div class="button-row"><button type="button" class="button" data-graph-action="open">Explore source graph</button>
   <span data-graph-status role="status" aria-live="polite">No graph loaded. Opening does not run statistical analysis.</span></div>
@@ -60,7 +61,7 @@
   <section class="mlwb-hia-workspace" data-hia-workspace aria-label="Hierarchical information explorer" hidden>
     <div class="mlwb-hia-heading"><div>
       <h3>Hierarchy navigator <small>HIA-03 · source levels, not statistical layers</small></h3>
-      <p class="tiny muted">Inspect an atomic source node, a unique-parent branch, one verified structural level, or the complete network. HIA-04–10 will add opt-in statistical estimates; none are implied here.</p>
+      <p class="tiny muted">Inspect an atomic source node, a unique-parent branch, one verified structural level, or the complete network. HIA-04 adds explicit, observation-based atomic profiles; relationship and level estimates remain opt-in future work.</p>
     </div><div class="button-row" data-hia-controls hidden>
       <button type="button" class="button secondary" data-hia-action="fullscreen">Fullscreen</button>
       <button type="button" class="button secondary" data-hia-action="popout">New window</button>
@@ -91,6 +92,26 @@
         <div class="button-row"><button class="button secondary" type="button" data-hia-action="previous" disabled>Previous members</button>
           <button class="button secondary" type="button" data-hia-action="next" disabled>Next members</button></div>
       </section>
+    </div>
+  </section>
+  <section class="mlwb-hia-atomic" data-hia-atomic hidden aria-label="Atomic source node statistics">
+    <h3>Atomic node statistics <small>HIA-04 · explicit SU-05 observation binding</small></h3>
+    <p class="tiny muted">Selected original node: <strong data-hia-atomic-node>None</strong>. Choose the observed column actually representing this node; structural edges never establish mappings or dependence.</p>
+    <div class="mlwb-hia-atomic-controls">
+      <label>Observed column <select data-hia-atomic-column aria-label="Explicit atomic observation column"><option value="">Select a column…</option></select></label>
+      <label>Repeated values <select data-hia-atomic-occurrences><option value="preserve">Preserve (report unresolved)</option><option value="scalar_only">Require scalar only</option><option value="mean_numeric">Explicit numeric mean</option></select></label>
+      <label>Floating-point entropy bins <select data-hia-atomic-bin-mode><option value="none">Not configured</option><option value="quantile">Quantile</option><option value="equal_width">Equal width</option></select></label>
+      <label>Bins <input type="number" min="2" max="128" value="4" data-hia-atomic-bin-count></label>
+      <label>Minimum rows <input type="number" min="2" value="2" data-hia-atomic-min-samples></label>
+    </div>
+    <div class="button-row"><button class="button" type="button" data-hia-atomic-action="compute" disabled>Compute selected node statistics</button>
+      <button class="button secondary" type="button" data-hia-atomic-action="export" disabled>Export atomic report JSON</button></div>
+    <p data-hia-atomic-status role="status" aria-live="polite">Select a source node and declare its observed column. No estimates run automatically.</p>
+    <div class="mlwb-hia-atomic-results" data-hia-atomic-results hidden>
+      <div data-hia-atomic-summary></div>
+      <details><summary>Complete node statistics, distribution, and provenance</summary>
+        <pre class="mlwb-structured-json" data-hia-atomic-report></pre>
+      </details>
     </div>
   </section>
   <div class="mlwb-structured-grid">

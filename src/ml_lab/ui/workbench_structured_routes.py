@@ -18,7 +18,7 @@ from .structured_hia_view import hierarchy_overview, inspect_workspace_scope
 from .structured_sandbox import analyze_sandbox
 from .structured_network_view import association_view
 from ml_lab.structured import analyze_observed_network
-from ml_lab.structured import source_sha256
+from ml_lab.structured import source_sha256, atomic_node_statistics
 
 def _shared_graph_available() -> bool:
     """Older PAH_Shared installations simply do not offer the opt-in view."""
@@ -52,7 +52,7 @@ def _structured_controller_revision() -> str:
     base = Path(__file__).resolve().parent / 'static'
     digest = hashlib.sha256()
     for name in ('ml_lab_structured_graph.js', 'ml_lab_hia_workspace.js',
-                 'ml_lab_structured_sandbox.js', 'ml_lab_structured_network.js'):
+                 'ml_lab_hia_atomic.js', 'ml_lab_structured_sandbox.js', 'ml_lab_structured_network.js'):
         digest.update(name.encode('utf-8'))
         digest.update(base.joinpath(name).read_bytes())
     return digest.hexdigest()[:20]
@@ -134,6 +134,35 @@ def install_structured_routes(blueprint: Blueprint, *, name: str, project_root: 
             source, _ = read_source(project_root, selection['path'], selection['kind'], selection['sha256'])
             return jsonify(inspect_workspace_scope(source, source_revision=revision,
                                                    scope_input=data['scope'], offset=data['offset']))
+        except (StructuredContractError, ValueError, TypeError, OSError, RecursionError) as exc:
+            return jsonify({'error': str(exc)}), 409
+
+    @blueprint.post('/workbench/structured/hierarchy/atomic')
+    def workbench_structured_hierarchy_atomic():
+        """Opt-in node-to-column SU-05 binding; source-pinned, read-only stats."""
+        if request.content_length is None or request.content_length > 8192:
+            return jsonify({'error': 'atomic statistics request exceeds 8 KB'}), 413
+        if (not request.is_json or
+                request.headers.get('X-ML-Lab-HIA') != 'explicit-atomic-statistics'):
+            return jsonify({'error': 'explicit same-origin atomic analysis required'}), 400
+        try:
+            raw = request.cookies.get(cookie)
+            selection = _strict_json(raw) if raw and len(raw) <= 1024 else None
+            if not isinstance(selection, dict) or set(selection) != {'path', 'kind', 'sha256'}:
+                raise StructuredContractError('select a verified structured artifact first')
+            data = _strict_json(request.get_data(as_text=True))
+            required = {'source_revision', 'node_id', 'variable_id',
+                        'occurrence_policy', 'bins', 'min_samples'}
+            if not isinstance(data, dict) or set(data) != required:
+                raise StructuredContractError('invalid HIA atomic statistics request fields')
+            revision = 'sha256:' + selection['sha256']
+            if data['source_revision'] != revision:
+                raise StructuredContractError('HIA source revision mismatch: reopen the source')
+            source, _ = read_source(project_root, selection['path'], selection['kind'], selection['sha256'])
+            output = atomic_node_statistics(source, node_id=data['node_id'],
+                        variable_id=data['variable_id'], occurrence_policy=data['occurrence_policy'],
+                        bins=data['bins'], min_samples=data['min_samples'])
+            return jsonify({'source_revision': revision, 'report': output})
         except (StructuredContractError, ValueError, TypeError, OSError, RecursionError) as exc:
             return jsonify({'error': str(exc)}), 409
 

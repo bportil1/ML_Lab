@@ -131,3 +131,7 @@ __all__ += [
     'HIA_HIERARCHY_SCHEMA', 'HIA_SELECTION_SCHEMA', 'HierarchyIndex',
     'build_hierarchy_index', 'inspect_hierarchical_selection',
 ]
+
+# HIA-04: explicit one-to-one node/observation profiles (no inferred mapping).
+from .atomic_node_statistics import ATOMIC_SCHEMA as HIA_ATOMIC_SCHEMA, atomic_node_statistics
+__all__ += ['HIA_ATOMIC_SCHEMA', 'atomic_node_statistics']
