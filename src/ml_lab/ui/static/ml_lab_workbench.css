@@ -416,3 +416,11 @@ body.mlwb-hia-popout .mlwb-shared-graph [data-graph-surface] { min-height: 65vh;
 .mlwb-hia-branch details { margin: .85rem 0; }
 .mlwb-hia-branch-metric { display: inline-grid; min-width: min(100%, 180px); padding: .65rem; margin: .35rem; border: 1px solid #b9cede; border-radius: .5rem; background: #f6faff; color: #17324d; }
 .mlwb-hia-branch-metric strong { display: block; font-size: 1.05rem; overflow-wrap: anywhere; }
+
+/* HIA-07: accessible, legible level inspector using existing HIA tables. */
+.mlwb-hia-level-stats { padding: 1rem; margin: .8rem 0; border: 1px solid #b0c5d8; border-radius: .65rem; }
+.mlwb-hia-level-stats[hidden], [data-hia-level-results][hidden] { display: none !important; }
+.mlwb-hia-level-stats .mlwb-hia-branch-controls label { color: var(--pah-text,#17324d); }
+.mlwb-hia-level-stats textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
+.mlwb-hia-level-stats details { margin: .85rem 0; }
+.mlwb-hia-level-summary .mlwb-hia-branch-metric { background: #f6faff; color: #17324d; }

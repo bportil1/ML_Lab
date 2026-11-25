@@ -18,7 +18,7 @@ from .structured_hia_view import hierarchy_overview, inspect_workspace_scope
 from .structured_sandbox import analyze_sandbox
 from .structured_network_view import association_view
 from ml_lab.structured import analyze_observed_network
-from ml_lab.structured import source_sha256, atomic_node_statistics, analyze_neighbor_relationships, analyze_hierarchical_branch
+from ml_lab.structured import source_sha256, atomic_node_statistics, analyze_neighbor_relationships, analyze_hierarchical_branch, analyze_hierarchical_level
 
 def _shared_graph_available() -> bool:
     """Older PAH_Shared installations simply do not offer the opt-in view."""
@@ -52,7 +52,7 @@ def _structured_controller_revision() -> str:
     base = Path(__file__).resolve().parent / 'static'
     digest = hashlib.sha256()
     for name in ('ml_lab_structured_graph.js', 'ml_lab_hia_workspace.js',
-                 'ml_lab_hia_atomic.js', 'ml_lab_hia_neighbors.js', 'ml_lab_hia_branch.js', 'ml_lab_structured_sandbox.js', 'ml_lab_structured_network.js'):
+                 'ml_lab_hia_atomic.js', 'ml_lab_hia_neighbors.js', 'ml_lab_hia_branch.js', 'ml_lab_hia_level.js', 'ml_lab_structured_sandbox.js', 'ml_lab_structured_network.js'):
         digest.update(name.encode('utf-8'))
         digest.update(base.joinpath(name).read_bytes())
     return digest.hexdigest()[:20]
@@ -226,6 +226,37 @@ def install_structured_routes(blueprint: Blueprint, *, name: str, project_root: 
                 context=data['context'], occurrence_policy=data['occurrence_policy'],
                 bins=data['bins'], min_samples=data['min_samples'],
                 min_stratum_samples=data['min_stratum_samples'],
+            )
+            return jsonify({'source_revision': revision, 'report': report})
+        except (StructuredContractError, ValueError, TypeError, OSError, RecursionError) as exc:
+            return jsonify({'error': str(exc)}), 409
+
+    @blueprint.post('/workbench/structured/hierarchy/level-information')
+    def workbench_structured_hierarchy_level_information():
+        """Explicit, source-revision-pinned empirical information for one level."""
+        if request.content_length is None or request.content_length > 131072:
+            return jsonify({'error': 'HIA level request exceeds 128 KB'}), 413
+        if (not request.is_json or
+                request.headers.get('X-ML-Lab-HIA') != 'explicit-level-information'):
+            return jsonify({'error': 'explicit same-origin level analysis required'}), 400
+        try:
+            raw = request.cookies.get(cookie)
+            selection = _strict_json(raw) if raw and len(raw) <= 1024 else None
+            if not isinstance(selection, dict) or set(selection) != {'path', 'kind', 'sha256'}:
+                raise StructuredContractError('select a verified structured artifact first')
+            data = _strict_json(request.get_data(as_text=True))
+            required = {'source_revision', 'level', 'mappings', 'occurrence_policy',
+                        'bins', 'min_samples'}
+            if not isinstance(data, dict) or set(data) != required:
+                raise StructuredContractError('invalid HIA level analysis request fields')
+            revision = 'sha256:' + selection['sha256']
+            if data['source_revision'] != revision:
+                raise StructuredContractError('HIA source revision mismatch: reopen the source')
+            source, _ = read_source(project_root, selection['path'], selection['kind'], selection['sha256'])
+            report = analyze_hierarchical_level(
+                source, level=data['level'], mappings=data['mappings'],
+                occurrence_policy=data['occurrence_policy'], bins=data['bins'],
+                min_samples=data['min_samples'],
             )
             return jsonify({'source_revision': revision, 'report': report})
         except (StructuredContractError, ValueError, TypeError, OSError, RecursionError) as exc:

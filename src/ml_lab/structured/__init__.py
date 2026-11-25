@@ -143,3 +143,7 @@ __all__ += ['HIA_NEIGHBOR_SCHEMA', 'analyze_neighbor_relationships']
 # HIA-06: complete structural branch inventory with explicitly mapped joint evidence.
 from .hierarchical_branch_statistics import BRANCH_SCHEMA as HIA_BRANCH_SCHEMA, analyze_hierarchical_branch
 __all__ += ['HIA_BRANCH_SCHEMA', 'analyze_hierarchical_branch']
+
+# HIA-07: full level inventory with opt-in joint statistics over mapped nodes.
+from .hierarchical_level_statistics import LEVEL_SCHEMA as HIA_LEVEL_SCHEMA, analyze_hierarchical_level
+__all__ += ['HIA_LEVEL_SCHEMA', 'analyze_hierarchical_level']
