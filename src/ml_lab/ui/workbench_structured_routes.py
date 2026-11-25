@@ -30,6 +30,33 @@ def _shared_graph_available() -> bool:
         return False
 
 
+def _shared_graph_asset_revision() -> str | None:
+    """Fingerprint the *installed* PAH_Shared renderer used by this process.
+
+    A fixed /pah-shared URL previously allowed Firefox's cached ES module to
+    survive a same-version package refresh. Version the import by real bytes,
+    not by a package version or Git revision from another environment.
+    """
+    try:
+        from importlib.resources import files
+        root = files('pah_shared').joinpath('static')
+        content = root.joinpath('interactive_graph_view.mjs').read_bytes()
+        return hashlib.sha256(content).hexdigest()[:20]
+    except (ImportError, ModuleNotFoundError, OSError, TypeError):
+        return None
+
+
+def _structured_controller_revision() -> str:
+    """Invalidate local script caching when any graph controller changes."""
+    base = Path(__file__).resolve().parent / 'static'
+    digest = hashlib.sha256()
+    for name in ('ml_lab_structured_graph.js', 'ml_lab_structured_sandbox.js',
+                 'ml_lab_structured_network.js'):
+        digest.update(name.encode('utf-8'))
+        digest.update(base.joinpath(name).read_bytes())
+    return digest.hexdigest()[:20]
+
+
 SECTIONS = (('data', 'Data'), ('profiling', 'Feature Profiling'),
             ('representation', 'Representation'), ('comparison', 'Comparison'),
             ('tools', 'General ML Tools'))
@@ -201,4 +228,6 @@ def install_structured_routes(blueprint: Blueprint, *, name: str, project_root: 
                                report_json=(json.dumps(report, indent=2, ensure_ascii=False)
                                             if report is not None else ''),
                                error=error, values=submitted, model_text=model_text,
-                               shared_graph_available=_shared_graph_available()), status
+                               shared_graph_available=_shared_graph_available(),
+                               shared_graph_revision=_shared_graph_asset_revision(),
+                               graph_controller_revision=_structured_controller_revision()), status

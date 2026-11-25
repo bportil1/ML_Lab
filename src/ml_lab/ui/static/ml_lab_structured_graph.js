@@ -96,7 +96,17 @@
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Selected structure no longer available');
       const module = await import(root.dataset.graphModuleUrl);
-      module.validateInteractiveGraphView(payload.view);
+      try {
+        module.validateInteractiveGraphView(payload.view);
+      } catch (error) {
+        // This is a signature of the pre-GRAPH-SCALE-01 PAH_Shared module.
+        // Tell the user which *served* module to inspect. A Git/source or
+        // PAH host-venv version check cannot verify the separate ML_Lab runtime.
+        if (/array missing or exceeds (5000|15000)/.test(String(error?.message))) {
+          throw new Error(`ML_Lab loaded an obsolete PAH_Shared graph module at ${root.dataset.graphModuleUrl}. Check the actual served asset and restart the ML_Lab runtime, not the scientific job.`);
+        }
+        throw error;
+      }
       snapshot = payload;
       graphModule = module;
       viewer = module.mountInteractiveGraph(surface, payload.view, {

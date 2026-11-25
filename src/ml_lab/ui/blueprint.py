@@ -436,8 +436,17 @@ def create_ui_blueprint(
             from pah_shared import static_asset
             contents = static_asset(asset).read_bytes()
         mime = "text/javascript" if asset.endswith(".mjs") else "text/css"
-        return Response(contents, mimetype=mime,
-                        headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"})
+        # Graph controllers are imported as ES modules: a one-hour cache at an
+        # unchanged URL can preserve an obsolete validator after offline
+        # package updates. Never cache the opt-in graph engine; the Structured
+        # Uncertainty page also uses its content hash as the import URL version.
+        if asset in interactive:
+            revision = hashlib.sha256(contents).hexdigest()[:20]
+            headers = {"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff",
+                       "X-ML-Lab-Graph-Asset-Revision": revision}
+        else:
+            headers = {"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"}
+        return Response(contents, mimetype=mime, headers=headers)
 
     @blueprint.get("/workspace")
     def workspace():
