@@ -156,8 +156,11 @@
 .mlwb-dependency-matrix a, .mlwb-dependency-matrix a:visited { color: #0b385d; font-weight: 650; text-decoration: underline; text-underline-offset: 2px; }
 .mlwb-dependency-matrix a:hover { color: #092c4b; text-decoration-thickness: 2px; }
 .mlwb-dependency-matrix a:focus-visible { outline: 2px solid #17679c; outline-offset: 2px; }
-.mlwb-dependency-matrix td > span { color: #4d5d69; }
+.mlwb-dependency-matrix td > span { color: #4d5d69; font-weight: 650; }
 .mlwb-dependency-matrix ::selection { background: #bfdff7; color: #0b2b45; }
+.mlwb-dep-cell a, .mlwb-dep-cell span { display: block; padding: 4px 6px; border-radius: 4px; }
+.mlwb-dep-cell[data-strength="3"] a, .mlwb-dep-cell[data-strength="4"] a,
+.mlwb-dep-negative[data-strength="3"] a, .mlwb-dep-negative[data-strength="4"] a { color: #ffffff; text-shadow: 0 1px 1px rgba(0,0,0,.4); }
 /* Mix with *white*, not transparent: color contrast cannot depend on the
    embedding page's color scheme or a partially transparent parent surface. */
 .mlwb-dep-cell[data-strength="1"] { background: color-mix(in srgb, #008f86 10%, white); }
@@ -284,3 +287,64 @@
 .mlwb-structured-summary strong{font-size:1.3rem}
 .mlwb-structured-bar meter{width:100%;height:1rem}
 .mlwb-structured-json{max-width:100%;max-height:28rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+
+
+/* ML-UW-37: explicit text contrast for shared-graph labels and the
+   whole-network information matrix. These views present dense scientific
+   results and remain readable without text selection or theme-dependent
+   inheritance. */
+.mlwb-shared-graph { display: grid; gap: .9rem; margin-top: 1rem; }
+.mlwb-shared-graph [hidden] { display: none !important; }
+.mlwb-shared-graph-surface {
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid #c0cfde;
+  border-radius: .7rem;
+  background: #f8fbff;
+  color-scheme: light;
+  --pah-ig-bg: #f8fbff;
+  --pah-ig-node-bg: #ffffff;
+  --pah-ig-border: #6a86a2;
+  --pah-ig-text: #17324d;
+  --pah-ig-link: #5f7993;
+  --pah-ig-selection: #0f78b4;
+}
+.mlwb-shared-graph-surface:not(:empty) { min-height: 25rem; }
+.mlwb-shared-graph-surface .pah-ig-node-label {
+  fill: #17324d;
+  font: 600 12.5px system-ui, sans-serif;
+  paint-order: stroke;
+  stroke: rgba(255,255,255,.92);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.mlwb-shared-graph-surface .pah-ig-node-bg { stroke-width: 1.8; }
+.mlwb-graph-rows { display: grid; gap: .3rem; max-height: 18rem; overflow: auto; }
+.mlwb-graph-row { text-align: left; overflow-wrap: anywhere; white-space: normal; }
+.mlwb-shared-graph [data-graph-inspector] { max-height: 18rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.mlwb-network-matrix-scroll { max-width: 100%; overflow: auto; background: #fff; color-scheme: light; border: 1px solid #d3dce5; border-radius: .5rem; }
+[data-network-matrix] { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 1px; background: #fff; color: #17324d; font-variant-numeric: tabular-nums; }
+[data-network-matrix] th, [data-network-matrix] td { padding: 6px 8px; min-width: 68px; text-align: center; white-space: nowrap; }
+[data-network-matrix] thead th { position: sticky; top: 0; z-index: 2; background: #e8f0f7; color: #17324d; font-size: 11px; letter-spacing: .02em; text-transform: uppercase; }
+[data-network-matrix] tbody th { position: sticky; left: 0; z-index: 1; background: #e8f0f7; color: #17324d; text-align: left; font-size: 11px; letter-spacing: .02em; text-transform: uppercase; }
+[data-network-matrix] thead th:first-child { z-index: 3; }
+[data-network-matrix] td { background: #fff; }
+[data-network-matrix] td:focus-within { outline: 2px solid #17679c; outline-offset: -2px; }
+.mlwb-network-matrix-cell {
+  display: block;
+  width: 100%;
+  min-height: 2rem;
+  border: 1px solid rgba(13, 48, 80, .22);
+  border-radius: .35rem;
+  padding: .35rem .45rem;
+  background: #f7fbff;
+  color: #17324d;
+  font: 650 12px/1.1 system-ui, sans-serif;
+  text-align: center;
+  cursor: pointer;
+}
+.mlwb-network-matrix-cell[data-tone="dark"] { color: #17324d; text-shadow: none; }
+.mlwb-network-matrix-cell[data-tone="light"] { color: #ffffff; text-shadow: 0 1px 1px rgba(0,0,0,.45); }
+.mlwb-network-matrix-cell:focus-visible { outline: 2px solid #17679c; outline-offset: 2px; }
+.mlwb-network-matrix-cell:hover { filter: brightness(.97); }

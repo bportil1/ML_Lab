@@ -122,8 +122,13 @@
             if (visible) viewer.select(kind, id, {recenter:true});
           }
         });
-        if (!same && value !== null && value !== undefined)
-          button.style.backgroundColor = `rgba(35, 105, 180, ${Math.min(0.56, 0.06 + 0.50 * value/max)})`;
+        if (value === null || value === undefined) button.dataset.tone = 'dark';
+        else if (same) button.dataset.tone = 'light';
+        else {
+          const opacity = Math.min(0.72, 0.12 + 0.60 * value / max);
+          button.style.backgroundColor = `rgba(35, 105, 180, ${opacity})`;
+          button.dataset.tone = opacity >= 0.42 ? 'light' : 'dark';
+        }
         cell.append(button); row.append(cell);
       }
       body.append(row);

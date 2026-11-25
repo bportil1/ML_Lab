@@ -47,3 +47,13 @@ def test_all_heatmap_strengths_are_legible_unselected():
             assert _contrast('#0b385d', cell_background) >= 4.5
     styles = CSS[CSS.index('/* Mix with *white*'):CSS.index('/* ML-UW-06:')]
     assert not re.search(r'background\s*:\s*color-mix\([^;]*transparent', styles)
+
+
+def test_whole_network_matrix_and_graph_use_explicit_contrast_rules():
+    assert '.mlwb-network-matrix-cell' in CSS
+    assert '[data-network-matrix]' in CSS
+    assert '--pah-ig-text: #17324d' in CSS
+    assert 'paint-order: stroke;' in CSS
+    assert "button.dataset.tone = opacity >= 0.42 ? 'light' : 'dark'" in (ROOT / 'src/ml_lab/ui/static/ml_lab_structured_network.js').read_text(encoding='utf-8')
+    assert _contrast('#17324d', '#ffffff') >= 7.0
+    assert _contrast('#17324d', '#e8f0f7') >= 7.0
