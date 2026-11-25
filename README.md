@@ -1070,7 +1070,7 @@ Standalone operation and existing Data Lab routes are preserved. See
 
 ### PAH_Shared editable matrix adoption (P5-04)
 
-Data Lab's matrix draft uses the generic `pah-shared>=0.3,<0.4` UI, installed
+Data Lab's matrix draft uses the generic `pah-shared>=0.4,<0.5` UI, installed
 locally via `ml-lab[ui]`. ML_Lab only supplies project-local paged source
 reads, dtype validation and the original SHA-256-guarded derived-dataset save
 endpoint. No source file is edited in place. All selection, keyboard, paste,

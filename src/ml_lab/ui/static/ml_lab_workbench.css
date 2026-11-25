@@ -144,21 +144,30 @@
 .mlwb-feature-picker select { max-width: min(100%, 340px); }
 .mlwb-feature-scatter { width: min(100%, 600px); height: auto; border: 1px solid var(--pah-border); }
 
-/* ML-UW-05: bounded, keyboard-accessible dependency matrix. */
-.mlwb-dependency-scroll { max-width: 100%; overflow: auto; }
-.mlwb-dependency-matrix { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 1px; }
-.mlwb-dependency-matrix th, .mlwb-dependency-matrix td { padding: 6px 8px; min-width: 45px; text-align: center; white-space: nowrap; }
-.mlwb-dependency-matrix th:first-child { position: sticky; left: 0; background: var(--pah-surface-2); z-index: 1; text-align: left; }
-.mlwb-dependency-matrix a { color: var(--pah-text); text-decoration: underline; text-underline-offset: 2px; }
-.mlwb-dependency-matrix a:focus-visible { outline: 2px solid var(--pah-blue-700); outline-offset: 2px; }
-.mlwb-dep-cell[data-strength="1"] { background: color-mix(in srgb, var(--pah-teal-600) 10%, transparent); }
-.mlwb-dep-cell[data-strength="2"] { background: color-mix(in srgb, var(--pah-teal-600) 22%, transparent); }
-.mlwb-dep-cell[data-strength="3"] { background: color-mix(in srgb, var(--pah-teal-600) 34%, transparent); }
-.mlwb-dep-cell[data-strength="4"] { background: color-mix(in srgb, var(--pah-teal-600) 47%, transparent); }
-.mlwb-dep-negative[data-strength="1"] { background: color-mix(in srgb, var(--pah-blue-700) 10%, transparent); }
-.mlwb-dep-negative[data-strength="2"] { background: color-mix(in srgb, var(--pah-blue-700) 22%, transparent); }
-.mlwb-dep-negative[data-strength="3"] { background: color-mix(in srgb, var(--pah-blue-700) 34%, transparent); }
-.mlwb-dep-negative[data-strength="4"] { background: color-mix(in srgb, var(--pah-blue-700) 47%, transparent); }
+/* ML-UW-05: bounded, keyboard-accessible dependency matrix.
+   Use an opaque light heatmap canvas and explicit foregrounds. Previously the
+   transparent heatmap inherited dark-mode surface/text colors, making values
+   appear only when selected. Heatmap strength remains purely descriptive. */
+.mlwb-dependency-scroll { max-width: 100%; overflow: auto; background: #fff; color-scheme: light; }
+.mlwb-dependency-matrix { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 1px; background: #fff; color: #172b3c; font-variant-numeric: tabular-nums; }
+.mlwb-dependency-matrix th, .mlwb-dependency-matrix td { padding: 6px 8px; min-width: 45px; text-align: center; white-space: nowrap; color: #172b3c; background: #fff; }
+.mlwb-dependency-matrix thead th { background: #e9f1f6; color: #172b3c; }
+.mlwb-dependency-matrix th:first-child { position: sticky; left: 0; background: #e9f1f6; color: #172b3c; z-index: 1; text-align: left; }
+.mlwb-dependency-matrix a, .mlwb-dependency-matrix a:visited { color: #0b385d; font-weight: 650; text-decoration: underline; text-underline-offset: 2px; }
+.mlwb-dependency-matrix a:hover { color: #092c4b; text-decoration-thickness: 2px; }
+.mlwb-dependency-matrix a:focus-visible { outline: 2px solid #17679c; outline-offset: 2px; }
+.mlwb-dependency-matrix td > span { color: #4d5d69; }
+.mlwb-dependency-matrix ::selection { background: #bfdff7; color: #0b2b45; }
+/* Mix with *white*, not transparent: color contrast cannot depend on the
+   embedding page's color scheme or a partially transparent parent surface. */
+.mlwb-dep-cell[data-strength="1"] { background: color-mix(in srgb, #008f86 10%, white); }
+.mlwb-dep-cell[data-strength="2"] { background: color-mix(in srgb, #008f86 22%, white); }
+.mlwb-dep-cell[data-strength="3"] { background: color-mix(in srgb, #008f86 34%, white); }
+.mlwb-dep-cell[data-strength="4"] { background: color-mix(in srgb, #008f86 47%, white); }
+.mlwb-dep-negative[data-strength="1"] { background: color-mix(in srgb, #17679c 10%, white); }
+.mlwb-dep-negative[data-strength="2"] { background: color-mix(in srgb, #17679c 22%, white); }
+.mlwb-dep-negative[data-strength="3"] { background: color-mix(in srgb, #17679c 34%, white); }
+.mlwb-dep-negative[data-strength="4"] { background: color-mix(in srgb, #17679c 47%, white); }
 
 /* ML-UW-06: capability-aware representation preview. */
 .mlwb-repr-form { display: grid; grid-template-columns: minmax(100px, 200px) minmax(200px, 460px); gap: 10px 14px; align-items: center; }
@@ -275,12 +284,3 @@
 .mlwb-structured-summary strong{font-size:1.3rem}
 .mlwb-structured-bar meter{width:100%;height:1rem}
 .mlwb-structured-json{max-width:100%;max-height:28rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
-
-/* SU-04: owner-only layout; graph SVG, camera, selection and layout belong to PAH_Shared. */
-.mlwb-shared-graph { display: grid; gap: .9rem; margin-top: 1rem; }
-.mlwb-shared-graph [hidden] { display: none !important; }
-.mlwb-shared-graph-surface { min-height: 0; overflow: hidden; border: 1px solid var(--line,#cbd5e1); border-radius: .7rem; }
-.mlwb-shared-graph-surface:not(:empty) { min-height: 25rem; }
-.mlwb-graph-rows { display: grid; gap: .3rem; max-height: 18rem; overflow: auto; }
-.mlwb-graph-row { text-align: left; overflow-wrap: anywhere; white-space: normal; }
-.mlwb-shared-graph [data-graph-inspector] { max-height: 18rem; white-space: pre-wrap; overflow-wrap: anywhere; }
