@@ -25,7 +25,7 @@
   };
   const invalidate = () => {
     epoch++;
-    report = null; results.hidden = true; table.replaceChildren();
+    report = null; root.dispatchEvent(new CustomEvent('mlwb:hia-level-invalidated')); results.hidden = true; table.replaceChildren();
     $('report').textContent = '';
     action('export').disabled = true;
     action('compute').disabled = level === null || !assignments.length;
@@ -144,6 +144,7 @@
           revision !== graph.view.source_revision || data.source_revision !== revision ||
           data.report?.source_digest !== graph.binding_contract?.source_digest) return;
       report = data.report;
+      root.dispatchEvent(new CustomEvent('mlwb:hia-level-report',{detail:{report,source_revision:revision}}));
       const info = report.level_information;
       const summary = $('summary'); summary.replaceChildren();
       const description = document.createElement('p');

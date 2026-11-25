@@ -52,7 +52,7 @@ def _structured_controller_revision() -> str:
     base = Path(__file__).resolve().parent / 'static'
     digest = hashlib.sha256()
     for name in ('ml_lab_structured_graph.js', 'ml_lab_hia_workspace.js',
-                 'ml_lab_hia_atomic.js', 'ml_lab_hia_neighbors.js', 'ml_lab_hia_branch.js', 'ml_lab_hia_level.js', 'ml_lab_hia_conditional.js', 'ml_lab_hia_factorization.js', 'ml_lab_hia_network.js', 'ml_lab_structured_sandbox.js', 'ml_lab_structured_network.js'):
+                 'ml_lab_hia_atomic.js', 'ml_lab_hia_neighbors.js', 'ml_lab_hia_branch.js', 'ml_lab_hia_level.js', 'ml_lab_hia_conditional.js', 'ml_lab_hia_factorization.js', 'ml_lab_hia_network.js', 'ml_lab_hia_visuals.mjs', 'ml_lab_hia_visuals.css', 'ml_lab_structured_sandbox.js', 'ml_lab_structured_network.js'):
         digest.update(name.encode('utf-8'))
         digest.update(base.joinpath(name).read_bytes())
     return digest.hexdigest()[:20]

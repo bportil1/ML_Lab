@@ -20,7 +20,7 @@
   const say = message => { status.textContent = message; };
   const invalidate = () => {
     token++;
-    report = null; results.hidden = true; summary.replaceChildren(); raw.textContent = '';
+    report = null; root.dispatchEvent(new CustomEvent('mlwb:hia-atomic-invalidated')); results.hidden = true; summary.replaceChildren(); raw.textContent = '';
     exportButton.disabled = true;
     compute.disabled = !graph || !selectedNode || !column.value;
   };
@@ -93,6 +93,7 @@
           payload.report.node_id !== currentNode || payload.report.variable_id !== currentVariable ||
           payload.report.source_digest !== graph.binding_contract.source_digest) return;
       report = payload.report;
+      root.dispatchEvent(new CustomEvent('mlwb:hia-atomic-report',{detail:{report,source_revision:selectedRevision}}));
       const statistics = report.numeric?.statistics;
       const metrics = document.createElement('div'); metrics.className = 'mlwb-hia-atomic-metrics';
       labelMetric(metrics,'Aligned observation rows',report.support.aligned_rows);

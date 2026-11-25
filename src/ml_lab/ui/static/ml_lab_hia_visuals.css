@@ -1,0 +1,23 @@
+/* HIA-11: owner-scoped light scientific overlays; existing PAH_Shared SVG is
+ * still responsible for topology, SVG navigation, selection and all edges. */
+.mlwb-hia-visuals { padding: 1rem; margin: .8rem 0; border: 1px solid #9eb8d0;
+  border-radius: .65rem; background: #f7fbff; color: #17324d; color-scheme: light; }
+.mlwb-hia-visuals[hidden], .mlwb-hia-visuals [hidden] { display: none !important; }
+.mlwb-hia-visuals :is(h3,h4,strong,label) { color: #17324d; }
+.mlwb-hia11-controls { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; }
+.mlwb-hia11-controls > label { display: grid; min-width: min(100%, 14rem); gap: .3rem; }
+.mlwb-hia11-controls select { box-sizing: border-box; width: 100%; max-width: 24rem; }
+.mlwb-hia11-controls .button-row { flex-wrap: wrap; }
+.mlwb-hia-visuals .button.secondary { background: #e7f0f8; color: #17324d; border: 1px solid #7797b5; }
+.mlwb-hia-visuals .button.secondary:hover { background: #d7e8f6; color: #102b46; }
+.mlwb-hia-visuals .button:focus-visible, .mlwb-hia-visuals select:focus-visible { outline: 2px solid #076ba8; outline-offset: 2px; }
+.mlwb-hia11-legend { margin: .7rem 0 .4rem; overflow-wrap: anywhere; font-size: .85rem; }
+.mlwb-hia11-swatches { display: flex; gap: .3rem; flex-wrap: wrap; margin: .35rem 0 1rem; }
+.mlwb-hia11-swatch { min-width: 3rem; min-height: 1.8rem; border: 1px solid #789bb7; border-radius: 4px;
+  display: inline-flex; justify-content: center; align-items: center; color: #17324d; font: 650 11px system-ui,sans-serif; }
+.mlwb-hia11-swatch:last-child { color: #fff; }
+.mlwb-hia11-compare-selects { display: flex; flex-wrap: wrap; gap: .8rem; margin: .5rem 0; }
+.mlwb-hia11-compare-selects label { display: grid; gap: .3rem; min-width: 11rem; }
+.mlwb-hia11-compare-selects select { max-width: 100%; }
+.mlwb-hia-visuals .mlwb-hia-neighbor-table { background: #fff; color: #17324d; }
+.mlwb-hia-visuals .mlwb-hia-neighbor-table :is(th,td) { color: #17324d; }

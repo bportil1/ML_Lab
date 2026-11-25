@@ -52,7 +52,7 @@ def test_controller_revision_follows_local_scripts(tmp_path):
     for name in ('ml_lab_structured_graph.js', 'ml_lab_hia_workspace.js',
                  'ml_lab_hia_atomic.js', 'ml_lab_hia_neighbors.js',
                  'ml_lab_hia_branch.js', 'ml_lab_hia_level.js', 'ml_lab_hia_conditional.js',
-                 'ml_lab_hia_factorization.js', 'ml_lab_hia_network.js', 'ml_lab_structured_sandbox.js', 'ml_lab_structured_network.js'):
+                 'ml_lab_hia_factorization.js', 'ml_lab_hia_network.js', 'ml_lab_hia_visuals.mjs', 'ml_lab_hia_visuals.css', 'ml_lab_structured_sandbox.js', 'ml_lab_structured_network.js'):
         (assets / name).write_text('const x = 1;')
     revision = _isolated_function(ROUTES, '_structured_controller_revision',
                                   file=location / 'workbench_structured_routes.py')

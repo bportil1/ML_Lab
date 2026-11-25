@@ -12,7 +12,7 @@
   let graph=null, report=null, epoch=0, mappings=[], target=null;
   const fmt=value=>typeof value==='number' && Number.isFinite(value) ? value.toFixed(5) : '—';
   function invalidate() {
-    ++epoch; report=null; $('results').hidden=true;
+    ++epoch; report=null; root.dispatchEvent(new CustomEvent('mlwb:hia-network-invalidated')); $('results').hidden=true;
     $('summary').replaceChildren(); $('level-table').replaceChildren();
     $('pair-table').replaceChildren(); $('report').textContent='';
     action('compute').disabled=!graph || !mappings.length;
@@ -124,6 +124,7 @@
          data.source_revision!==revision ||
          data.report?.source_digest!==graph.binding_contract?.source_digest)return;
       report=data.report;const info=report.network_information;
+      root.dispatchEvent(new CustomEvent('mlwb:hia-network-report',{detail:{report,source_revision:revision}}));
       const summary=$('summary'); summary.replaceChildren();
       const p=document.createElement('p');
       p.textContent=`${info.status} · ${info.support}/${report.aligned_rows} complete rows · `+
