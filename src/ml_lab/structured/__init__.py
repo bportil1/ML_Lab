@@ -119,3 +119,15 @@ __all__ += [
     'HierarchicalScope', 'HierarchicalAnalysisRequest',
     'inspect_hierarchical_eligibility',
 ]
+
+# HIA-02: deterministic tree/forest/DAG levels and exact scope membership.
+from .hierarchical_index import (
+    HIERARCHY_SCHEMA as HIA_HIERARCHY_SCHEMA,
+    SELECTION_SCHEMA as HIA_SELECTION_SCHEMA,
+    HierarchyIndex, build_hierarchy_index, inspect_hierarchical_selection,
+)
+
+__all__ += [
+    'HIA_HIERARCHY_SCHEMA', 'HIA_SELECTION_SCHEMA', 'HierarchyIndex',
+    'build_hierarchy_index', 'inspect_hierarchical_selection',
+]
