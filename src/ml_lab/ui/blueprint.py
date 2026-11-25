@@ -421,12 +421,23 @@ def create_ui_blueprint(
     @blueprint.get("/pah-shared/<asset>")
     def pah_shared_asset(asset: str):
         """Serve exact, packaged offline presentation assets; no copied UI engine."""
-        if asset not in {"matrix_editor.mjs", "matrix.css"}:
-            abort(404)
-        from pah_shared import static_asset
+        interactive = {"interactive_graph_view.mjs", "interactive_graph_view.css"}
+        if asset in interactive:
+            # PAH_Shared SU-02 ships these exact packaged files, but the older
+            # static_asset() allowlist does not include them. Do not widen it.
+            from importlib.resources import files
+            try:
+                contents = files('pah_shared').joinpath('static', asset).read_bytes()
+            except (ModuleNotFoundError, FileNotFoundError, OSError):
+                abort(404)
+        else:
+            if asset not in {"matrix_editor.mjs", "matrix.css"}:
+                abort(404)
+            from pah_shared import static_asset
+            contents = static_asset(asset).read_bytes()
         mime = "text/javascript" if asset.endswith(".mjs") else "text/css"
-        return Response(static_asset(asset).read_bytes(), mimetype=mime,
-                        headers={"Cache-Control": "private, max-age=3600"})
+        return Response(contents, mimetype=mime,
+                        headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"})
 
     @blueprint.get("/workspace")
     def workspace():

@@ -12,6 +12,18 @@ from flask import Blueprint, g, jsonify, request, render_template, url_for
 from ml_lab import __version__
 from ml_lab.structured import StructuredContractError
 from .structured_workbench import KINDS, read_source, analyze
+from .structured_graph_view import make_shared_graph_payload
+
+def _shared_graph_available() -> bool:
+    """Older PAH_Shared installations simply do not offer the opt-in view."""
+    try:
+        from importlib.resources import files
+        root = files('pah_shared').joinpath('static')
+        return all(root.joinpath(name).is_file() for name in
+                   ('interactive_graph_view.mjs', 'interactive_graph_view.css'))
+    except (ImportError, ModuleNotFoundError, OSError, TypeError):
+        return False
+
 
 SECTIONS = (('data', 'Data'), ('profiling', 'Feature Profiling'),
             ('representation', 'Representation'), ('comparison', 'Comparison'),
@@ -32,6 +44,21 @@ def install_structured_routes(blueprint: Blueprint, *, name: str, project_root: 
                 response.set_cookie(cookie, json.dumps(selection, separators=(',', ':')),
                                     path=path, httponly=True, samesite='Lax')
         return response
+
+    @blueprint.get('/workbench/structured/graph')
+    def workbench_structured_graph():
+        """Explicit read-only source view; fresh SHA-verified selection every call."""
+        try:
+            raw = request.cookies.get(cookie)
+            if not raw or len(raw) > 1024:
+                raise StructuredContractError('select a verified structured artifact first')
+            selection = json.loads(raw)
+            if not isinstance(selection, dict) or set(selection) != {'path', 'kind', 'sha256'}:
+                raise StructuredContractError('invalid selection: select the artifact again')
+            source, _ = read_source(project_root, selection['path'], selection['kind'], selection['sha256'])
+            return jsonify(make_shared_graph_payload(source, fingerprint=selection['sha256']))
+        except (StructuredContractError, ValueError, TypeError, OSError, RecursionError) as exc:
+            return jsonify({'error': str(exc)}), 409
 
     @blueprint.route('/workbench/structured', methods=['GET', 'POST'])
     def workbench_structured():
@@ -94,4 +121,5 @@ def install_structured_routes(blueprint: Blueprint, *, name: str, project_root: 
                                source=metadata, kinds=KINDS, report=report, chart=chart,
                                report_json=(json.dumps(report, indent=2, ensure_ascii=False)
                                             if report is not None else ''),
-                               error=error, values=submitted, model_text=model_text), status
+                               error=error, values=submitted, model_text=model_text,
+                               shared_graph_available=_shared_graph_available()), status

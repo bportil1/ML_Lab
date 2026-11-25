@@ -1,5 +1,8 @@
 {% extends 'ml_lab_ui/base.html' %}
 {% block title %}Structured uncertainty · ML Lab{% endblock %}
+{% block styles %}
+{% if shared_graph_available %}<link rel="stylesheet" href="{{ url_for(request.blueprint + '.pah_shared_asset', asset='interactive_graph_view.css') }}">{% endif %}
+{% endblock %}
 {% block content %}
 <section class="workspace-head"><div><p class="eyebrow">Validated abstract structured objects</p><h1>Structured uncertainty — {{ dict(sections)[section] }}</h1><p class="lede">Source topology, statistical associations, and explicit probabilistic model edges remain different things. Existing XML, tabular, and model workflows are unchanged.</p></div></section>
 <nav class="mlwb-structured-tabs" aria-label="Structured data workflow">{% for key, label in sections %}<a href="{{ url_for(request.blueprint + '.workbench_structured', section=key) }}"{% if section == key %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</nav>
@@ -10,6 +13,30 @@
 {% if error %}<section class="panel" role="alert"><h2>Action unavailable</h2><p>{{ error }}</p><p class="tiny muted">No silent fallback or automatic dataset modification occurred.</p></section>{% endif %}
 {% if source %}
 {% if section == 'data' %}
+<section class="panel"><h2>Original structure — shared graph viewer</h2>
+<p class="tiny muted">Opt-in read-only viewer using PAH_Shared's actual graph engine. Display layers describe source topology only; no variance, MI/CMI, probabilistic dependence or pruning decision is inferred. All nodes/edges retain their original identities.</p>
+{% if shared_graph_available %}
+<div class="mlwb-shared-graph" data-mlwb-shared-graph
+     data-graph-payload-url="{{ url_for(request.blueprint + '.workbench_structured_graph') }}"
+     data-graph-module-url="{{ url_for(request.blueprint + '.pah_shared_asset', asset='interactive_graph_view.mjs') }}">
+  <div class="button-row"><button type="button" class="button" data-graph-action="open">Explore source graph</button>
+  <span data-graph-status role="status" aria-live="polite">No graph loaded. Opening does not run statistical analysis.</span></div>
+  <div class="button-row" data-graph-controls hidden>
+    <button type="button" class="button secondary" data-graph-action="fit">Fit</button>
+    <button type="button" class="button secondary" data-graph-action="zoom-in">Zoom in</button>
+    <button type="button" class="button secondary" data-graph-action="zoom-out">Zoom out</button>
+    <button type="button" class="button secondary" data-graph-action="overview">Group overview</button>
+    <button type="button" class="button secondary" data-graph-action="context">Original view</button>
+    <button type="button" class="button secondary" data-graph-action="close">Close</button>
+  </div>
+  <div data-graph-surface class="mlwb-shared-graph-surface" aria-label="Interactive source structure"></div>
+  <div class="mlwb-structured-grid">
+    <section aria-label="Original graph record inspector"><h3>Selected source record</h3><pre class="mlwb-structured-json" data-graph-inspector>Select a node or edge to inspect its original metadata.</pre></section>
+    <section aria-label="Linked graph records"><h3>Linked source records</h3><p class="tiny muted" data-graph-row-count></p><div data-graph-rows class="mlwb-graph-rows"></div></section>
+  </div>
+</div>
+{% else %}<p class="muted">Shared graph preview requires PAH_Shared with SU-02 installed (0.4.x). Existing structure reports and tools remain available.</p>{% endif %}
+</section>
 <section class="panel"><h2>Source topology</h2><p>A single graph's node and edge counts are descriptive, not statistical probabilities. Select a JSON artifact above, then inspect its verified topology.</p><form method="post"><input type="hidden" name="section" value="data"><input type="hidden" name="action" value="structure"><div class="button-row"><button class="button">Describe source structure</button><button class="button secondary" name="download" value="report">Export JSON report</button></div></form></section>
 {% elif section == 'profiling' %}
 <section class="panel"><h2>Option A — Descriptive structure and observations</h2><form method="post" class="mlwb-structured-form"><input type="hidden" name="section" value="profiling"><label>Aligned variables (comma-separated)<input name="variables" value="{{ values.get('variables','') }}" placeholder="x, y"></label><label>Numeric variables (must be included above)<input name="numeric" value="{{ values.get('numeric','') }}"></label><div class="button-row"><button class="button secondary" name="action" value="structure">Topology statistics</button><button class="button" name="action" value="observations">Missingness and numeric statistics</button></div></form><form method="post" class="mlwb-structured-form"><input type="hidden" name="section" value="profiling"><h3>Explicit nested-group variance</h3><label>Numeric value variable<input name="value" value="{{ values.get('value','') }}"></label><label>Nested grouping levels, outermost first<input name="groups" placeholder="project, module" value="{{ values.get('groups','') }}"></label><button class="button secondary" name="action" value="variance">Decompose descriptive variance</button></form></section>
@@ -25,3 +52,5 @@
 {% if report %}<section class="panel"><h2>Scientific result</h2>{% if report.status is defined %}<p>Status: <strong>{{ report.status }}</strong> · estimate: {{ report.value if report.value is defined and report.value is not none else 'unavailable' }}</p>{% endif %}{% if report.support is defined %}<p class="tiny muted">Support: {{ report.support }}</p>{% endif %}
 {% for item in chart %}<div class="mlwb-structured-bar"><p><strong>{{ item.label }}</strong> · {{ item.nodes }}% node identities · {{ item.edges if item.edges is not none else 'N/A' }}% edge identities · holdout log loss {{ item.loss if item.loss is not none else 'unavailable' }} ({{ item.status }})</p><meter min="0" max="100" value="{{ item.nodes }}">{{ item.nodes }}%</meter></div>{% endfor %}<details><summary>Inspect full scientific report JSON</summary><pre class="mlwb-structured-json">{{ report_json[:120000] }}{% if report_json|length > 120000 %}\n[Display shortened; export for complete JSON]{% endif %}</pre></details><p class="tiny muted">No analysis ran until explicitly requested. No results were automatically written into other module databases or source files.</p></section>{% endif %}
 {% endblock %}
+
+{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_graph.js') }}"></script>{% endblock %}
