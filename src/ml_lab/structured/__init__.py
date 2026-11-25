@@ -135,3 +135,7 @@ __all__ += [
 # HIA-04: explicit one-to-one node/observation profiles (no inferred mapping).
 from .atomic_node_statistics import ATOMIC_SCHEMA as HIA_ATOMIC_SCHEMA, atomic_node_statistics
 __all__ += ['HIA_ATOMIC_SCHEMA', 'atomic_node_statistics']
+
+# HIA-05: explicit neighboring-node observed associations.
+from .neighbor_statistics import NEIGHBOR_SCHEMA as HIA_NEIGHBOR_SCHEMA, analyze_neighbor_relationships
+__all__ += ['HIA_NEIGHBOR_SCHEMA', 'analyze_neighbor_relationships']

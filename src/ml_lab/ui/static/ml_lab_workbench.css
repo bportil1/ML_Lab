@@ -389,3 +389,20 @@ body.mlwb-hia-popout .mlwb-shared-graph [data-graph-surface] { min-height: 65vh;
 .mlwb-hia-atomic-metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,160px),1fr)); gap: .6rem; margin: .65rem 0; }
 .mlwb-hia-atomic-metrics > div { padding: .6rem; border: 1px solid #adbed0; border-radius: .45rem; }
 .mlwb-hia-atomic-metrics strong { display: block; overflow-wrap: anywhere; }
+
+
+/* HIA-05: accessible, responsive observed-neighbor comparison workspace. */
+.mlwb-hia-neighbors { padding: 1rem; border: 1px solid var(--pah-border,#b6c6d6); border-radius: .65rem; }
+.mlwb-hia-neighbor-controls { display: flex; flex-wrap: wrap; align-items: end; gap: .6rem; margin: .75rem 0; }
+.mlwb-hia-neighbor-controls label { display: grid; gap: .35rem; flex: 1 1 13rem; min-width: 0; }
+.mlwb-hia-neighbor-controls select,.mlwb-hia-neighbor-controls input { width: 100%; max-width: 100%; box-sizing: border-box; }
+.mlwb-hia-neighbor-mappings { display: grid; gap: .5rem; margin: .6rem 0; }
+.mlwb-hia-neighbor-mapping { display: flex; gap: .7rem; align-items: center; justify-content: space-between; flex-wrap: wrap; border: 1px solid var(--pah-border,#b6c6d6); padding: .45rem .65rem; border-radius: .35rem; }
+.mlwb-hia-neighbor-mapping code { overflow-wrap: anywhere; }
+.mlwb-hia-neighbors details { margin: .85rem 0; }
+.mlwb-hia-neighbors textarea { width: 100%; box-sizing: border-box; }
+.mlwb-hia-neighbor-results-scroll { max-width: 100%; overflow: auto; background: #fff; color-scheme: light; }
+.mlwb-hia-neighbor-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; background: #fff; color: #17324d; }
+.mlwb-hia-neighbor-table th,.mlwb-hia-neighbor-table td { padding: .5rem .65rem; border: 1px solid #c3d3e1; text-align: left; white-space: nowrap; }
+.mlwb-hia-neighbor-table th { color: #17324d; background: #e8f0f7; }
+.mlwb-hia-neighbor-table td { color: #17324d; }

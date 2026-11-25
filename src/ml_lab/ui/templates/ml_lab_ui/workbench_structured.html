@@ -44,6 +44,7 @@
      data-hia-overview-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy') }}"
      data-hia-inspect-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy_inspect') }}"
      data-hia-atomic-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy_atomic') }}"
+     data-hia-neighbors-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy_neighbors') }}"
      data-graph-module-url="{{ url_for(request.blueprint + '.pah_shared_asset', asset='interactive_graph_view.mjs', v=shared_graph_revision) }}">
   <div class="button-row"><button type="button" class="button" data-graph-action="open">Explore source graph</button>
   <span data-graph-status role="status" aria-live="polite">No graph loaded. Opening does not run statistical analysis.</span></div>
@@ -112,6 +113,41 @@
       <details><summary>Complete node statistics, distribution, and provenance</summary>
         <pre class="mlwb-structured-json" data-hia-atomic-report></pre>
       </details>
+    </div>
+  </section>
+  <section class="mlwb-hia-neighbors" data-hia-neighbors hidden aria-label="Observed relationships between selected source neighbors">
+    <h3>Neighbor relationships <small>HIA-05 · explicitly mapped observed variables</small></h3>
+    <p class="tiny muted">Selected original node: <strong data-hia-neighbor-node>None</strong>. Source parents and children nominate candidates only; their edges never assert statistical dependence. Each selected neighbor requires its own observation-column mapping.</p>
+    <div class="mlwb-hia-neighbor-controls">
+      <label>Selected node observed column <select data-hia-neighbor-center-column><option value="">Choose column…</option></select></label>
+      <label>Structural neighbor <select data-hia-neighbor-choice><option value="">Choose adjacent node…</option></select></label>
+      <label>Neighbor observed column <select data-hia-neighbor-column><option value="">Choose column…</option></select></label>
+      <button class="button secondary" type="button" data-hia-neighbor-action="add">Add explicit neighbor mapping</button>
+    </div>
+    <div class="mlwb-hia-neighbor-mappings" data-hia-neighbor-mappings aria-label="Explicitly mapped neighbor comparisons"></div>
+    <details><summary>Optional CMI and estimator configuration</summary>
+      <p class="tiny muted">Conditioning is explicitly declared; choosing a structural node alone never establishes a probabilistic parent or conditional-independence model. All estimates use complete aligned cases; repeated values require an explicit aggregation policy.</p>
+      <div class="mlwb-hia-neighbor-controls">
+        <label>Conditioner original node (optional) <select data-hia-neighbor-given-node><option value="">No conditioning</option></select></label>
+        <label>Conditioner observed column <select data-hia-neighbor-given-column><option value="">No conditioning</option></select></label>
+        <label>Repeated values <select data-hia-neighbor-occurrences><option value="preserve">Preserve (unresolved)</option><option value="scalar_only">Reject repeated values</option><option value="mean_numeric">Explicit numeric mean</option></select></label>
+        <label>Minimum paired rows <input type="number" data-hia-neighbor-min-samples value="2" min="2"></label>
+        <label>Minimum rows per conditioning stratum <input type="number" data-hia-neighbor-min-stratum value="2" min="1"></label>
+      </div>
+      <label>Explicit numeric discretization JSON (observed column → {"mode":"quantile","bins":4})
+        <textarea data-hia-neighbor-bins rows="2" spellcheck="false">{}</textarea></label>
+    </details>
+    <div class="button-row">
+      <button class="button" type="button" data-hia-neighbor-action="compute" disabled>Compute mapped neighbor statistics</button>
+      <button class="button secondary" type="button" data-hia-neighbor-action="export" disabled>Export complete neighbor report JSON</button>
+    </div>
+    <p data-hia-neighbor-status role="status" aria-live="polite">Select a node and add explicit neighbor-to-column mappings. No computation runs automatically.</p>
+    <div data-hia-neighbor-results hidden>
+      <div class="mlwb-hia-neighbor-results-scroll"><table class="mlwb-hia-neighbor-table" aria-label="Observed neighbor statistics">
+        <thead><tr><th scope="col">Neighbor</th><th scope="col">MI (bits)</th><th scope="col">H(X|Y)</th><th scope="col">H(Y|X)</th><th scope="col">CMI (bits)</th><th scope="col">Pearson</th><th scope="col">Spearman</th><th scope="col">Paired support</th></tr></thead>
+        <tbody data-hia-neighbor-table></tbody>
+      </table></div>
+      <details><summary>Full estimates, missingness, support and source provenance</summary><pre class="mlwb-structured-json" data-hia-neighbor-report></pre></details>
     </div>
   </section>
   <div class="mlwb-structured-grid">
@@ -264,4 +300,4 @@
 {% for item in chart %}<div class="mlwb-structured-bar"><p><strong>{{ item.label }}</strong> · {{ item.nodes }}% node identities · {{ item.edges if item.edges is not none else 'N/A' }}% edge identities · holdout log loss {{ item.loss if item.loss is not none else 'unavailable' }} ({{ item.status }})</p><meter min="0" max="100" value="{{ item.nodes }}">{{ item.nodes }}%</meter></div>{% endfor %}<details><summary>Inspect full scientific report JSON</summary><pre class="mlwb-structured-json">{{ report_json[:120000] }}{% if report_json|length > 120000 %}\n[Display shortened; export for complete JSON]{% endif %}</pre></details><p class="tiny muted">No analysis ran until explicitly requested. No results were automatically written into other module databases or source files.</p></section>{% endif %}
 {% endblock %}
 
-{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_graph.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_workspace.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_sandbox.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_network.js', v=graph_controller_revision) }}"></script>{% endblock %}
+{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_graph.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_workspace.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_atomic.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_neighbors.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_sandbox.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_network.js', v=graph_controller_revision) }}"></script>{% endblock %}
