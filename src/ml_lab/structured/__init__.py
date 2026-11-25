@@ -105,3 +105,17 @@ from .network_information import (
 )
 
 __all__ += ['analyze_observed_network', 'OBSERVED_INFORMATION_NETWORK_SCHEMA']
+
+# HIA-01: headless, read-only scope and scientific eligibility contracts.
+from .hierarchical_contracts import (
+    REQUEST_SCHEMA as HIA_REQUEST_SCHEMA,
+    ELIGIBILITY_SCHEMA as HIA_ELIGIBILITY_SCHEMA,
+    METRIC_SCOPES as HIA_METRIC_SCOPES,
+    HierarchicalScope, HierarchicalAnalysisRequest, inspect_hierarchical_eligibility,
+)
+
+__all__ += [
+    'HIA_REQUEST_SCHEMA', 'HIA_ELIGIBILITY_SCHEMA', 'HIA_METRIC_SCOPES',
+    'HierarchicalScope', 'HierarchicalAnalysisRequest',
+    'inspect_hierarchical_eligibility',
+]
