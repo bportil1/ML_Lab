@@ -432,3 +432,12 @@ body.mlwb-hia-popout .mlwb-shared-graph [data-graph-surface] { min-height: 65vh;
 .mlwb-hia-conditional .mlwb-hia-branch-controls label { color: var(--pah-text,#17324d); }
 .mlwb-hia-conditional textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
 .mlwb-hia-conditional details { margin: .85rem 0; }
+
+/* HIA-09: optional assumption-based model comparison; readable in PAH host themes. */
+.mlwb-hia-factorization { margin: 1rem 0; padding: .85rem 1rem; border: 1px solid #9bb3c9;
+  border-radius: .65rem; background: var(--pah-surface-2, #f5f8fc); color: var(--pah-text, #17324d); }
+.mlwb-hia-factorization summary { cursor: pointer; font-weight: 650; }
+.mlwb-hia-factorization label { display: grid; gap: .35rem; color: var(--pah-text, #17324d); }
+.mlwb-hia-factorization label:has(input[type="checkbox"]) { display: flex; align-items: flex-start; gap: .6rem; }
+.mlwb-hia-factorization textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
+.mlwb-hia-factorization [hidden] { display: none !important; }

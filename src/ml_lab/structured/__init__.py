@@ -154,3 +154,12 @@ from .hierarchical_conditional_levels import (
     analyze_hierarchical_conditional_level,
 )
 __all__ += ['HIA_CONDITIONAL_LEVEL_SCHEMA', 'analyze_hierarchical_conditional_level']
+
+# HIA-09: explicit conditional-independence factorization, not source-inferred.
+from .hierarchical_factorized_levels import (
+    FACTORIZATION_SCHEMA as HIA_FACTORIZATION_SCHEMA,
+    FACTORIZATION_MODES as HIA_FACTORIZATION_MODES,
+    analyze_hierarchical_factorized_level,
+)
+__all__ += ['HIA_FACTORIZATION_SCHEMA', 'HIA_FACTORIZATION_MODES',
+            'analyze_hierarchical_factorized_level']

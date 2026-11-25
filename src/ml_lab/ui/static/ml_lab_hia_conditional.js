@@ -53,6 +53,13 @@
       `Level ${depth}: ${memberships.level.size} source nodes (${records.level.length} mapped), ` +
       `${records.prior.length} explicitly mapped earlier-level nodes. ` +
       'Statistics describe mapped subsets only.';
+    root.dispatchEvent(new CustomEvent('mlwb:hia-conditional-mappings', {detail: {
+      level: depth, mappings: records.level.map(item=>({...item})),
+      preceding_mappings: records.prior.map(item=>({...item})),
+      target: records.target ? {...records.target} : null,
+      source_revision: graph?.view?.source_revision,
+      source_digest: graph?.binding_contract?.source_digest,
+    }}));
   }
   root.addEventListener('mlwb:source-reset', reset);
   root.addEventListener('mlwb:source-open', event => {
