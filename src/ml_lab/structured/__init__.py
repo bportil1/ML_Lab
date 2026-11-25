@@ -68,3 +68,21 @@ __all__ = [
     'BRANCH_ASSOCIATION_SCHEMA', 'BRANCH_INFORMATION_PLAN_SCHEMA',
     'BRANCH_INFORMATION_SCHEMA',
 ]
+
+from .candidates import (
+    StructuralCandidatePlan, StructuralCandidateResult,
+    apply_structural_candidate, replay_structural_candidate,
+    enumerate_structural_candidates,
+    PLAN_SCHEMA as STRUCTURAL_CANDIDATE_PLAN_SCHEMA,
+    MANIFEST_SCHEMA as STRUCTURAL_CANDIDATE_MANIFEST_SCHEMA,
+    OBSERVATION_POLICIES as STRUCTURAL_CANDIDATE_OBSERVATION_POLICIES,
+    OPERATIONS as STRUCTURAL_CANDIDATE_OPERATIONS,
+)
+
+__all__ += [
+    'StructuralCandidatePlan', 'StructuralCandidateResult',
+    'apply_structural_candidate', 'replay_structural_candidate',
+    'enumerate_structural_candidates',
+    'STRUCTURAL_CANDIDATE_PLAN_SCHEMA', 'STRUCTURAL_CANDIDATE_MANIFEST_SCHEMA',
+    'STRUCTURAL_CANDIDATE_OBSERVATION_POLICIES', 'STRUCTURAL_CANDIDATE_OPERATIONS',
+]
