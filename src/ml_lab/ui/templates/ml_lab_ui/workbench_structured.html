@@ -1,7 +1,7 @@
 {% extends 'ml_lab_ui/base.html' %}
 {% block title %}Structured uncertainty · ML Lab{% endblock %}
 {% block styles %}
-{% if shared_graph_available %}<link rel="stylesheet" href="{{ url_for(request.blueprint + '.pah_shared_asset', asset='interactive_graph_view.css') }}">{% endif %}
+{% if shared_graph_available %}<link rel="stylesheet" href="{{ url_for(request.blueprint + '.pah_shared_asset', asset='interactive_graph_view.css') }}"><link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_sandbox.css') }}">{% endif %}
 {% endblock %}
 {% block content %}
 <section class="workspace-head"><div><p class="eyebrow">Validated abstract structured objects</p><h1>Structured uncertainty — {{ dict(sections)[section] }}</h1><p class="lede">Source topology, statistical associations, and explicit probabilistic model edges remain different things. Existing XML, tabular, and model workflows are unchanged.</p></div></section>
@@ -34,6 +34,80 @@
     <section aria-label="Original graph record inspector"><h3>Selected source record</h3><pre class="mlwb-structured-json" data-graph-inspector>Select a node or edge to inspect its original metadata.</pre></section>
     <section aria-label="Linked graph records"><h3>Linked source records</h3><p class="tiny muted" data-graph-row-count></p><div data-graph-rows class="mlwb-graph-rows"></div></section>
   </div>
+  <section class="mlwb-su10" data-su10-sandbox
+           data-sandbox-url="{{ url_for(request.blueprint + '.workbench_structured_sandbox') }}"
+           aria-label="Structural evidence and pruning sandbox">
+    <h3>Evidence and candidate sandbox <small>SU-10 · explicit actions only</small></h3>
+    <p class="tiny muted">Select an original graph node first. Source nodes are not statistical samples. No analysis or structural change is made until you press an action below. Only SU-05 bindings explicitly supplied by you associate observed columns with nodes.</p>
+    <div class="mlwb-su10-panes">
+      <div class="mlwb-su10-source">
+        <strong>Selected original node: <output data-su10-selection>No node selected</output></strong>
+        <div class="mlwb-su10-mapping">
+          <label>Observed column <select data-su10-column aria-label="Explicit observed variable mapping"></select></label>
+          <button class="button secondary" type="button" data-su10-action="map">Bind this column to selected node</button>
+        </div>
+        <label>SU-05 binding plan (complete JSON; all mappings must be intentional)
+          <textarea data-su10-binding rows="6" spellcheck="false" placeholder="Select a node, then bind observed columns, or paste a complete verified SU-05 binding plan."></textarea>
+        </label>
+        <p class="tiny muted">Manually add one-to-one mappings above, or paste a complete plan for merged mappings and repeated-value policies. There are no automatically inferred node-to-observation joins. The plan is held only in this browser view.</p>
+        <label>Declared group columns, comma separated<input data-su10-groups placeholder="project, module"></label>
+      </div>
+      <div class="mlwb-su10-options">
+        <details open><summary>Branch evidence (SU-06 and SU-07)</summary>
+          <label>Numeric variables for descriptive variance, comma separated<input data-su10-targets placeholder="measurement"></label>
+          <label>Observed variable for MI/CMI (optional)<input data-su10-info-target placeholder="outcome"></label>
+          <label>Conditioning / already-retained columns, comma separated<input data-su10-retained placeholder="predictor_a"></label>
+          <label>Explicit numeric bins (JSON list of [variable, mode, count])
+            <textarea data-su10-bins rows="2" spellcheck="false">[]</textarea></label>
+          <label><input type="checkbox" data-su10-information> Request empirical entropy / information (discrete or explicitly binned)</label>
+        </details>
+        <details><summary>Candidate and retained utility (SU-08/09)</summary>
+          <label>Operation <select data-su10-operation>
+            <option value="prune">Prune selected subtree</option><option value="summarize">Summarize descendants</option>
+            <option value="aggregate">Aggregate to depth</option><option value="depth_reduce">Reduce to depth</option>
+            <option value="flatten">Flatten structural edges</option><option value="preserve">Preserve reference</option>
+          </select></label>
+          <label>Maximum depth for aggregate / depth reduce<input type="number" min="0" max="10000" value="1" data-su10-depth></label>
+          <label>Observation columns <select data-su10-observation-policy>
+            <option value="preserve">Preserve all original observed columns</option>
+            <option value="drop_exclusive">Explicitly drop exclusively removed mapped columns</option>
+          </select></label>
+          <label><input type="checkbox" data-su10-compare> Evaluate matched empirical utility (SU-09)</label>
+          <label>Original predictor IDs, comma separated<input data-su10-predictors placeholder="predictor_a, predictor_b"></label>
+          <label>Evaluation kind <select data-su10-kind><option value="target_free">Target-free</option><option value="categorical_target">Categorical target</option><option value="numeric_target">Numeric target</option></select></label>
+          <label>Target column (for predictive task)<input data-su10-study-target></label>
+          <label>Numeric variance columns (optional)<input data-su10-variance></label>
+          <label>Numeric reconstruction columns (optional, target-free)<input data-su10-reconstruction></label>
+          <label>Holdout group column (must be declared above)<input data-su10-holdout-group></label>
+          <label><input type="checkbox" data-su10-independent> Explicitly acknowledge independent observation rows (use only if justified; instead supply holdout group for grouped data)</label>
+          <p class="tiny muted">Empirical utility compares a preserved reference and one candidate, on matched holdout rows. It is exploratory; structure-only changes never imply a statistical effect.</p>
+        </details>
+        <div class="button-row">
+          <button class="button secondary" type="button" data-su10-action="inspect" disabled>Inspect selected branch evidence</button>
+          <button class="button" type="button" data-su10-action="preview" disabled>Preview candidate (no writes)</button>
+        </div>
+        <p data-su10-status role="status" aria-live="polite">Explore the source graph and select a node to begin.</p>
+      </div>
+    </div>
+    <div class="mlwb-su10-panes" data-su10-results hidden>
+      <section aria-label="Source-linked statistical evidence">
+        <h4>Branch evidence · observational, not structural causality</h4>
+        <pre data-su10-evidence class="mlwb-structured-json">No evidence requested.</pre>
+        <div data-su10-node-overlay class="mlwb-su10-overlay"></div>
+      </section>
+      <section aria-label="Candidate transformation and empirical retention">
+        <h4>Before / after and retained utility</h4>
+        <pre data-su10-comparison class="mlwb-structured-json">No candidate preview requested.</pre>
+        <div data-su10-removed class="mlwb-su10-overlay"></div>
+      </section>
+    </div>
+    <div class="mlwb-su10-preview" data-su10-preview hidden>
+      <h4>Candidate structural graph · same PAH_Shared renderer</h4>
+      <p class="tiny muted">Original graph remains above. Selected and removed-node identities are linked to the original inspector; candidate edges are structural only.</p>
+      <div data-su10-preview-surface class="mlwb-shared-graph-surface" aria-label="Proposed candidate structure"></div>
+    </div>
+    <div class="button-row"><button class="button secondary" type="button" data-su10-action="export" disabled>Export explicit sandbox report (JSON)</button></div>
+  </section>
 </div>
 {% else %}<p class="muted">Shared graph preview requires PAH_Shared with SU-02 installed (0.4.x). Existing structure reports and tools remain available.</p>{% endif %}
 </section>
@@ -53,4 +127,4 @@
 {% for item in chart %}<div class="mlwb-structured-bar"><p><strong>{{ item.label }}</strong> · {{ item.nodes }}% node identities · {{ item.edges if item.edges is not none else 'N/A' }}% edge identities · holdout log loss {{ item.loss if item.loss is not none else 'unavailable' }} ({{ item.status }})</p><meter min="0" max="100" value="{{ item.nodes }}">{{ item.nodes }}%</meter></div>{% endfor %}<details><summary>Inspect full scientific report JSON</summary><pre class="mlwb-structured-json">{{ report_json[:120000] }}{% if report_json|length > 120000 %}\n[Display shortened; export for complete JSON]{% endif %}</pre></details><p class="tiny muted">No analysis ran until explicitly requested. No results were automatically written into other module databases or source files.</p></section>{% endif %}
 {% endblock %}
 
-{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_graph.js') }}"></script>{% endblock %}
+{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_graph.js') }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_sandbox.js') }}"></script>{% endblock %}

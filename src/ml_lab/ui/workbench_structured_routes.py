@@ -11,8 +11,10 @@ from pathlib import Path
 from flask import Blueprint, g, jsonify, request, render_template, url_for
 from ml_lab import __version__
 from ml_lab.structured import StructuredContractError
-from .structured_workbench import KINDS, read_source, analyze
+from .structured_workbench import KINDS, read_source, analyze, _strict_json
 from .structured_graph_view import make_shared_graph_payload
+from .structured_sandbox import analyze_sandbox
+from ml_lab.structured import source_sha256
 
 def _shared_graph_available() -> bool:
     """Older PAH_Shared installations simply do not offer the opt-in view."""
@@ -56,7 +58,38 @@ def install_structured_routes(blueprint: Blueprint, *, name: str, project_root: 
             if not isinstance(selection, dict) or set(selection) != {'path', 'kind', 'sha256'}:
                 raise StructuredContractError('invalid selection: select the artifact again')
             source, _ = read_source(project_root, selection['path'], selection['kind'], selection['sha256'])
-            return jsonify(make_shared_graph_payload(source, fingerprint=selection['sha256']))
+            payload = make_shared_graph_payload(source, fingerprint=selection['sha256'])
+            payload['binding_contract'] = {
+                'schema': 'ml-lab.observation-binding-plan@1',
+                'source_digest': source_sha256(source),
+                'observation_unit': source.observation_unit,
+                'observed_columns': sorted(source.observations[0]['values']) if source.observations else [],
+            }
+            return jsonify(payload)
+        except (StructuredContractError, ValueError, TypeError, OSError, RecursionError) as exc:
+            return jsonify({'error': str(exc)}), 409
+
+    @blueprint.post('/workbench/structured/sandbox')
+    def workbench_structured_sandbox():
+        """Explicit analysis only; same origin, read-only, SHA-pinned per request."""
+        if request.content_length is None or request.content_length > 96000:
+            return jsonify({'error': 'sandbox request exceeds 96 KB'}), 413
+        if (not request.is_json or
+                request.headers.get('X-ML-Lab-Sandbox') != 'explicit-analysis'):
+            return jsonify({'error': 'explicit same-origin JSON analysis request required'}), 400
+        try:
+            raw = request.cookies.get(cookie)
+            if not raw or len(raw) > 1024:
+                raise StructuredContractError('select a verified structured artifact first')
+            selection = _strict_json(raw)
+            if not isinstance(selection, dict) or set(selection) != {'path', 'kind', 'sha256'}:
+                raise StructuredContractError('invalid selection: select the artifact again')
+            source, _ = read_source(project_root, selection['path'], selection['kind'], selection['sha256'])
+            payload = _strict_json(request.get_data(as_text=True))
+            if not isinstance(payload, dict):
+                raise StructuredContractError('sandbox request must be a JSON object')
+            return jsonify(analyze_sandbox(source, source_revision='sha256:' + selection['sha256'],
+                                           request_data=payload))
         except (StructuredContractError, ValueError, TypeError, OSError, RecursionError) as exc:
             return jsonify({'error': str(exc)}), 409
 

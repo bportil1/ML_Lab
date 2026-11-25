@@ -1,0 +1,27 @@
+/* SU-10 is an optional, locally-hosted inspector layered over the shared graph.
+   No graph drawing/layout rules and no global workbench navigation overrides. */
+.mlwb-su10 { border-top:1px solid #c7d2dd; margin-top:1.25rem; padding-top:1rem; }
+.mlwb-su10 h3 small { font-size:.72em; font-weight:normal; color:#546474; }
+.mlwb-su10-panes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; align-items:start; }
+.mlwb-su10-panes > * { min-width:0; padding:.8rem; border:1px solid #c7d2dd; border-radius:8px; }
+.mlwb-su10-panes label { display:block; margin:.5rem 0; font-size:.88rem; }
+.mlwb-su10-panes input:not([type="checkbox"]), .mlwb-su10-panes textarea,
+.mlwb-su10-panes select { display:block; width:100%; box-sizing:border-box; max-width:100%; }
+.mlwb-su10-panes textarea { font: .8rem/1.4 monospace; min-height:4rem; }
+.mlwb-su10-panes details { margin:.55rem 0; border-top:1px solid #c7d2dd; padding:.5rem 0; }
+.mlwb-su10-panes details summary { cursor:pointer; font-weight:600; }
+.mlwb-su10-panes label:has(input[type="checkbox"]) { display:flex; align-items:start; gap:.4rem; }
+.mlwb-su10-panes input[type="checkbox"] { flex:0 0 auto; }
+.mlwb-su10-mapping { display:flex; flex-wrap:wrap; align-items:end; gap:.5rem; }
+.mlwb-su10-mapping label { flex:1 1 12rem; }
+.mlwb-su10-overlay { max-height:13rem; overflow:auto; display:flex; flex-wrap:wrap; gap:.35rem; padding:.35rem 0; }
+.mlwb-su10-overlay button { font-size:.76rem; }
+.mlwb-su10-overlay .mlwb-su10-state { border:1px solid #9eafb9; border-radius:.4rem; padding:.22rem .4rem; }
+.mlwb-su10-overlay .mlwb-su10-removed { background:#fbeaea; color:#732522; }
+.mlwb-su10-overlay .mlwb-su10-retained { background:#e6f3ed; color:#21583a; }
+.mlwb-su10-preview { margin-top:.8rem; border:1px solid #c7d2dd; padding:.7rem; border-radius:8px; }
+.mlwb-su10 [data-su10-status] { font-size:.85rem; margin:.7rem 0; }
+.mlwb-su10 [data-su10-evidence], .mlwb-su10 [data-su10-comparison] { max-height:23rem; overflow:auto; font-size:.75rem; white-space:pre-wrap; overflow-wrap:anywhere; }
+@media (max-width:920px) { .mlwb-su10-panes {grid-template-columns:1fr;} }
+
+.mlwb-su10 [hidden] { display:none !important; }

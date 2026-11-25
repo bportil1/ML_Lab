@@ -14,6 +14,7 @@
   const controls = root.querySelector('[data-graph-controls]');
   let viewer = null;
   let snapshot = null;
+  let graphModule = null;
   let busy = false;
 
   const say = text => { status.textContent = text; };
@@ -21,16 +22,19 @@
     if (viewer) viewer.destroy();
     viewer = null;
     snapshot = null;
+    graphModule = null;
     surface.replaceChildren();
     inspector.textContent = 'Select a graph node or edge to inspect its original metadata.';
     rows.replaceChildren();
     controls.hidden = true;
+    root.dispatchEvent(new CustomEvent('mlwb:source-reset'));
   };
   function inspect({source_revision, kind, id}) {
     if (!snapshot || source_revision !== snapshot.view.source_revision) {
       inspector.textContent = 'Source revision changed; reload the original structure.';
       return;
     }
+    root.dispatchEvent(new CustomEvent('mlwb:graph-select', {detail: {source_revision, kind, id}}));
     const record = snapshot.inspector?.[kind === 'node' ? 'nodes' : 'edges']?.[id];
     inspector.textContent = record ? JSON.stringify(record, null, 2).slice(0, 8000)
       : 'This display summary has no original source record.';
@@ -68,6 +72,7 @@
       const module = await import(root.dataset.graphModuleUrl);
       module.validateInteractiveGraphView(payload.view);
       snapshot = payload;
+      graphModule = module;
       viewer = module.mountInteractiveGraph(surface, payload.view, {
         onSelect: inspect,
         onViewportChange: ({coverage}) => {
@@ -75,6 +80,7 @@
         },
       });
       controls.hidden = false;
+      root.dispatchEvent(new CustomEvent('mlwb:source-open', {detail: {payload, module}}));
       renderRows(module, payload.view);
       viewer.fit();
       say(`Verified ${payload.view.source_revision.slice(0, 24)}… · ${payload.notice}`);
@@ -86,6 +92,23 @@
       button.disabled = false;
     }
   }
+  root.addEventListener('mlwb:sandbox-overlay', event => {
+    const data = event.detail;
+    if (!viewer || !snapshot || !graphModule ||
+        data?.source_revision !== snapshot.view.source_revision ||
+        !snapshot.inspector?.nodes?.[data.node_id]) return;
+    // The original graph and revision are untouched. This is a detached,
+    // owner-calculated statistical node overlay accepted by PAH_Shared.
+    const view = {...snapshot.view, overlays: {
+      nodes: {[data.node_id]: data.graph_overlay.overlay}, edges: {},
+    }};
+    graphModule.validateInteractiveGraphView(view);
+    viewer.update(view, {preserveSelection:true});
+    viewer.select('node', data.node_id);
+  });
+  root.addEventListener('mlwb:source-focus', event => {
+    if (viewer && event.detail?.node_id) viewer.select('node', event.detail.node_id, {recenter:true});
+  });
   button.addEventListener('click', open);
   root.addEventListener('click', event => {
     const action = event.target.closest('[data-graph-action]')?.dataset.graphAction;
