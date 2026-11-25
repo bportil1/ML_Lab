@@ -2,6 +2,7 @@
 {% block title %}Structured uncertainty · ML Lab{% endblock %}
 {% block styles %}
 {% if shared_graph_available %}<link rel="stylesheet" href="{{ url_for(request.blueprint + '.pah_shared_asset', asset='interactive_graph_view.css') }}"><link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_sandbox.css') }}">{% endif %}
+<link rel="stylesheet" href="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_network.css') }}">
 {% endblock %}
 {% block content %}
 <section class="workspace-head"><div><p class="eyebrow">Validated abstract structured objects</p><h1>Structured uncertainty — {{ dict(sections)[section] }}</h1><p class="lede">Source topology, statistical associations, and explicit probabilistic model edges remain different things. Existing XML, tabular, and model workflows are unchanged.</p></div></section>
@@ -133,8 +134,57 @@
 </div>
 {% else %}<p class="muted">Shared graph preview requires PAH_Shared with SU-02 installed (0.4.x). Existing structure reports and tools remain available.</p>{% endif %}
 </section>
+<section class="panel"><h2>Whole-network information analysis</h2>
+<p>The source-structure viewer above displays the original hierarchy. For a separate empirical relationship network across <em>all aligned observed variables</em> (full MI/CMI matrix, interactive graph and sample-support inspection), use <a href="{{ url_for(request.blueprint + '.workbench_structured', section='profiling') }}#mlwb-network">Feature Profiling → Whole-network analysis</a>. This never treats source links as statistical dependencies.</p></section>
 <section class="panel"><h2>Source topology</h2><p>A single graph's node and edge counts are descriptive, not statistical probabilities. Select a JSON artifact above, then inspect its verified topology.</p><form method="post"><input type="hidden" name="section" value="data"><input type="hidden" name="action" value="structure"><div class="button-row"><button class="button">Describe source structure</button><button class="button secondary" name="download" value="report">Export JSON report</button></div></form></section>
 {% elif section == 'profiling' %}
+<section class="panel mlwb-information-network" id="mlwb-network" data-mlwb-information-network
+         data-network-url="{{ url_for(request.blueprint + '.workbench_structured_network') }}"
+         data-revision="sha256:{{ selection.sha256 }}"
+         {% if shared_graph_available %}data-shared-graph-url="{{ url_for(request.blueprint + '.pah_shared_asset', asset='interactive_graph_view.mjs') }}"{% endif %}>
+  <h2>Whole-network analysis — all observed-variable interrelationships</h2>
+  <p class="tiny muted">Computes an exhaustive empirical MI matrix for aligned records; optionally CMI given one explicit global conditioning set. Not source topology, learned conditional probabilities, causation, or a test of statistical significance. The full matrix is preserved even when the graph edge cutoff hides weaker links.</p>
+  <div class="mlwb-network-options">
+    <label>Variable IDs (comma separated; blank = all eligible observed columns, excluding conditioning columns)
+      <input data-network-variables placeholder="Leave blank to analyze the entire observed network"></label>
+    <label>Conditioning columns Z (optional, comma separated; excluded from graph endpoints)
+      <input data-network-conditioning placeholder="Optional global covariates; blank = MI"></label>
+    <label>Explicit numeric discretization JSON (typed numeric fields only)
+      <textarea data-network-bins rows="2" spellcheck="false">{}</textarea></label>
+    <div class="mlwb-network-compact">
+      <label>Missingness <select data-network-missing><option value="complete_case">Pairwise complete case</option><option value="as_category">Missing as distinct category</option><option value="error">Reject missing cells</option></select></label>
+      <label>Minimum paired rows <input data-network-min-samples type="number" min="2" max="10000" value="5"></label>
+      <label>Minimum conditioning-stratum rows <input data-network-min-stratum type="number" min="2" max="10000" value="2"></label>
+      <label>Display threshold (bits) <input data-network-threshold type="number" min="0" step="0.01" value="0.10"></label>
+    </div>
+    <div class="button-row"><button type="button" class="button" data-network-action="compute">Compute entire observed-variable network</button>
+      <button type="button" class="button secondary" data-network-action="export" disabled>Export complete report JSON</button></div>
+    <p role="status" aria-live="polite" data-network-status>No network analysis has run. Requires aligned observation rows; source-only XML can still be viewed under Data.</p>
+  </div>
+  <div data-network-results hidden>
+    <p data-network-summary class="tiny muted"></p>
+    <div class="mlwb-network-layout">
+      <section>
+        <h3>Empirical information network <small>PAH_Shared renderer · undirected statistical links only</small></h3>
+        <div class="button-row" data-network-graph-controls hidden>
+          <button type="button" class="button secondary" data-network-action="fit">Fit</button>
+          <button type="button" class="button secondary" data-network-action="overview">Overview</button>
+          <button type="button" class="button secondary" data-network-action="clear">Clear selection</button>
+        </div>
+        <div data-network-surface class="mlwb-shared-graph-surface" aria-label="Observed-variable information graph"></div>
+      </section>
+      <section>
+        <h3>Selected variable or association</h3>
+        <pre data-network-inspector class="mlwb-structured-json">Select a graph node, graph link or matrix cell.</pre>
+        <p class="tiny muted">Edge values are empirical MI/CMI in bits, with per-pair support. No arrow represents an inferred direction.</p>
+      </section>
+    </div>
+    <h3>Full variable-by-variable information matrix <small>no display threshold applied</small></h3>
+    <p class="tiny muted">Diagonal entries show single-variable entropy H(X); off-diagonal entries show MI or CMI. A dash means insufficient data or unsupported conditioning. Matrix cells open their complete evidence record.</p>
+    <div class="mlwb-network-matrix-scroll"><table data-network-matrix aria-label="Complete information matrix"></table></div>
+    <details><summary>Estimator limitations and provenance</summary><pre data-network-metadata class="mlwb-structured-json"></pre></details>
+  </div>
+</section>
 <section class="panel"><h2>Option A — Descriptive structure and observations</h2><form method="post" class="mlwb-structured-form"><input type="hidden" name="section" value="profiling"><label>Aligned variables (comma-separated)<input name="variables" value="{{ values.get('variables','') }}" placeholder="x, y"></label><label>Numeric variables (must be included above)<input name="numeric" value="{{ values.get('numeric','') }}"></label><div class="button-row"><button class="button secondary" name="action" value="structure">Topology statistics</button><button class="button" name="action" value="observations">Missingness and numeric statistics</button></div></form><form method="post" class="mlwb-structured-form"><input type="hidden" name="section" value="profiling"><h3>Explicit nested-group variance</h3><label>Numeric value variable<input name="value" value="{{ values.get('value','') }}"></label><label>Nested grouping levels, outermost first<input name="groups" placeholder="project, module" value="{{ values.get('groups','') }}"></label><button class="button secondary" name="action" value="variance">Decompose descriptive variance</button></form></section>
 <section class="panel"><h2>Option B — Empirical information theory</h2><p class="tiny muted">Aligned observation rows, not nodes, are the sample units. Finite-sample plug-in estimates are descriptive; source edges are not dependencies. Floating-point variables require explicit binning.</p><form method="post" class="mlwb-structured-form"><input type="hidden" name="section" value="profiling"><input type="hidden" name="action" value="information"><label>Information measure<select name="measure">{% for id, title in [('entropy','H(X)'),('conditional_entropy','H(X | Z)'),('mutual_information','I(X; Y)'),('conditional_mutual_information','I(X; Y | Z)')] %}<option value="{{ id }}" {% if id == values.get('measure','mutual_information') %}selected{% endif %}>{{ title }}</option>{% endfor %}</select></label><div class="mlwb-structured-grid"><label>X<input name="x" required value="{{ values.get('x','') }}"></label><label>Y, for MI and CMI<input name="y" value="{{ values.get('y','') }}"></label><label>Conditioning variables Z (comma-separated)<input name="given" value="{{ values.get('given','') }}"></label></div><label>Explicit numeric bins (JSON mapping; optional)<textarea rows="2" name="bins" spellcheck="false">{{ values.get('bins','{}') }}</textarea></label><div class="mlwb-structured-grid"><label>Missingness<select name="missing"><option value="complete_case">Complete case</option><option value="as_category">Distinct missing categories</option><option value="error">Error on missing</option></select></label><label>Minimum rows<input type="number" name="min_samples" min="2" value="{{ values.get('min_samples','2') }}"></label><label>Minimum conditioning support<input type="number" name="min_stratum" min="1" value="{{ values.get('min_stratum','2') }}"></label></div><div class="button-row"><button class="button">Compute estimate</button><button class="button secondary" name="download" value="report">Export JSON</button></div></form></section>
 {% elif section == 'representation' %}
@@ -149,4 +199,4 @@
 {% for item in chart %}<div class="mlwb-structured-bar"><p><strong>{{ item.label }}</strong> · {{ item.nodes }}% node identities · {{ item.edges if item.edges is not none else 'N/A' }}% edge identities · holdout log loss {{ item.loss if item.loss is not none else 'unavailable' }} ({{ item.status }})</p><meter min="0" max="100" value="{{ item.nodes }}">{{ item.nodes }}%</meter></div>{% endfor %}<details><summary>Inspect full scientific report JSON</summary><pre class="mlwb-structured-json">{{ report_json[:120000] }}{% if report_json|length > 120000 %}\n[Display shortened; export for complete JSON]{% endif %}</pre></details><p class="tiny muted">No analysis ran until explicitly requested. No results were automatically written into other module databases or source files.</p></section>{% endif %}
 {% endblock %}
 
-{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_graph.js') }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_sandbox.js') }}"></script>{% endblock %}
+{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_graph.js') }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_sandbox.js') }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_network.js') }}"></script>{% endblock %}

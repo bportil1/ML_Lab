@@ -15,6 +15,8 @@ from .structured_workbench import LOCAL_FILE_KINDS, read_source, analyze, _stric
 from .structured_source_intake import browse_project_files
 from .structured_graph_view import make_shared_graph_payload
 from .structured_sandbox import analyze_sandbox
+from .structured_network_view import association_view
+from ml_lab.structured import analyze_observed_network
 from ml_lab.structured import source_sha256
 
 def _shared_graph_available() -> bool:
@@ -91,6 +93,46 @@ def install_structured_routes(blueprint: Blueprint, *, name: str, project_root: 
                 raise StructuredContractError('sandbox request must be a JSON object')
             return jsonify(analyze_sandbox(source, source_revision='sha256:' + selection['sha256'],
                                            request_data=payload))
+        except (StructuredContractError, ValueError, TypeError, OSError, RecursionError) as exc:
+            return jsonify({'error': str(exc)}), 409
+
+    @blueprint.post('/workbench/structured/network')
+    def workbench_structured_network():
+        """Explicit, SHA-pinned all-variable empirical analysis; no job or write."""
+        if request.content_length is None or request.content_length > 32000:
+            return jsonify({'error': 'network analysis request exceeds 32 KB'}), 413
+        if (not request.is_json or
+                request.headers.get('X-ML-Lab-Network') != 'explicit-analysis'):
+            return jsonify({'error': 'explicit same-origin JSON network request required'}), 400
+        try:
+            raw = request.cookies.get(cookie)
+            if not raw or len(raw) > 1024:
+                raise StructuredContractError('select a verified structured source first')
+            selection = _strict_json(raw)
+            if not isinstance(selection, dict) or set(selection) != {'path', 'kind', 'sha256'}:
+                raise StructuredContractError('invalid selection: reopen the source')
+            payload = _strict_json(request.get_data(as_text=True))
+            allowed = {'source_revision', 'variables', 'conditioning', 'bins',
+                       'missing_policy', 'min_samples', 'min_stratum_samples'}
+            if not isinstance(payload, dict) or set(payload) - allowed:
+                raise StructuredContractError('unsupported network analysis request fields')
+            source_revision = 'sha256:' + selection['sha256']
+            if payload.get('source_revision') != source_revision:
+                raise StructuredContractError('source revision mismatch: reopen the source')
+            source, _ = read_source(project_root, selection['path'],
+                                    selection['kind'], selection['sha256'])
+            report = analyze_observed_network(
+                source, variables=tuple(payload.get('variables', []))
+                  if isinstance(payload.get('variables', []), list) else payload.get('variables'),
+                conditioning=tuple(payload.get('conditioning', []))
+                  if isinstance(payload.get('conditioning', []), list) else payload.get('conditioning'),
+                bins=payload.get('bins', {}),
+                missing_policy=payload.get('missing_policy', 'complete_case'),
+                min_samples=payload.get('min_samples', 5),
+                min_stratum_samples=payload.get('min_stratum_samples', 2),
+            )
+            return jsonify({'source_revision': source_revision, 'report': report,
+                            'view': association_view(report, source_revision=source_revision)})
         except (StructuredContractError, ValueError, TypeError, OSError, RecursionError) as exc:
             return jsonify({'error': str(exc)}), 409
 

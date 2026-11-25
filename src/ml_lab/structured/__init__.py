@@ -98,3 +98,10 @@ __all__ += [
     'compare_structural_retention', 'STRUCTURAL_RETENTION_STUDY_SCHEMA',
     'STRUCTURAL_RETENTION_REPORT_SCHEMA',
 ]
+
+from .network_information import (
+    analyze_observed_network,
+    SCHEMA as OBSERVED_INFORMATION_NETWORK_SCHEMA,
+)
+
+__all__ += ['analyze_observed_network', 'OBSERVED_INFORMATION_NETWORK_SCHEMA']

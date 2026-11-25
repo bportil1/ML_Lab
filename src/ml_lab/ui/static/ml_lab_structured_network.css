@@ -1,0 +1,25 @@
+/* Empirical observed-variable network UI. Layout/interaction of the graph itself
+   belongs entirely to the local PAH_Shared SU-02 renderer. */
+.mlwb-information-network { scroll-margin-top: 1rem; }
+.mlwb-network-options { display:grid; gap:.55rem; }
+.mlwb-network-options > label { display:grid; gap:.2rem; font-size:.9rem; }
+.mlwb-network-options input,.mlwb-network-options textarea,.mlwb-network-options select { width:100%;box-sizing:border-box; }
+.mlwb-network-compact { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem; }
+.mlwb-network-compact label { display:grid; gap:.2rem; font-size:.82rem; }
+.mlwb-network-layout { display:grid; grid-template-columns:minmax(0,3fr) minmax(13rem,1fr); gap:1rem; align-items:start; }
+.mlwb-network-layout > section { min-width:0; }
+.mlwb-network-layout h3 small, .mlwb-information-network h3 small {font-size:.72rem;font-weight:400;color:#657586;}
+.mlwb-network-layout [data-network-surface] {min-height:20rem;max-height:45rem;}
+.mlwb-network-layout [data-network-inspector] {white-space:pre-wrap;overflow-wrap:anywhere;max-height:27rem;overflow:auto;font-size:.78rem;}
+.mlwb-network-matrix-scroll {width:100%;max-height:36rem;overflow:auto;border:1px solid #cbd6df;border-radius:8px;}
+.mlwb-network-matrix-scroll table {width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;font-size:.75rem;}
+.mlwb-network-matrix-scroll th,.mlwb-network-matrix-scroll td {border-bottom:1px solid #d4dce4;border-right:1px solid #d4dce4;padding:0;}
+.mlwb-network-matrix-scroll th {background:#e7eef5;padding:.38rem .55rem;text-align:left;max-width:12rem;overflow-wrap:anywhere;}
+.mlwb-network-matrix-scroll thead th {position:sticky;top:0;z-index:2;max-width:7rem;min-width:5rem;}
+.mlwb-network-matrix-scroll tbody th {position:sticky;left:0;z-index:1;max-width:12rem;min-width:8rem;}
+.mlwb-network-matrix-cell {display:block;width:100%;min-width:4.9rem;background:transparent;border:0;padding:.38rem .3rem;cursor:pointer;font:inherit;color:#18324d;}
+.mlwb-network-matrix-cell:hover,.mlwb-network-matrix-cell:focus-visible {outline:2px solid #0b61b9;outline-offset:-2px;}
+.mlwb-information-network [data-network-metadata] {max-height:22rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.75rem;}
+.mlwb-information-network [hidden] {display:none !important;}
+@media(max-width:950px) { .mlwb-network-compact {grid-template-columns:repeat(2,minmax(0,1fr));} .mlwb-network-layout{grid-template-columns:1fr;} }
+@media(max-width:530px) { .mlwb-network-compact {grid-template-columns:1fr;} }
