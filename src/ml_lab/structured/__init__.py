@@ -38,6 +38,13 @@ from .branch_uncertainty import (
     binding_sha256,
 )
 
+from .branch_information import (
+    BranchInformationPlan, BranchInformationResult, analyze_branch_information,
+    ASSOCIATION_SCHEMA as BRANCH_ASSOCIATION_SCHEMA,
+    PLAN_SCHEMA as BRANCH_INFORMATION_PLAN_SCHEMA,
+    RESULT_SCHEMA as BRANCH_INFORMATION_SCHEMA,
+)
+
 __all__ = [
     'CONTRACT_SCHEMA', 'CONTRACT_VERSION', 'TOPOLOGIES', 'OBSERVATION_UNITS',
     'CELL_STATES', 'NULL_REASONS', 'CAPABILITIES', 'OPERATION_REQUIREMENTS',
@@ -57,4 +64,7 @@ __all__ = [
     'bind_observations', 'source_sha256',
     'BranchUncertaintyPlan', 'BranchUncertaintyResult', 'analyze_branch_uncertainty',
     'binding_sha256',
+    'BranchInformationPlan', 'BranchInformationResult', 'analyze_branch_information',
+    'BRANCH_ASSOCIATION_SCHEMA', 'BRANCH_INFORMATION_PLAN_SCHEMA',
+    'BRANCH_INFORMATION_SCHEMA',
 ]
