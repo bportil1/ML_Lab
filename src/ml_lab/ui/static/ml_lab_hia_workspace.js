@@ -74,7 +74,7 @@
       source_roots: selected.roots,
       direct_context: result.node_context,
       mapped_observation_variables: selected.mapped_variable_ids,
-      statistical_estimates: 'Not computed in HIA-03; HIA-04–10 will add opt-in estimators',
+      statistical_estimates: 'Not computed by structural selection; use the separate opt-in HIA analysis panels below',
       scientific_metric_eligibility: selected.metrics,
       structural_edges_are_not_statistical_dependencies: true,
     };
