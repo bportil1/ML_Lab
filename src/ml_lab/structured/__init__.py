@@ -28,6 +28,11 @@ from .descriptive import (
     describe_structure, describe_collection, describe_observations, describe_nested_variance,
 )
 
+from .bindings import (
+    ObservationBindingPlan, ObservationBindingResult, VariableBinding,
+    bind_observations, source_sha256,
+)
+
 __all__ = [
     'CONTRACT_SCHEMA', 'CONTRACT_VERSION', 'TOPOLOGIES', 'OBSERVATION_UNITS',
     'CELL_STATES', 'NULL_REASONS', 'CAPABILITIES', 'OPERATION_REQUIREMENTS',
@@ -43,4 +48,6 @@ __all__ = [
     'ProbabilisticModelSpec', 'source_reference',
     'FIT_SCHEMA', 'QUERY_SCHEMA', 'FittingResult', 'fit_categorical_model', 'query_exact',
     'STUDY_SCHEMA', 'ComparisonCandidate', 'ComparisonStudy', 'compare_representations',
+    'ObservationBindingPlan', 'ObservationBindingResult', 'VariableBinding',
+    'bind_observations', 'source_sha256',
 ]
