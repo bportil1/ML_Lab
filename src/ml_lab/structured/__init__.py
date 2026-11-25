@@ -86,3 +86,15 @@ __all__ += [
     'STRUCTURAL_CANDIDATE_PLAN_SCHEMA', 'STRUCTURAL_CANDIDATE_MANIFEST_SCHEMA',
     'STRUCTURAL_CANDIDATE_OBSERVATION_POLICIES', 'STRUCTURAL_CANDIDATE_OPERATIONS',
 ]
+
+from .retention import (
+    StructuralRetentionStudy, StructuralRetentionResult, compare_structural_retention,
+    PLAN_SCHEMA as STRUCTURAL_RETENTION_STUDY_SCHEMA,
+    REPORT_SCHEMA as STRUCTURAL_RETENTION_REPORT_SCHEMA,
+)
+
+__all__ += [
+    'StructuralRetentionStudy', 'StructuralRetentionResult',
+    'compare_structural_retention', 'STRUCTURAL_RETENTION_STUDY_SCHEMA',
+    'STRUCTURAL_RETENTION_REPORT_SCHEMA',
+]
