@@ -163,3 +163,6 @@ from .hierarchical_factorized_levels import (
 )
 __all__ += ['HIA_FACTORIZATION_SCHEMA', 'HIA_FACTORIZATION_MODES',
             'analyze_hierarchical_factorized_level']
+
+# HIA-10: matched-cohort whole-network accounting
+from .hierarchical_network_accounting import analyze_hierarchical_network_accounting, NETWORK_ACCOUNTING_SCHEMA
