@@ -42,21 +42,24 @@ def test_no_mutation_or_reparsing(tmp_path):
     assert set(one['model']) == {'schema','title','nodes'}
 
 
-def test_rejects_missing_parent_duplicate_and_overlong_id(tmp_path):
+def test_rejects_missing_parent_duplicate_and_preserves_long_ids(tmp_path):
     a = _fixture(tmp_path)
     p = a.element_profiles[-1]
     with pytest.raises(XmlSharedHierarchyError, match='Duplicate'):
         project_xml_structure_hierarchy(replace(a, element_profiles=a.element_profiles + (p,)))
     with pytest.raises(XmlSharedHierarchyError, match='Parent'):
         project_xml_structure_hierarchy(replace(a, element_profiles=(p,)))
-    with pytest.raises(XmlSharedHierarchyError, match='node ID'):
-        project_xml_structure_hierarchy(replace(a, element_profiles=(replace(a.element_profiles[0], canonical_path='/'+'x'*96),)))
+    longer = replace(a.element_profiles[0], canonical_path='/'+'x'*240)
+    view = project_xml_structure_hierarchy(replace(a, element_profiles=(longer,)))
+    assert view['model']['nodes'][0]['id'] == longer.canonical_path
 
 
-def test_rejects_depth_limit_and_excess_nodes(tmp_path):
+def test_rejects_inconsistent_depth_and_accepts_large_unique_hierarchy(tmp_path):
     a = _fixture(tmp_path)
     first = a.element_profiles[0]
     with pytest.raises(XmlSharedHierarchyError, match='depth'):
         project_xml_structure_hierarchy(replace(a, element_profiles=(replace(first,depth=65),)))
-    with pytest.raises(XmlSharedHierarchyError, match='5,000'):
-        project_xml_structure_hierarchy(replace(a, element_profiles=(first,)*5001))
+    # A wide, valid forest is not silently cut off at 5,000 nodes.
+    large = tuple(replace(first, canonical_path=f'/node{i}', path=f'/node{i}') for i in range(5001))
+    projected = project_xml_structure_hierarchy(replace(a, element_profiles=large))
+    assert len(projected['model']['nodes']) == 5001

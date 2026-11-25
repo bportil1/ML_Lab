@@ -153,14 +153,15 @@ def test_deep_tree_and_wide_graph_have_exhaustive_display_until_explicit_cap():
     assert len(view['edges']) == 799
     assert view['display']['coverage'] == {'scope':'exhaustive','total_nodes':800,'total_edges':799}
     assert {node['group'] for node in view['nodes']} <= {'depth-%02d'%i for i in range(40)}
-    # The display is intentionally capped: never truncate invisibly.
+    # The display preserves complete identity; the shared renderer pages large graphs.
     extra = {'schema':'ml-lab.structured-object@1','topology':{'kind':'undirected_graph'},
              'nodes':[{'id':'node%d'%i,'kind':'n','attributes':{}} for i in range(5001)],
              'edges':[], 'observations':[], 'observation_unit':'graph', 'provenance':{}}
     big = StructuredObject.from_dict(extra)
     assert len(big.nodes) == 5001
-    with pytest.raises(StructuredContractError, match='exceeds shared viewer'):
-        make_shared_graph_view(big, fingerprint='1'*64)
+    big_view = make_shared_graph_view(big, fingerprint='1'*64)
+    assert len(big_view['nodes']) == 5001
+    assert big_view['display']['coverage']['total_nodes'] == 5001
 
 
 def test_local_artifact_isolation_stale_revision_rejection_and_symlinks(tmp_path):

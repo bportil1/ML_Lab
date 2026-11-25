@@ -12,10 +12,14 @@
   const inspector = root.querySelector('[data-graph-inspector]');
   const rows = root.querySelector('[data-graph-rows]');
   const controls = root.querySelector('[data-graph-controls]');
+  const recordSearch = root.querySelector('[data-graph-row-search]');
+  const recordCount = root.querySelector('[data-graph-row-count]');
   let viewer = null;
   let snapshot = null;
   let graphModule = null;
   let busy = false;
+  let recordPage = 0;
+  const RECORD_PAGE_SIZE = 80;
 
   const say = text => { status.textContent = text; };
   const reset = () => {
@@ -27,6 +31,8 @@
     inspector.textContent = 'Select a graph node or edge to inspect its original metadata.';
     rows.replaceChildren();
     controls.hidden = true;
+    recordPage = 0;
+    if(recordSearch) recordSearch.value = '';
     root.dispatchEvent(new CustomEvent('mlwb:source-reset'));
   };
   function inspect({source_revision, kind, id}) {
@@ -39,23 +45,43 @@
     inspector.textContent = record ? JSON.stringify(record, null, 2).slice(0, 8000)
       : 'This display summary has no original source record.';
   }
-  function renderRows(module, view) {
+  function renderRows(_module, view) {
+    // Do not allocate another full copy of the graph's records just to render
+    // the selector. A page and optional search expose the entire source set.
     rows.replaceChildren();
-    const table = module.interactiveGraphRows(view);
-    const all = [...table.nodes.map(row => ({...row, record_type:'node'})),
-      ...table.edges.map(row => ({...row, record_type:'edge'}))];
-    const visible = all.slice(0, 80);
-    for (const record of visible) {
-      const entry = document.createElement('button');
-      entry.type = 'button';
-      entry.className = 'button secondary mlwb-graph-row';
-      entry.textContent = `${record.record_type} · ${record.label || record.kind || record.id} (${record.id})`;
-      entry.addEventListener('click', () => viewer?.select(record.record_type, record.id, {recenter:true}));
-      rows.appendChild(entry);
+    const query = (recordSearch?.value || '').trim().toLocaleLowerCase();
+    const sources = [
+      ['node', view.nodes || []], ['edge', view.edges || []],
+    ];
+    const matches = (kind, record) => !query || [kind,record.id,record.label,record.kind,
+      record.source,record.target].some(value => String(value??'').toLocaleLowerCase().includes(query));
+    let count=0;
+    for (const [kind, collection] of sources) for(const entry of collection) {
+      if(matches(kind,entry)) count++;
     }
-    const note = root.querySelector('[data-graph-row-count]');
-    note.textContent = `Linked record controls: ${visible.length} of ${all.length} (bounded preview).`;
+    const pages=Math.max(1,Math.ceil(count/RECORD_PAGE_SIZE));
+    recordPage=Math.min(recordPage,pages-1);
+    const first=recordPage*RECORD_PAGE_SIZE,last=first+RECORD_PAGE_SIZE;
+    let position=0;
+    for (const [kind, collection] of sources) {
+      for(const record of collection) {
+        if(!matches(kind,record)) continue;
+        const index=position++;
+        if(index<first || index>=last) continue;
+        const entry=document.createElement('button');
+        entry.type='button';entry.className='button secondary mlwb-graph-row';
+        entry.textContent=`${kind} · ${record.label||record.kind||record.id} (${record.id})`;
+        entry.addEventListener('click',()=>viewer?.select(kind,record.id,{recenter:true}));
+        rows.appendChild(entry);
+      }
+    }
+    recordCount.textContent = `Source records ${count?first+1:0}–${Math.min(last,count)} of ${count} · page ${recordPage+1}/${pages}. No records discarded.`;
+    for(const [name,disabled] of [['previous-records',recordPage===0],['next-records',recordPage+1>=pages]]) {
+      const button=root.querySelector(`[data-graph-action="${name}"]`);
+      if(button) button.disabled=disabled;
+    }
   }
+
   async function open() {
     if (busy) return;
     busy = true;
@@ -76,7 +102,9 @@
       viewer = module.mountInteractiveGraph(surface, payload.view, {
         onSelect: inspect,
         onViewportChange: ({coverage}) => {
-          say(`${coverage.scope} display · ${coverage.rendered_nodes} of ${coverage.total_nodes} nodes · ${coverage.rendered_edges} of ${coverage.total_edges} edges. Original graph unchanged.`);
+          const page = coverage.page_count > 1 ? ` · group page ${coverage.page_index+1}/${coverage.page_count}` : '';
+          const edgePage = coverage.edge_page_count > 1 ? ` · edge page ${coverage.edge_page_index+1}/${coverage.edge_page_count}` : '';
+          say(`${coverage.scope} display · ${coverage.rendered_nodes} visual nodes / ${coverage.total_nodes} original nodes · ${coverage.rendered_edges} visual edges / ${coverage.total_edges} original edges${page}${edgePage}. No source records discarded.`);
         },
       });
       controls.hidden = false;
@@ -110,6 +138,10 @@
     if (viewer && event.detail?.node_id) viewer.select('node', event.detail.node_id, {recenter:true});
   });
   button.addEventListener('click', open);
+  recordSearch?.addEventListener('input',()=>{
+    if (!snapshot) return;
+    recordPage=0;renderRows(graphModule,snapshot.view);
+  });
   root.addEventListener('click', event => {
     const action = event.target.closest('[data-graph-action]')?.dataset.graphAction;
     if (!viewer || !action || action === 'open') return;
@@ -117,6 +149,10 @@
     if (action === 'zoom-in') viewer.zoom(1.25);
     if (action === 'zoom-out') viewer.zoom(0.8);
     if (action === 'overview') viewer.overview();
+    if (action === 'next-page') viewer.nextPage();
+    if (action === 'previous-page') viewer.previousPage();
+    if (action === 'previous-records') {recordPage=Math.max(0,recordPage-1);renderRows(graphModule,snapshot.view);}
+    if (action === 'next-records') {recordPage++;renderRows(graphModule,snapshot.view);}
     if (action === 'context') viewer.context();
     if (action === 'close') { reset(); say('Graph preview closed. No source data changed.'); }
   });

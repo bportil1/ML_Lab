@@ -50,12 +50,18 @@
     <button type="button" class="button secondary" data-graph-action="zoom-out">Zoom out</button>
     <button type="button" class="button secondary" data-graph-action="overview">Group overview</button>
     <button type="button" class="button secondary" data-graph-action="context">Original view</button>
+    <button type="button" class="button secondary" data-graph-action="previous-page">Previous page</button>
+    <button type="button" class="button secondary" data-graph-action="next-page">Next page</button>
     <button type="button" class="button secondary" data-graph-action="close">Close</button>
   </div>
   <div data-graph-surface class="mlwb-shared-graph-surface" aria-label="Interactive source structure"></div>
   <div class="mlwb-structured-grid">
     <section aria-label="Original graph record inspector"><h3>Selected source record</h3><pre class="mlwb-structured-json" data-graph-inspector>Select a node or edge to inspect its original metadata.</pre></section>
-    <section aria-label="Linked graph records"><h3>Linked source records</h3><p class="tiny muted" data-graph-row-count></p><div data-graph-rows class="mlwb-graph-rows"></div></section>
+    <section aria-label="Linked graph records"><h3>Linked source records</h3>
+      <label>Find node or edge by ID/label <input type="search" data-graph-row-search placeholder="Search complete source graph"></label>
+      <p class="tiny muted" data-graph-row-count></p><div data-graph-rows class="mlwb-graph-rows"></div>
+      <div class="button-row"><button type="button" class="button secondary" data-graph-action="previous-records">Previous records</button>
+      <button type="button" class="button secondary" data-graph-action="next-records">Next records</button></div></section>
   </div>
   <section class="mlwb-su10" data-su10-sandbox
            data-sandbox-url="{{ url_for(request.blueprint + '.workbench_structured_sandbox') }}"

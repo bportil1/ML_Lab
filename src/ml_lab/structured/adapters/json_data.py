@@ -45,8 +45,10 @@ def _pointer_escape(text: str) -> str:
 class JSONAdapter:
     """Adapt parsed JSON-compatible values or strict JSON text (explicit API)."""
 
-    def __init__(self, *, max_nodes: int = 50_000, max_depth: int = 110):
-        if not 1 <= max_nodes <= 1_000_000 or not 1 <= max_depth <= 110:
+    def __init__(self, *, max_nodes: int | None = None, max_depth: int = 110):
+        # Optional explicit resource budget; no arbitrary default node ceiling.
+        if ((max_nodes is not None and (type(max_nodes) is not int or max_nodes < 1))
+                or not 1 <= max_depth <= 110):
             raise StructuredContractError('invalid JSON adapter resource limits')
         self.max_nodes = max_nodes
         self.max_depth = max_depth
@@ -70,8 +72,8 @@ class JSONAdapter:
             pointer, label, value, depth = stack.pop()
             if depth > self.max_depth:
                 raise StructuredContractError('JSON source exceeds maximum depth')
-            if len(nodes) >= self.max_nodes:
-                raise StructuredContractError('JSON source exceeds maximum node count')
+            if self.max_nodes is not None and len(nodes) >= self.max_nodes:
+                raise StructuredContractError('JSON source exceeds configured maximum node count')
             category = _kind(value)
             attributes = {'json_type': category, 'json_pointer': pointer}
             if category not in {'object', 'array'}:

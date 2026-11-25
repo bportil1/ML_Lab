@@ -68,14 +68,21 @@ def test_undirected_network_has_explicit_undirected_edges():
     assert view['display']['layout'] == 'circular'
 
 
-def test_fingerprint_required_and_size_limits_are_explicit():
+def test_fingerprint_required_and_large_source_views_are_exhaustive():
     with pytest.raises(StructuredContractError, match='SHA-256'):
         make_shared_graph_view(source(), fingerprint='fake')
-    import ml_lab.ui.structured_graph_view as bridge
-    with pytest.MonkeyPatch.context() as mp:
-        mp.setattr(bridge, 'MAX_GRAPH_NODES', 2)
-        with pytest.raises(StructuredContractError, match='exceeds shared viewer'):
-            project()
+    original = source().to_dict()
+    original['topology'] = {'kind': 'undirected_graph'}
+    original['nodes'] = [{'id': f'n{i}', 'kind': 'node', 'attributes': {}} for i in range(5101)]
+    original['edges'] = [{'id': f'e{i}', 'kind': 'link',
+                          'source_id': f'n{i%5101}', 'target_id': f'n{(i+1)%5101}'}
+                         for i in range(15001)]
+    original['observations'] = []
+    big = StructuredObject.from_dict(original)
+    view = make_shared_graph_view(big, fingerprint='1'*64)
+    assert view['display']['coverage'] == {'scope': 'exhaustive', 'total_nodes': 5101, 'total_edges': 15001}
+    assert len(view['nodes']) == 5101
+    assert len(view['edges']) == 15001
 
 
 def test_inspector_keeps_provenance_and_does_not_invent_scientific_values():
@@ -120,7 +127,8 @@ def test_template_contains_opt_in_controls_and_original_tabs():
 def test_js_is_valid_and_links_to_actual_paH_shared_api():
     js = (UI/'static/ml_lab_structured_graph.js').read_text()
     assert 'mountInteractiveGraph' in js
-    assert 'interactiveGraphRows' in js
+    assert 'recordPage' in js and 'recordSearch' in js
+    assert 'all.slice(0, 80)' not in js
     assert 'onSelect: inspect' in js
     assert 'await import(root.dataset.graphModuleUrl)' in js
     assert 'no-store' in js
@@ -170,9 +178,8 @@ def test_optional_flask_route_and_read_only_asset(tmp_path):
     assert client.get('/lab/pah-shared/../setup.py').status_code in (404,405)
 
 
-def test_long_identifiers_fail_instead_of_corrupting_selection():
+def test_long_identifiers_preserved_instead_of_corrupting_selection():
     raw = source().to_dict()
     raw['nodes'][0]['label'] = 'n' * 241
     obj = StructuredObject.from_dict(raw)
-    with pytest.raises(StructuredContractError, match='no IDs were altered'):
-        make_shared_graph_view(obj, fingerprint='1'*64)
+    assert make_shared_graph_view(obj, fingerprint='1'*64)['nodes'][0]['label'] == 'n'*241

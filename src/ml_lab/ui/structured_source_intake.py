@@ -89,8 +89,6 @@ def delimited_to_structured(raw: bytes, *, relative_path: str, sha256: str, deli
         headers = next(reader, None)
         if not headers or any(not name.strip() for name in headers) or len(headers) != len(set(headers)):
             raise StructuredContractError('CSV/TSV requires a nonempty, unique header for every column.')
-        if len(headers) > 256:
-            raise StructuredContractError('CSV/TSV exceeds 256 columns for the interactive workbench.')
         nodes = [{'id': 'table', 'kind': 'table', 'label': Path(relative_path).name,
                   'attributes': {'source_type': 'delimited_table'}}]
         edges = []
@@ -104,8 +102,6 @@ def delimited_to_structured(raw: bytes, *, relative_path: str, sha256: str, deli
         for i, row in enumerate(reader, start=1):
             if len(row) != len(headers):
                 raise StructuredContractError(f'CSV/TSV line {reader.line_num}: expected {len(headers)} columns; got {len(row)}.')
-            if i > 10000:
-                raise StructuredContractError('Over 10,000 observation rows: use the headless API.')
             observations.append({'observation_id': f'row:{i}',
                                  'values': {name: {'status': 'empty' if value == '' else 'present',
                                                    'value': value}

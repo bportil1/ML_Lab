@@ -11,8 +11,6 @@ from typing import Any
 from .types import XmlStructureArtifact
 
 SCHEMA = "pah-shared.hierarchy@1"
-MAX_NODES = 5000
-MAX_DEPTH = 64
 
 
 class XmlSharedHierarchyError(ValueError):
@@ -29,8 +27,6 @@ def project_xml_structure_hierarchy(artifact: XmlStructureArtifact) -> dict[str,
     if not isinstance(artifact, XmlStructureArtifact) or artifact.schema != "ml-lab.xml-structure@2":
         raise XmlSharedHierarchyError("Expected an XML structure v2 artifact")
     profiles = artifact.element_profiles
-    if len(profiles) > MAX_NODES:
-        raise XmlSharedHierarchyError("Hierarchy exceeds 5,000 nodes")
     keys = [p.canonical_path for p in profiles]
     if len(keys) != len(set(keys)):
         raise XmlSharedHierarchyError("Duplicate canonical XML path")
@@ -39,14 +35,14 @@ def project_xml_structure_hierarchy(artifact: XmlStructureArtifact) -> dict[str,
     paths: dict[str, dict[str, Any]] = {}
     for p in profiles:
         key = p.canonical_path
-        if not isinstance(key, str) or not key.startswith("/") or len(key) > 96:
+        if not isinstance(key, str) or not key.startswith("/"):
             raise XmlSharedHierarchyError("Canonical XML path is not a valid shared node ID")
-        if not isinstance(p.depth, int) or p.depth < 1 or p.depth > MAX_DEPTH:
-            raise XmlSharedHierarchyError("XML depth exceeds shared hierarchy limit")
-        if not isinstance(p.path, str) or not p.path or len(p.path) > 240:
-            raise XmlSharedHierarchyError("Display path is invalid or too long")
-        if not isinstance(p.local_name, str) or not p.local_name or len(p.local_name) > 240:
-            raise XmlSharedHierarchyError("XML element label is invalid or too long")
+        if not isinstance(p.depth, int) or p.depth < 1:
+            raise XmlSharedHierarchyError("Invalid XML depth")
+        if not isinstance(p.path, str) or not p.path:
+            raise XmlSharedHierarchyError("Display path is invalid")
+        if not isinstance(p.local_name, str) or not p.local_name:
+            raise XmlSharedHierarchyError("XML element label is invalid")
         parent = key.rpartition("/")[0] or None
         if parent is not None and parent not in known:
             raise XmlSharedHierarchyError("Parent XML path missing from structural profiles")

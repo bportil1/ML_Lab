@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 
 from .structured_source_intake import project_source, delimited_to_structured
@@ -25,7 +26,21 @@ KINDS = ('structured', 'json', 'node_edge', 'xml_structure',
          'hierarchy_handoff', 'pypique_graph', 'pypique_graph_directed',
          'pypique_graph_undirected', 'pypique_backing', 'shared_graph')
 LOCAL_FILE_KINDS = ('auto', 'xml_file', 'tabular') + KINDS
-MAX_FILE = 2 * 1024 * 1024
+def _max_interactive_source_bytes() -> int | None:
+    """Optional deployment guard, not a hardcoded graph-intake truncation.
+
+    Zero (the default) means no artificial source-size rejection. Normal
+    operating-system memory and the format's own safety checks still apply.
+    Administrators may set a positive byte limit for constrained hosts.
+    """
+    configured = os.environ.get('ML_LAB_STRUCTURED_MAX_SOURCE_BYTES', '0')
+    try:
+        limit = int(configured)
+    except (ValueError, TypeError) as exc:
+        raise StructuredContractError('ML_LAB_STRUCTURED_MAX_SOURCE_BYTES must be a nonnegative integer') from exc
+    if limit < 0:
+        raise StructuredContractError('ML_LAB_STRUCTURED_MAX_SOURCE_BYTES must be nonnegative')
+    return limit or None
 
 
 def _strict_json(text):
@@ -49,11 +64,12 @@ def read_source(root, path, kind, sha256=None):
     if kind not in LOCAL_FILE_KINDS:
         raise StructuredContractError('Choose a supported source adapter.')
     selected, relative = project_source(root, path)
-    if selected.stat().st_size > MAX_FILE:
-        raise StructuredContractError('Source exceeds 2 MiB interactive limit; use headless API.')
+    max_source_bytes = _max_interactive_source_bytes()
+    if max_source_bytes is not None and selected.stat().st_size > max_source_bytes:
+        raise StructuredContractError('Source exceeds configured ML_LAB_STRUCTURED_MAX_SOURCE_BYTES limit.')
     raw = selected.read_bytes()
-    if len(raw) > MAX_FILE:
-        raise StructuredContractError('Source exceeds 2 MiB interactive limit; use headless API.')
+    if max_source_bytes is not None and len(raw) > max_source_bytes:
+        raise StructuredContractError('Source exceeds configured ML_LAB_STRUCTURED_MAX_SOURCE_BYTES limit.')
     fingerprint = hashlib.sha256(raw).hexdigest()
     if sha256 is not None and fingerprint != sha256:
         raise StructuredContractError('Source changed: select it again.')
@@ -89,7 +105,7 @@ def read_source(root, path, kind, sha256=None):
         from xml.etree.ElementTree import ParseError
         try:
             profile = inspect_xml_structure(selected, source_sha256=fingerprint,
-                                            max_source_bytes=MAX_FILE)
+                                            max_source_bytes=max(1, len(raw)))
         except (ParseError, XmlSafetyError, LookupError, UnicodeError) as exc:
             raise StructuredContractError(f'Invalid XML structure: {exc}') from exc
         if hashlib.sha256(selected.read_bytes()).hexdigest() != fingerprint:
@@ -116,8 +132,6 @@ def read_source(root, path, kind, sha256=None):
         else:
             outcome = cross_module_adapters().adapt(adapter, _strict_json(text))
             obj, warnings, losses = outcome.object, list(outcome.warnings), list(outcome.losses)
-    if len(obj.observations) > 10000:
-        raise StructuredContractError('over 10,000 observation rows: use headless API')
     meta = {'path': relative, 'kind': kind, 'detected_adapter': adapter, 'sha256': fingerprint,
             'object_id': obj.object_id, 'topology': obj.topology['kind'],
             'nodes': len(obj.nodes), 'edges': len(obj.edges), 'rows': len(obj.observations),

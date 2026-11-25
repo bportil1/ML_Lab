@@ -9,8 +9,6 @@ from collections import deque
 from ml_lab.structured import StructuredContractError, StructuredObject
 
 GRAPH_SCHEMA = 'pah-shared.graph-view@1'
-MAX_GRAPH_NODES = 5000
-MAX_GRAPH_EDGES = 15000
 
 
 def _display_groups(source: StructuredObject) -> tuple[dict[str, str], str]:
@@ -42,7 +40,8 @@ def _display_groups(source: StructuredObject) -> tuple[dict[str, str], str]:
 def make_shared_graph_view(source: StructuredObject, *, fingerprint: str) -> dict:
     """Create a detached, full source-structure view, with original identity.
 
-    Explicitly refuse unsupported graph size rather than silently sampling it.
+    No hard cap on source node or edge totals: PAH_Shared displays large graphs
+    through explicit overview and navigable pages, never silent sampling.
     Source-edge orientation remains source orientation; neither hierarchy edges
     nor association links become statistical/probabilistic relationships.
     """
@@ -51,16 +50,9 @@ def make_shared_graph_view(source: StructuredObject, *, fingerprint: str) -> dic
     if (not isinstance(fingerprint, str) or len(fingerprint) != 64 or
             any(c not in '0123456789abcdef' for c in fingerprint)):
         raise StructuredContractError('source SHA-256 fingerprint required')
-    if len(source.nodes) > MAX_GRAPH_NODES or len(source.edges) > MAX_GRAPH_EDGES:
-        raise StructuredContractError('graph exceeds shared viewer 5000-node / 15000-edge contract; use an explicit sampled display artifact')
-    # The renderer contract has narrower textual ID limits than StructuredObject.
-    # Fail explicitly; never shorten an ID, which would corrupt linked inspection.
-    for node in source.nodes:
-        if len(node['id']) > 128 or len(node['kind']) > 96 or len(node.get('label') or node['id']) > 240:
-            raise StructuredContractError('source node identity or label exceeds shared graph contract; no IDs were altered')
-    for edge in source.edges:
-        if len(edge['id']) > 128 or len(edge['kind']) > 96:
-            raise StructuredContractError('source edge identity or type exceeds shared graph contract; no IDs were altered')
+    # Display identifiers and labels preserve their complete, validated source
+    # values. The shared renderer abbreviates only the visible SVG label and
+    # keeps full text in its accessible tooltip and source record inspector.
     groups, layout = _display_groups(source)
     directed = source.topology['kind'] != 'undirected_graph'
     trace = 'rooted_hierarchy' in source.capabilities
