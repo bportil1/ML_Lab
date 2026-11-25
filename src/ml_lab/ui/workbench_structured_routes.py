@@ -11,7 +11,8 @@ from pathlib import Path
 from flask import Blueprint, g, jsonify, request, render_template, url_for
 from ml_lab import __version__
 from ml_lab.structured import StructuredContractError
-from .structured_workbench import KINDS, read_source, analyze, _strict_json
+from .structured_workbench import LOCAL_FILE_KINDS, read_source, analyze, _strict_json
+from .structured_source_intake import browse_project_files
 from .structured_graph_view import make_shared_graph_payload
 from .structured_sandbox import analyze_sandbox
 from ml_lab.structured import source_sha256
@@ -104,13 +105,16 @@ def install_structured_routes(blueprint: Blueprint, *, name: str, project_root: 
         action = request.form.get('action', '') if request.method == 'POST' else ''
         source = report = artifact = metadata = selection = None
         error, model_text, status = None, '', 200
+        discovered = ()
         try:
+            if action == 'browse' or request.args.get('browse') == '1':
+                discovered = browse_project_files(project_root)
             if action == 'clear':
                 g.ml_lab_structured_selection = False
             else:
                 if action == 'select':
                     source, metadata = read_source(project_root, request.form.get('path', ''),
-                                                   request.form.get('kind', 'structured'))
+                                                   request.form.get('kind', 'auto'))
                     selection = {key: metadata[key] for key in ('path', 'kind', 'sha256')}
                     g.ml_lab_structured_selection = selection
                 else:
@@ -122,7 +126,7 @@ def install_structured_routes(blueprint: Blueprint, *, name: str, project_root: 
                             raise StructuredContractError('invalid selection: clear it and select again')
                         source, metadata = read_source(project_root, selection['path'],
                                                        selection['kind'], selection['sha256'])
-                if action not in ('', 'select'):
+                if action not in ('', 'select', 'browse', 'clear'):
                     if source is None:
                         raise StructuredContractError('select a verified local structured artifact first')
                     report, artifact = analyze(source, section, action, request.form)
@@ -151,7 +155,7 @@ def install_structured_routes(blueprint: Blueprint, *, name: str, project_root: 
                               'status': item['predictive_holdout']['status']})
         return render_template('ml_lab_ui/workbench_structured.html', version=__version__,
                                section=section, sections=SECTIONS, selection=selection,
-                               source=metadata, kinds=KINDS, report=report, chart=chart,
+                               source=metadata, kinds=LOCAL_FILE_KINDS, discovered=discovered, report=report, chart=chart,
                                report_json=(json.dumps(report, indent=2, ensure_ascii=False)
                                             if report is not None else ''),
                                error=error, values=submitted, model_text=model_text,

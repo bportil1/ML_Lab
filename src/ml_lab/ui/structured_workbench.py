@@ -11,6 +11,8 @@ import json
 import math
 from pathlib import Path
 
+from .structured_source_intake import project_source, delimited_to_structured
+
 from ml_lab.structured import (
     StructuredObject, StructuredContractError, TransformationPlan, transform,
     describe_structure, describe_observations, describe_nested_variance,
@@ -22,6 +24,7 @@ from ml_lab.structured.adapters import cross_module_adapters
 KINDS = ('structured', 'json', 'node_edge', 'xml_structure',
          'hierarchy_handoff', 'pypique_graph', 'pypique_graph_directed',
          'pypique_graph_undirected', 'pypique_backing', 'shared_graph')
+LOCAL_FILE_KINDS = ('auto', 'xml_file', 'tabular') + KINDS
 MAX_FILE = 2 * 1024 * 1024
 
 
@@ -43,38 +46,79 @@ def _strict_json(text):
 
 def read_source(root, path, kind, sha256=None):
     """Explicit project-relative artifact, no symlinks, no DB, SHA-pinned."""
-    if kind not in KINDS or not isinstance(path, str) or not 0 < len(path) <= 400:
-        raise StructuredContractError('select a supported project-relative source')
-    relative = Path(path)
-    if relative.is_absolute() or '..' in relative.parts or relative.suffix.lower() != '.json':
-        raise StructuredContractError('select a project-relative .json artifact')
-    root = Path(root).resolve()
-    selected = root / relative
-    if any((root.joinpath(*relative.parts[:n])).is_symlink() for n in range(1, len(relative.parts) + 1)):
-        raise StructuredContractError('symlink source paths are not allowed')
-    if not selected.resolve().is_relative_to(root) or not selected.is_file():
-        raise StructuredContractError('source is outside project or not a readable file')
+    if kind not in LOCAL_FILE_KINDS:
+        raise StructuredContractError('Choose a supported source adapter.')
+    selected, relative = project_source(root, path)
     if selected.stat().st_size > MAX_FILE:
-        raise StructuredContractError('source exceeds 2 MiB UI limit')
+        raise StructuredContractError('Source exceeds 2 MiB interactive limit; use headless API.')
     raw = selected.read_bytes()
     if len(raw) > MAX_FILE:
-        raise StructuredContractError('source exceeds 2 MiB UI limit')
+        raise StructuredContractError('Source exceeds 2 MiB interactive limit; use headless API.')
     fingerprint = hashlib.sha256(raw).hexdigest()
     if sha256 is not None and fingerprint != sha256:
-        raise StructuredContractError('source changed: select it again')
-    try:
-        text = raw.decode('utf-8')
-    except UnicodeError as exc:
-        raise StructuredContractError('source must be UTF-8 JSON') from exc
-    if kind == 'structured':
-        obj = StructuredObject.from_json(text)
-        warnings, losses = [], []
+        raise StructuredContractError('Source changed: select it again.')
+    suffix = selected.suffix.lower()
+    if kind == 'auto':
+        if suffix == '.xml':
+            adapter = 'xml_file'
+        elif suffix in ('.csv', '.tsv'):
+            adapter = 'tabular'
+        else:
+            try:
+                parsed = _strict_json(raw.decode('utf-8-sig'))
+            except UnicodeError as exc:
+                raise StructuredContractError('Source must be UTF-8 JSON.') from exc
+            schema = parsed.get('schema') if isinstance(parsed, dict) else None
+            adapter = {
+                'ml-lab.structured-object@1': 'structured',
+                'ml-lab.xml-structure@2': 'xml_structure',
+                'ml-lab.node-edge@1': 'node_edge',
+                'pah-shared.graph@1': 'shared_graph',
+                'pypique.concluded_graph': 'pypique_graph',
+            }.get(schema, 'json')
+            # Avoid hiding typed exports that omitted the optional node-edge schema.
+            if adapter == 'json' and isinstance(parsed, dict) and {'nodes', 'edges', 'topology'} <= set(parsed):
+                adapter = 'node_edge'
     else:
-        result = cross_module_adapters().adapt(kind, _strict_json(text))
-        obj, warnings, losses = result.object, list(result.warnings), list(result.losses)
+        adapter = kind
+    if adapter == 'xml_file':
+        if suffix != '.xml':
+            raise StructuredContractError('Raw XML adapter requires an .xml file.')
+        from ml_lab.data.xml_ingest import inspect_xml_structure, XmlSafetyError
+        from ml_lab.structured.adapters import XMLStructureAdapter
+        from xml.etree.ElementTree import ParseError
+        try:
+            profile = inspect_xml_structure(selected, source_sha256=fingerprint,
+                                            max_source_bytes=MAX_FILE)
+        except (ParseError, XmlSafetyError, LookupError, UnicodeError) as exc:
+            raise StructuredContractError(f'Invalid XML structure: {exc}') from exc
+        if hashlib.sha256(selected.read_bytes()).hexdigest() != fingerprint:
+            raise StructuredContractError('Source changed during XML inspection; select again.')
+        outcome = XMLStructureAdapter().adapt(profile)
+        obj, warnings, losses = outcome.object, list(outcome.warnings), list(outcome.losses)
+        warnings.append('Raw XML was safely inspected as a canonical path profile; no aligned observation rows were inferred.')
+    elif adapter == 'tabular':
+        if suffix not in ('.csv', '.tsv'):
+            raise StructuredContractError('Tabular adapter requires a .csv or .tsv file.')
+        obj, warnings, losses = delimited_to_structured(
+            raw, relative_path=relative, sha256=fingerprint,
+            delimiter='\t' if suffix == '.tsv' else ',')
+    else:
+        if suffix != '.json':
+            raise StructuredContractError('This source adapter requires .json. Choose Auto for XML/CSV/TSV files.')
+        try:
+            text = raw.decode('utf-8-sig')
+        except UnicodeError as exc:
+            raise StructuredContractError('Source must be UTF-8 JSON.') from exc
+        if adapter == 'structured':
+            obj = StructuredObject.from_json(text)
+            warnings, losses = [], []
+        else:
+            outcome = cross_module_adapters().adapt(adapter, _strict_json(text))
+            obj, warnings, losses = outcome.object, list(outcome.warnings), list(outcome.losses)
     if len(obj.observations) > 10000:
         raise StructuredContractError('over 10,000 observation rows: use headless API')
-    meta = {'path': relative.as_posix(), 'kind': kind, 'sha256': fingerprint,
+    meta = {'path': relative, 'kind': kind, 'detected_adapter': adapter, 'sha256': fingerprint,
             'object_id': obj.object_id, 'topology': obj.topology['kind'],
             'nodes': len(obj.nodes), 'edges': len(obj.edges), 'rows': len(obj.observations),
             'variables': sorted(obj.observations[0]['values']) if obj.observations else [],
