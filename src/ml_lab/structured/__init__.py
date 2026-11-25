@@ -33,6 +33,11 @@ from .bindings import (
     bind_observations, source_sha256,
 )
 
+from .branch_uncertainty import (
+    BranchUncertaintyPlan, BranchUncertaintyResult, analyze_branch_uncertainty,
+    binding_sha256,
+)
+
 __all__ = [
     'CONTRACT_SCHEMA', 'CONTRACT_VERSION', 'TOPOLOGIES', 'OBSERVATION_UNITS',
     'CELL_STATES', 'NULL_REASONS', 'CAPABILITIES', 'OPERATION_REQUIREMENTS',
@@ -50,4 +55,6 @@ __all__ = [
     'STUDY_SCHEMA', 'ComparisonCandidate', 'ComparisonStudy', 'compare_representations',
     'ObservationBindingPlan', 'ObservationBindingResult', 'VariableBinding',
     'bind_observations', 'source_sha256',
+    'BranchUncertaintyPlan', 'BranchUncertaintyResult', 'analyze_branch_uncertainty',
+    'binding_sha256',
 ]
