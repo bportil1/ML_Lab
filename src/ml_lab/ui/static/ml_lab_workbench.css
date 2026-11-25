@@ -406,3 +406,13 @@ body.mlwb-hia-popout .mlwb-shared-graph [data-graph-surface] { min-height: 65vh;
 .mlwb-hia-neighbor-table th,.mlwb-hia-neighbor-table td { padding: .5rem .65rem; border: 1px solid #c3d3e1; text-align: left; white-space: nowrap; }
 .mlwb-hia-neighbor-table th { color: #17324d; background: #e8f0f7; }
 .mlwb-hia-neighbor-table td { color: #17324d; }
+
+/* HIA-06: branch inspector keeps the same readable scientific-table tokens. */
+.mlwb-hia-branch { padding: 1rem; margin: .8rem 0; border: 1px solid var(--pah-border,#b6c6d6); border-radius: .65rem; }
+.mlwb-hia-branch[hidden], [data-hia-branch-results][hidden] { display: none !important; }
+.mlwb-hia-branch-controls { display: flex; flex-wrap: wrap; align-items: end; gap: .6rem; margin: .75rem 0; }
+.mlwb-hia-branch-controls label { display: grid; gap: .35rem; flex: 1 1 13rem; min-width: 0; }
+.mlwb-hia-branch-controls input,.mlwb-hia-branch-controls select,.mlwb-hia-branch textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
+.mlwb-hia-branch details { margin: .85rem 0; }
+.mlwb-hia-branch-metric { display: inline-grid; min-width: min(100%, 180px); padding: .65rem; margin: .35rem; border: 1px solid #b9cede; border-radius: .5rem; background: #f6faff; color: #17324d; }
+.mlwb-hia-branch-metric strong { display: block; font-size: 1.05rem; overflow-wrap: anywhere; }

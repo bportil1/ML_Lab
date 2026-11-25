@@ -82,6 +82,9 @@
     action('export-scope').disabled = false;
     say(`${selected.scope.kind} selection · ${selected.node_count} original nodes · HIA-02 ${result.level_policy}. No numerical estimates computed.`);
     highlight();
+    root.dispatchEvent(new CustomEvent('mlwb:hia-scope', {detail: {
+      selection: selected, source_revision: result.source_revision, source_digest: result.source_digest,
+    }}));
   }
   async function select(next, pageOffset = 0) {
     if (!graph || !overview?.available) return;

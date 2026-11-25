@@ -45,6 +45,7 @@
      data-hia-inspect-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy_inspect') }}"
      data-hia-atomic-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy_atomic') }}"
      data-hia-neighbors-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy_neighbors') }}"
+     data-hia-branch-url="{{ url_for(request.blueprint + '.workbench_structured_hierarchy_branch_information') }}"
      data-graph-module-url="{{ url_for(request.blueprint + '.pah_shared_asset', asset='interactive_graph_view.mjs', v=shared_graph_revision) }}">
   <div class="button-row"><button type="button" class="button" data-graph-action="open">Explore source graph</button>
   <span data-graph-status role="status" aria-live="polite">No graph loaded. Opening does not run statistical analysis.</span></div>
@@ -148,6 +149,37 @@
         <tbody data-hia-neighbor-table></tbody>
       </table></div>
       <details><summary>Full estimates, missingness, support and source provenance</summary><pre class="mlwb-structured-json" data-hia-neighbor-report></pre></details>
+    </div>
+  </section>
+  <section class="mlwb-hia-branch" data-hia-branch hidden aria-label="Hierarchical branch information statistics">
+    <h3>Branch information <small>HIA-06 · selected exact structural branch</small></h3>
+    <p class="tiny muted">Branch root: <strong data-hia-branch-root>None</strong>. Branch membership includes all descendants, but numerical estimates apply only to explicitly mapped observed columns. A source edge is not evidence of statistical dependence.</p>
+    <p class="tiny muted" data-hia-branch-coverage></p>
+    <div class="mlwb-hia-branch-controls">
+      <label>Branch member (exact original node ID) <input type="search" data-hia-branch-node placeholder="Select from branch membership below or paste ID"></label>
+      <label>Observed column for this member <select data-hia-branch-column><option value="">Select column…</option></select></label>
+      <button type="button" class="button secondary" data-hia-branch-action="add">Add mapping</button>
+    </div>
+    <div data-hia-branch-mappings class="mlwb-hia-neighbor-mappings" aria-label="Explicit branch observation mappings"></div>
+    <details><summary>Optional parent/context and estimator settings</summary>
+      <p class="tiny muted">A context node must be outside this branch. Conditioning is empirical; it does not assume that source parents are probabilistic parents or that nodes are conditionally independent.</p>
+      <div class="mlwb-hia-branch-controls">
+        <label>External context original node ID (optional) <input type="search" data-hia-branch-context-node placeholder="e.g. exact parent node ID"></label>
+        <label>Context observed column <select data-hia-branch-context-column><option value="">No context</option></select></label>
+        <label>Repeated values <select data-hia-branch-occurrences><option value="preserve">Preserve unresolved</option><option value="scalar_only">Reject repeated cells</option><option value="mean_numeric">Explicit numeric mean</option></select></label>
+        <label>Minimum complete rows <input type="number" min="2" value="2" data-hia-branch-min-samples></label>
+        <label>Minimum context-stratum rows <input type="number" min="1" value="2" data-hia-branch-min-stratum></label>
+      </div>
+      <label>Explicit numeric discretization JSON (observed column → {"mode":"quantile","bins":4})
+        <textarea data-hia-branch-bins rows="2" spellcheck="false">{}</textarea></label>
+    </details>
+    <div class="button-row"><button type="button" class="button" data-hia-branch-action="compute" disabled>Compute mapped branch information</button>
+      <button type="button" class="button secondary" data-hia-branch-action="export" disabled>Export complete branch report JSON</button></div>
+    <p role="status" aria-live="polite" data-hia-branch-status>Select Inspect branch in the hierarchy navigator, then declare observed columns. No estimates run automatically.</p>
+    <div data-hia-branch-results hidden>
+      <div data-hia-branch-summary></div>
+      <div class="mlwb-hia-neighbor-results-scroll"><table class="mlwb-hia-neighbor-table" aria-label="Mapped branch node contributions"><thead><tr><th>Original node</th><th>Observed column</th><th>Entropy H(X), bits</th><th>H(X | other mapped members), bits</th><th>MI with other mapped members, bits</th></tr></thead><tbody data-hia-branch-table></tbody></table></div>
+      <details><summary>Complete branch membership, support, conditioning and provenance</summary><pre class="mlwb-structured-json" data-hia-branch-report></pre></details>
     </div>
   </section>
   <div class="mlwb-structured-grid">
@@ -300,4 +332,4 @@
 {% for item in chart %}<div class="mlwb-structured-bar"><p><strong>{{ item.label }}</strong> · {{ item.nodes }}% node identities · {{ item.edges if item.edges is not none else 'N/A' }}% edge identities · holdout log loss {{ item.loss if item.loss is not none else 'unavailable' }} ({{ item.status }})</p><meter min="0" max="100" value="{{ item.nodes }}">{{ item.nodes }}%</meter></div>{% endfor %}<details><summary>Inspect full scientific report JSON</summary><pre class="mlwb-structured-json">{{ report_json[:120000] }}{% if report_json|length > 120000 %}\n[Display shortened; export for complete JSON]{% endif %}</pre></details><p class="tiny muted">No analysis ran until explicitly requested. No results were automatically written into other module databases or source files.</p></section>{% endif %}
 {% endblock %}
 
-{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_graph.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_workspace.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_atomic.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_neighbors.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_sandbox.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_network.js', v=graph_controller_revision) }}"></script>{% endblock %}
+{% block scripts %}<script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_graph.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_workspace.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_atomic.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_neighbors.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_hia_branch.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_sandbox.js', v=graph_controller_revision) }}"></script><script defer src="{{ url_for(request.blueprint + '.static', filename='ml_lab_structured_network.js', v=graph_controller_revision) }}"></script>{% endblock %}

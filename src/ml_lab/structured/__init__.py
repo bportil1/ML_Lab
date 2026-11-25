@@ -139,3 +139,7 @@ __all__ += ['HIA_ATOMIC_SCHEMA', 'atomic_node_statistics']
 # HIA-05: explicit neighboring-node observed associations.
 from .neighbor_statistics import NEIGHBOR_SCHEMA as HIA_NEIGHBOR_SCHEMA, analyze_neighbor_relationships
 __all__ += ['HIA_NEIGHBOR_SCHEMA', 'analyze_neighbor_relationships']
+
+# HIA-06: complete structural branch inventory with explicitly mapped joint evidence.
+from .hierarchical_branch_statistics import BRANCH_SCHEMA as HIA_BRANCH_SCHEMA, analyze_hierarchical_branch
+__all__ += ['HIA_BRANCH_SCHEMA', 'analyze_hierarchical_branch']
