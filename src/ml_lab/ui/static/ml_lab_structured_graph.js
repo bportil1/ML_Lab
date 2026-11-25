@@ -114,11 +114,12 @@
         onViewportChange: ({coverage}) => {
           const page = coverage.page_count > 1 ? ` · group page ${coverage.page_index+1}/${coverage.page_count}` : '';
           const edgePage = coverage.edge_page_count > 1 ? ` · edge page ${coverage.edge_page_index+1}/${coverage.edge_page_count}` : '';
+          root.dispatchEvent(new CustomEvent('mlwb:graph-viewport', {detail:{coverage}}));
           say(`${coverage.scope} display · ${coverage.rendered_nodes} visual nodes / ${coverage.total_nodes} original nodes · ${coverage.rendered_edges} visual edges / ${coverage.total_edges} original edges${page}${edgePage}. No source records discarded.`);
         },
       });
       controls.hidden = false;
-      root.dispatchEvent(new CustomEvent('mlwb:source-open', {detail: {payload, module}}));
+      root.dispatchEvent(new CustomEvent('mlwb:source-open', {detail: {payload, module, viewer}}));
       renderRows(module, payload.view);
       viewer.fit();
       say(`Verified ${payload.view.source_revision.slice(0, 24)}… · ${payload.notice}`);

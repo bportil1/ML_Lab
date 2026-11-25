@@ -152,7 +152,12 @@ def test_deep_tree_and_wide_graph_have_exhaustive_display_until_explicit_cap():
     assert len(view['nodes']) == 800
     assert len(view['edges']) == 799
     assert view['display']['coverage'] == {'scope':'exhaustive','total_nodes':800,'total_edges':799}
-    assert {node['group'] for node in view['nodes']} <= {'depth-%02d'%i for i in range(40)}
+    # HIA-03 removes the old depth-39 presentation clamp: different source
+    # depths must remain distinguishable even though PAH_Shared pages the UI.
+    groups = {node['id']:node['group'] for node in view['nodes']}
+    assert groups['n40'] == 'depth-40'
+    assert groups['n799'] == 'depth-799'
+    assert len(set(groups.values())) == n
     # The display preserves complete identity; the shared renderer pages large graphs.
     extra = {'schema':'ml-lab.structured-object@1','topology':{'kind':'undirected_graph'},
              'nodes':[{'id':'node%d'%i,'kind':'n','attributes':{}} for i in range(5001)],

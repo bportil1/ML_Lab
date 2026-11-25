@@ -348,3 +348,32 @@
 .mlwb-network-matrix-cell[data-tone="light"] { color: #ffffff; text-shadow: 0 1px 1px rgba(0,0,0,.45); }
 .mlwb-network-matrix-cell:focus-visible { outline: 2px solid #17679c; outline-offset: 2px; }
 .mlwb-network-matrix-cell:hover { filter: brightness(.97); }
+
+
+/* HIA-03: scoped, contrast-safe hierarchy navigator over the existing graph.
+ * The PAH_Shared renderer and its original selection/viewport stay intact. */
+.mlwb-hia-workspace { border: 1px solid #9fb7cd; background: #f7fbff; color: #193657; color-scheme: light; border-radius: .75rem; padding: 1rem; }
+.mlwb-hia-workspace .button.secondary { background: #e7f0f8; color: #17324d; border: 1px solid #7899b8; }
+.mlwb-hia-workspace .button.secondary:hover { background: #d7e8f6; color: #102b46; }
+.mlwb-hia-workspace .button.secondary:focus-visible { outline: 2px solid #0877b6; outline-offset: 2px; }
+.mlwb-hia-workspace[hidden], .mlwb-hia-workspace [hidden] { display: none !important; }
+.mlwb-hia-workspace :is(h3, h4, strong, label, output) { color: #193657; }
+.mlwb-hia-heading { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.mlwb-hia-heading .button-row { align-items: flex-start; }
+.mlwb-hia-heading h3 { margin: 0 0 .3rem; }
+.mlwb-hia-heading h3 small { font-size: .75rem; font-weight: 500; }
+.mlwb-hia-actions { display: flex; gap: .7rem; flex-wrap: wrap; align-items: end; margin: .75rem 0; }
+.mlwb-hia-node-actions { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
+.mlwb-hia-node-actions output { max-width: 22rem; overflow-wrap: anywhere; }
+.mlwb-hia-level-picker { display: grid; gap: .3rem; font-size: .85rem; }
+.mlwb-hia-level-picker input { width: 7rem; min-width: 0; }
+.mlwb-hia-inspection { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 1rem; }
+.mlwb-hia-inspection > section { min-width: 0; }
+.mlwb-hia-inspection pre { background: #ffffff; color: #193657; border: 1px solid #d0dfeb; padding: .8rem; border-radius: .5rem; max-height: 23rem; }
+.mlwb-hia-members { display: grid; gap: .35rem; max-height: 18rem; overflow: auto; }
+.mlwb-hia-member { display: block; width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.mlwb-shared-graph [data-graph-surface] .pah-ig-node.mlwb-hia-in-scope .pah-ig-node-bg { stroke: #dd7722; stroke-width: 3; }
+.mlwb-shared-graph [data-graph-surface] .pah-ig-node.is-selected .pah-ig-node-bg { stroke: #096fa8; stroke-width: 3.5; }
+.mlwb-shared-graph:fullscreen { overflow-y: auto; box-sizing: border-box; padding: 1.2rem; background: #edf4fa; color: #193657; }
+.mlwb-shared-graph:fullscreen [data-graph-surface] { min-height: 60vh; }
+body.mlwb-hia-popout .mlwb-shared-graph [data-graph-surface] { min-height: 65vh; }

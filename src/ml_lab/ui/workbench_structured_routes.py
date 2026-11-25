@@ -14,6 +14,7 @@ from ml_lab.structured import StructuredContractError
 from .structured_workbench import LOCAL_FILE_KINDS, read_source, analyze, _strict_json
 from .structured_source_intake import browse_project_files
 from .structured_graph_view import make_shared_graph_payload
+from .structured_hia_view import hierarchy_overview, inspect_workspace_scope
 from .structured_sandbox import analyze_sandbox
 from .structured_network_view import association_view
 from ml_lab.structured import analyze_observed_network
@@ -50,8 +51,8 @@ def _structured_controller_revision() -> str:
     """Invalidate local script caching when any graph controller changes."""
     base = Path(__file__).resolve().parent / 'static'
     digest = hashlib.sha256()
-    for name in ('ml_lab_structured_graph.js', 'ml_lab_structured_sandbox.js',
-                 'ml_lab_structured_network.js'):
+    for name in ('ml_lab_structured_graph.js', 'ml_lab_hia_workspace.js',
+                 'ml_lab_structured_sandbox.js', 'ml_lab_structured_network.js'):
         digest.update(name.encode('utf-8'))
         digest.update(base.joinpath(name).read_bytes())
     return digest.hexdigest()[:20]
@@ -96,6 +97,43 @@ def install_structured_routes(blueprint: Blueprint, *, name: str, project_root: 
                 'observed_columns': sorted(source.observations[0]['values']) if source.observations else [],
             }
             return jsonify(payload)
+        except (StructuredContractError, ValueError, TypeError, OSError, RecursionError) as exc:
+            return jsonify({'error': str(exc)}), 409
+
+    @blueprint.get('/workbench/structured/hierarchy')
+    def workbench_structured_hierarchy():
+        """HIA-03 level inventory from a freshly verified project-local source."""
+        try:
+            raw = request.cookies.get(cookie)
+            selection = _strict_json(raw) if raw and len(raw) <= 1024 else None
+            if not isinstance(selection, dict) or set(selection) != {'path', 'kind', 'sha256'}:
+                raise StructuredContractError('select a verified structured artifact first')
+            source, _ = read_source(project_root, selection['path'], selection['kind'], selection['sha256'])
+            return jsonify(hierarchy_overview(source, source_revision='sha256:' + selection['sha256']))
+        except (StructuredContractError, ValueError, TypeError, OSError, RecursionError) as exc:
+            return jsonify({'error': str(exc)}), 409
+
+    @blueprint.post('/workbench/structured/hierarchy/inspect')
+    def workbench_structured_hierarchy_inspect():
+        """Explicit SHA-verified structural selection; no writes or estimators."""
+        if request.content_length is None or request.content_length > 8192:
+            return jsonify({'error': 'HIA scope request exceeds 8 KB'}), 413
+        if not request.is_json or request.headers.get('X-ML-Lab-HIA') != 'explicit-inspection':
+            return jsonify({'error': 'explicit same-origin JSON inspection required'}), 400
+        try:
+            raw = request.cookies.get(cookie)
+            selection = _strict_json(raw) if raw and len(raw) <= 1024 else None
+            if not isinstance(selection, dict) or set(selection) != {'path', 'kind', 'sha256'}:
+                raise StructuredContractError('select a verified structured artifact first')
+            data = _strict_json(request.get_data(as_text=True))
+            if not isinstance(data, dict) or set(data) != {'source_revision', 'scope', 'offset'}:
+                raise StructuredContractError('HIA request requires source_revision, scope, offset')
+            revision = 'sha256:' + selection['sha256']
+            if data['source_revision'] != revision:
+                raise StructuredContractError('HIA source revision mismatch: reopen the source')
+            source, _ = read_source(project_root, selection['path'], selection['kind'], selection['sha256'])
+            return jsonify(inspect_workspace_scope(source, source_revision=revision,
+                                                   scope_input=data['scope'], offset=data['offset']))
         except (StructuredContractError, ValueError, TypeError, OSError, RecursionError) as exc:
             return jsonify({'error': str(exc)}), 409
 

@@ -34,7 +34,10 @@ def _display_groups(source: StructuredObject) -> tuple[dict[str, str], str]:
                 queue.append(child)
     if len(depths) != len(ids):
         raise StructuredContractError('validated hierarchy has no complete display order')
-    return {key: f'depth-{min(depths[key], 39):02d}' for key in ids}, 'layers'
+    # Preserve exact structural depth in presentation metadata. The older
+    # depth-39 display clamp merged distinct deep levels, contradicting the
+    # deterministic HIA-02 scope inventory. PAH_Shared pages large overviews.
+    return {key: f'depth-{depths[key]:02d}' for key in ids}, 'layers'
 
 
 def make_shared_graph_view(source: StructuredObject, *, fingerprint: str) -> dict:
